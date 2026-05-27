@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BaKangombe API Documentation</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0c10;
+      color: #eef2ff;
+      line-height: 1.5;
+    }
+
+    /* Layout */
+    .docs-container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      background: #0f1117;
+      border-right: 1px solid rgba(255,255,255,0.08);
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      overflow-y: auto;
+      padding: 2rem 1rem;
+    }
+
+    .sidebar h1 {
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+      background: linear-gradient(135deg, #d9a7c7, #fff0d4, #a0c4ff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .sidebar nav ul {
+      list-style: none;
+    }
+
+    .sidebar nav li {
+      margin: 0.75rem 0;
+    }
+
+    .sidebar nav a {
+      color: #cbd5e6;
+      text-decoration: none;
+      transition: color 0.2s;
+      display: block;
+      padding: 0.3rem 0;
+    }
+
+    .sidebar nav a:hover {
+      color: #a0c4ff;
+    }
+
+    .sidebar nav .active {
+      color: #4f46e5;
+      font-weight: 600;
+    }
+
+    /* Main content */
+    .content {
+      margin-left: 280px;
+      padding: 2rem 3rem;
+      max-width: 1000px;
+      width: 100%;
+    }
+
+    .content h1, .content h2, .content h3 {
+      margin-top: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .content h1 {
+      font-size: 2rem;
+      margin-top: 0;
+    }
+
+    .content p {
+      margin: 1rem 0;
+      color: #cbd5e6;
+    }
+
+    .endpoint-card {
+      background: rgba(255,255,255,0.03);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .method {
+      display: inline-block;
+      background: #4f46e5;
+      padding: 0.2rem 0.8rem;
+      border-radius: 2rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-right: 1rem;
+    }
+
+    .path {
+      font-family: monospace;
+      font-size: 1.1rem;
+      word-break: break-all;
+    }
+
+    pre {
+      background: #0f1117;
+      padding: 1rem;
+      border-radius: 0.75rem;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      margin: 1rem 0;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    code {
+      font-family: 'Fira Code', monospace;
+    }
+
+    .copy-btn {
+      background: #1e293b;
+      border: none;
+      padding: 0.2rem 0.8rem;
+      border-radius: 2rem;
+      color: #a0c4ff;
+      cursor: pointer;
+      font-size: 0.7rem;
+      margin-left: 0.5rem;
+      transition: background 0.2s;
+    }
+
+    .copy-btn:hover {
+      background: #4f46e5;
+      color: white;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 0.75rem;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    th {
+      font-weight: 600;
+      color: #a0c4ff;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #10b981;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 2rem;
+      font-size: 0.8rem;
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        display: none;
+      }
+      .content {
+        margin-left: 0;
+        padding: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="docs-container">
+  <aside class="sidebar">
+    <h1>BaKangombe</h1>
+    <nav>
+      <ul>
+        <li><a href="#overview">Overview</a></li>
+        <li><a href="#base-url">Base URL</a></li>
+        <li><a href="#authentication">Authentication</a></li>
+        <li><a href="#rate-limits">Rate Limits</a></li>
+        <li><a href="#endpoints">Endpoints</a>
+          <ul style="margin-left: 1rem;">
+            <li><a href="#users">Users</a></li>
+            <li><a href="#products">Products</a></li>
+            <li><a href="#company">Company</a></li>
+            <li><a href="#transactions">Transactions</a></li>
+          </ul>
+        </li>
+        <li><a href="#errors">Error Codes</a></li>
+        <li><a href="#examples">Code Examples</a></li>
+      </ul>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <h1>BaKangombe API Documentation</h1>
+
+    <section id="overview">
+      <h2>Overview</h2>
+      <p>BaKangombe provides realistic fake data for prototyping, testing, and development. No API key is required for the free tier. The API returns JSON responses with randomly generated data each time you call an endpoint.</p>
+    </section>
+
+    <section id="base-url">
+      <h2>Base URL</h2>
+      <pre><code>https://ba-kangombe.vercel.app</code></pre>
+    </section>
+
+    <section id="authentication">
+      <h2>Authentication</h2>
+      <p><strong>Free tier:</strong> No authentication required. Simply make requests to the endpoints.</p>
+      <p><strong>Premium tier:</strong> Requires an API key obtained after subscribing. Include the key in the <code>x-api-key</code> header.</p>
+      <pre><code>curl -H "x-api-key: YOUR_API_KEY" https://ba-kangombe.vercel.app/api/users/5</code></pre>
+      <p>Premium keys grant 10,000 requests per minute, custom schemas, CSV export, and priority support.</p>
+    </section>
+
+    <section id="rate-limits">
+      <h2>Rate Limits</h2>
+      <table>
+        <thead>
+          <tr><th>Plan</th><th>Requests per minute</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Free</td><td>100</td></tr>
+          <tr><td>Premium</td><td>10,000</td></tr>
+        </tbody>
+      </table>
+      <p>If you exceed your limit, the API returns a <code>429</code> error.</p>
+    </section>
+
+    <section id="endpoints">
+      <h2>Endpoints</h2>
+
+      <div id="users" class="endpoint-card">
+        <h3><span class="method">GET</span> <span class="path">/api/users/:count?</span></h3>
+        <p>Returns an array of fake user objects. Optional <code>count</code> parameter (1‑100). Default 5.</p>
+        <p><strong>Example:</strong> <code>/api/users/2</code></p>
+        <pre><code>{
+  "count": 2,
+  "data": [
+    {
+      "id": "uuid",
+      "firstName": "John",
+      "lastName": "Doe",
+      "email": "john@example.com",
+      "avatar": "https://...",
+      "phone": "123-456-7890",
+      "address": { "street": "...", "city": "...", "state": "...", "zipCode": "...", "country": "..." },
+      "jobTitle": "Engineer",
+      "company": "Acme Inc",
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    }
+  ]
+}</code></pre>
+        <button class="copy-btn" onclick="copyToClipboard('curl https://ba-kangombe.vercel.app/api/users/2')">Copy curl</button>
+      </div>
+
+      <div id="products" class="endpoint-card">
+        <h3><span class="method">GET</span> <span class="path">/api/products/:count?</span></h3>
+        <p>Returns fake product objects (name, price, rating, etc.). Optional count (1‑100, default 10).</p>
+        <pre><code>{
+  "count": 1,
+  "data": [{ "id": "...", "name": "Product", "price": 9.99, "category": "Electronics", ... }]
+}</code></pre>
+        <button class="copy-btn" onclick="copyToClipboard('curl https://ba-kangombe.vercel.app/api/products/3')">Copy curl</button>
+      </div>
+
+      <div id="company" class="endpoint-card">
+        <h3><span class="method">GET</span> <span class="path">/api/company</span></h3>
+        <p>Returns a single fake company profile with CEO, revenue, headquarters, etc.</p>
+        <pre><code>{
+  "id": "...",
+  "name": "TechCorp",
+  "catchPhrase": "Innovative solutions",
+  "industry": "Software",
+  "employees": 450,
+  "founded": 2010,
+  "headquarters": { ... },
+  "ceo": "Jane Smith",
+  "revenue": "$85B",
+  "contactEmail": "contact@techcorp.com",
+  "contactPhone": "+1 555 123 4567"
+}</code></pre>
+        <button class="copy-btn" onclick="copyToClipboard('curl https://ba-kangombe.vercel.app/api/company')">Copy curl</button>
+      </div>
+
+      <div id="transactions" class="endpoint-card">
+        <h3><span class="method">GET</span> <span class="path">/api/transactions/:count?</span></h3>
+        <p>Returns fake payment transactions (amount, status, payment method, etc.). Optional count (1‑100, default 20).</p>
+        <pre><code>{
+  "count": 2,
+  "data": [
+    { "id": "...", "amount": 99.99, "currency": "USD", "status": "completed", ... }
+  ]
+}</code></pre>
+        <button class="copy-btn" onclick="copyToClipboard('curl https://ba-kangombe.vercel.app/api/transactions/5')">Copy curl</button>
+      </div>
+    </section>
+
+    <section id="errors">
+      <h2>Error Codes</h2>
+      <table>
+        <thead><tr><th>Status Code</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>400</td><td>Bad request (invalid count, etc.)</td></tr>
+          <tr><td>401</td><td>Unauthorized – invalid API key (premium tier)</td></tr>
+          <tr><td>429</td><td>Rate limit exceeded</td></tr>
+          <tr><td>500</td><td>Internal server error</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="examples">
+      <h2>Code Examples</h2>
+
+      <h3>cURL</h3>
+      <pre><code>curl https://ba-kangombe.vercel.app/api/users/3</code></pre>
+      <button class="copy-btn" onclick="copyToClipboard('curl https://ba-kangombe.vercel.app/api/users/3')">Copy</button>
+
+      <h3>JavaScript (fetch)</h3>
+      <pre><code>fetch('https://ba-kangombe.vercel.app/api/users/5')
+  .then(res => res.json())
+  .then(data => console.log(data));</code></pre>
+      <button class="copy-btn" onclick="copyToClipboard("fetch('https://ba-kangombe.vercel.app/api/users/5')\n  .then(res => res.json())\n  .then(data => console.log(data));")">Copy</button>
+
+      <h3>Python (requests)</h3>
+      <pre><code>import requests
+response = requests.get('https://ba-kangombe.vercel.app/api/company')
+print(response.json())</code></pre>
+      <button class="copy-btn" onclick="copyToClipboard("import requests\nresponse = requests.get('https://ba-kangombe.vercel.app/api/company')\nprint(response.json())")">Copy</button>
+    </section>
+
+    <p style="margin-top: 2rem; font-size: 0.85rem; color: #6c7a91;">Need support? Contact <a href="mailto:bornface.kangombe@cs.unza.zm" style="color:#a0c4ff;">bornface.kangombe@cs.unza.zm</a> or join the waitlist on the landing page.</p>
+  </main>
+</div>
+<div id="toast" class="toast">✓ Copied to clipboard</div>
+
+<script>
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text);
+    const toast = document.getElementById('toast');
+    toast.style.opacity = '1';
+    setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+  }
+
+  // Smooth scroll for sidebar links and active state
+  document.querySelectorAll('.sidebar a').forEach(anchor => {
+    anchor.addEventListener('click', function(e) {
+      const href = this.getAttribute('href');
+      if (href && href.startsWith('#')) {
+        e.preventDefault();
+        const target = document.querySelector(href);
+        if (target) target.scrollIntoView({ behavior: 'smooth' });
+        // Update active class
+        document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+        this.classList.add('active');
+      }
+    });
+  });
+</script>
+</body>
+</html>
