@@ -8,7 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ---------- In‑memory store for premium keys ----------
-const premiumKeys = new Map(); // email -> { apiKey, createdAt }
+const premiumKeys = new Map();
 
 function generateApiKey() {
     return crypto.randomUUID();
@@ -78,14 +78,12 @@ app.use((req, res, next) => {
 
 app.use(cors());
 
-// ---------- Custom header ----------
 app.use((req, res, next) => {
     res.setHeader('X-Powered-By', 'BaKangombe · Bornface Kangombe Kernel');
     console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
     next();
 });
 
-// ---------- Premium API key middleware ----------
 const DEMO_PREMIUM_KEY = process.env.PREMIUM_API_KEY || '9b39d7aa-f78b-42ac-b5be-4f764738c726';
 
 function authenticateApiKey(req, res, next) {
@@ -107,7 +105,6 @@ function authenticateApiKey(req, res, next) {
     return res.status(401).json({ error: 'Invalid API key' });
 }
 
-// ---------- Rate limiters ----------
 const freeLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 100,
@@ -140,7 +137,7 @@ const getCount = (req, defaultCount = 5) => {
     return Math.min(Math.max(count, 1), 100);
 };
 
-// ---------- API Endpoints ----------
+// ----- API Endpoints -----
 app.get('/api/users/:count?', (req, res) => {
     const count = getCount(req, 5);
     const users = Array.from({ length: count }, () => ({
@@ -260,7 +257,7 @@ app.get('/api/admin/keys', (req, res) => {
     res.json({ count: keys.length, keys });
 });
 
-// ---------- Lemon Squeezy Webhook (raw body) ----------
+// ----- Lemon Squeezy Webhook (raw body) -----
 app.post('/api/ls-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     const rawBody = req.body.toString();
     try {
@@ -295,7 +292,7 @@ app.post('/api/ls-webhook', express.raw({ type: 'application/json' }), async (re
 
 app.use(express.json());
 
-// ---------- Create Lemon Squeezy Checkout ----------
+// ----- Create Lemon Squeezy Checkout -----
 app.post('/api/create-ls-checkout', async (req, res) => {
     try {
         const { email } = req.body;
@@ -334,7 +331,7 @@ app.post('/api/create-ls-checkout', async (req, res) => {
     }
 });
 
-// ---------- Root endpoint ----------
+// ----- Root endpoint -----
 app.get('/', (req, res) => {
     res.send(`
         <!DOCTYPE html>
@@ -351,7 +348,6 @@ app.get('/', (req, res) => {
     `);
 });
 
-// Start server locally
 if (require.main === module) {
     app.listen(PORT, () => {
         console.log(`🚀 BaKangombe API running at http://localhost:${PORT}`);
