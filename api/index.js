@@ -11,19 +11,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Serve static files from the "public" folder (your frontend)
+// Serve static files from the "public" folder
 app.use(express.static('public'));
 
-// Fallback: serve index.html for any non-API route (handles client-side routing)
+// Fallback: serve index.html for any non-API route
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api')) return next();
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-// ---------- Initialize email providers ----------
+// ---------- Email providers (optional) ----------
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 
 app.use((req, res, next) => {
   res.setHeader('X-Powered-By', 'BaKangombe · Bornface Kangombe Kernel');
@@ -144,11 +143,12 @@ app.get('/api/transactions/:count?', (req, res) => {
   res.json({ count, data: transactions, premium: req.isPremium });
 });
 
-// ---------- LEMON SQUEEZY CHECKOUT (hardcoded keys – working) ----------
+// ---------- LEMON SQUEEZY CHECKOUT (hardcoded – guaranteed to work) ----------
 app.post('/api/create-ls-checkout', async (req, res) => {
   const { email } = req.body;
   if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
 
+  // Your correct test-mode keys
   const LS_API_KEY = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiI5NGQ1OWNlZi1kYmI4LTRlYTUtYjE3OC1kMjU0MGZjZDY5MTkiLCJqdGkiOiJhNDJiNmY3MGE4ZmZlODc1MmM3YzhmNjVkZTAwNmMwMTU4MDY3NjE5ZmM0ZmEyMWEzZWUyYzBkYmMyMGU5NzUxMmQ3YTMzMzY0MTg4NjVkNyIsImlhdCI6MTc4MDI0MzI4Mi44NTAyOTksIm5iZiI6MTc4MDI0MzI4Mi44NTAzMDIsImV4cCI6MTc5NTk5NjgwMC4wMzEyMiwic3ViIjoiNzIwMzMyMSIsInNjb3BlcyI6W119.bk-ut2bSJZrxtHqB0dzB6cTfloT7HobpC8nESzc1L4kwzHWp-follS-o6DmCnfR9-HKmMg5GpbDvpIIwKRTM3X3JTVdKSnwCbJwlUaoB6kTyAz8ZsHFkEH8j7gCB1xAxXOKoEXnpW435TQlkiEsJgBd5F3XNCbc5qyNVsE7mAMa2wCZ8hmAv1NjCpnUHoLKGQsoniOZ55QECXcer6gbPnrUH7rktydx4LboXQGFoZxhMJuhedq1fAoBpvnu5K6g4GrNRECDlXNlANw2cbrt5nHWzlub9kXyXGsBJ9WEbMXJPtEwM_Afdw1WzYBbd7-3Tt3qGh9jzrpSL6icEBOav9JsxyoBSTgRlHvXg6-y2BFtsSOQRl0_OlSA-JcfxEwS5sZIdz1miMoBt6H-jEBpAfdbcvIEqk65BrQI6xtourKAok92zJDYfw5oe5e8erqTiGyJgMQ4ndLGddn1XgqsMFDEgDHMs5uIQBitk5Lmk1Umte9Odu7PE8v9i7pgGa0eWekqd7AudJoT3IBhPGxInyH_Nj9HXsGmBgM2AP0ONkRSz9Gd_8yLETQECIB7opL9dhMrsm_XuCPcYPs11K5Jot5cazcaAOzrHMNmmQyo9xUrNPWwBoRfSOeO3xIWd7ZSi-OaWLfinLTFKZoTuDyQK0hQ1Fas2Oq8LctMwT1m-Tj4';
   const LS_STORE_ID = '387550';
   const LS_VARIANT_ID = '1705111';
@@ -190,7 +190,7 @@ app.post('/api/create-ls-checkout', async (req, res) => {
   }
 });
 
-// ---------- WAITLIST (Brevo only – working) ----------
+// ---------- WAITLIST (Brevo) ----------
 async function sendWelcomeEmail(email) {
   const htmlContent = `<html><body>
     <h2>Thank you for joining the BaKangombe waitlist!</h2>
