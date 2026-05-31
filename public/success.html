@@ -8,79 +8,6 @@
     body {
       background: #0a0c10;
       color: #eef2ff;
-npx vercel --prod --force 24-hour cooldown)allback route]MESSAGE – the one with
-Vercel CLI 54.6.1 (Node.js 20.20.2)
-Error: Resource is limited - try again in 24 hours (more than 100, code: "api-de
-ployments-free-per-day").
-
-Dell@KERNEL MINGW64 ~/Desktop/BaKangombe (main)
-$ git init
-git add .
-git commit -m "Fix frontend and add success page"
-git remote add origin https://github.com/KernelBornie/ba-kangombe.git
-git push -u origin main
-Reinitialized existing Git repository in C:/Users/Dell/Desktop/BaKangombe/.git/
-warning: in the working copy of 'public/index.html', LF will be replaced by CRLF
- the next time Git touches it
-warning: in the working copy of 'api/create-ls-checkout.js', LF will be replaced
- by CRLF the next time Git touches it
-warning: in the working copy of 'api/index.js', LF will be replaced by CRLF the
-next time Git touches it
-warning: in the working copy of 'public/success.html', LF will be replaced by CR
-LF the next time Git touches it
-[main ebe556e] Fix frontend and add success page
- 14 files changed, 2593 insertions(+), 259 deletions(-)
- create mode 100644 .gitignore
- create mode 100644 api/create-ls-checkout.js
- create mode 100644 api/index.js
- create mode 100644 api/waitlist.js
- create mode 100644 public/cancel.html
- create mode 100644 public/success.html
- create mode 100644 test.js
- delete mode 100644 vercel.json
-error: remote origin already exists.
-To https://github.com/KernelBornie/BaKangombe.git
- ! [rejected]        main -> main (fetch first)
-error: failed to push some refs to 'https://github.com/KernelBornie/BaKangombe.g
-it'
-hint: Updates were rejected because the remote contains work that you do not
-hint: have locally. This is usually caused by another repository pushing to
-hint: the same ref. If you want to integrate the remote changes, use
-hint: 'git pull' before pushing again.
-hint: See the 'Note about fast-forwards' in 'git push --help' for details.
-
-Dell@KERNEL MINGW64 ~/Desktop/BaKangombe (main)
-$
-
-Dell@KERNEL MINGW64 ~/Desktop/BaKangombe (main)
-$ cat > public/index.html << 'EOF'
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="BaKangombe – Interactive fake data API. Test endpoints live, copy code, automate, learn.">
-  <title>BaKangombe · Live Mock Data API</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: #0a0c10; color: #eef2ff; line-height: 1.5; overflow-x: hidden; }
-    .bg-gradient { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at 20% 30%, rgba(79,70,229,0.08), transparent 70%), radial-gradient(circle at 80% 70%, rgba(160,196,255,0.05), transparent 60%); pointer-events: none; z-index: -1; }
-    .container { max-width: 1280px; margin: 0 auto; padding: 0 1.5rem; }
-    .reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.7s EOFtml>t> try the API instantly!'); });' }); alert('🎉 Use the "Live API Tester"
-
-Dell@KERNEL MINGW64 ~/Desktop/BaKangombe (main)
-$ cat > public/success.html << 'EOF'
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Payment Successful – BaKangombe</title>
-  <style>
-    body {
-      background: #0a0c10;
-      color: #eef2ff;
       font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
       display: flex;
       justify-content: center;
@@ -94,8 +21,19 @@ $ cat > public/success.html << 'EOF'
       border-radius: 1.5rem;
       padding: 2rem;
       border: 1px solid rgba(255,255,255,0.08);
-EOFtml> href="/">← Back to BaKangombe</a></p>r email shortly.</p>
-
-Dell@KERNEL MINGW64 ~/Desktop/BaKangombe (main)
-$ cat > api/index.js << 'EOF'
-[USE THE COMBINED SERVER CODE FROM MY PREVIOUS MESSAGE – the one containing express.static('public') and the fallback route]
+      max-width: 500px;
+    }
+    h1 { color: #10b981; }
+    a { color: #a0c4ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>✓ Payment Successful!</h1>
+    <p>Thank you for subscribing to BaKangombe Premium.</p>
+    <p>Your premium API key will be sent to your email shortly.</p>
+    <p><a href="/">← Back to BaKangombe</a></p>
+  </div>
+</body>
+</html>
