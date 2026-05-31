@@ -141,6 +141,12 @@
       cursor: pointer;
       font-size: 0.7rem;
       margin-left: 0.5rem;
+      transition: background 0.2s;
+    }
+
+    .copy-btn:hover {
+      background: #4f46e5;
+      color: white;
     }
 
     table {
@@ -347,7 +353,7 @@ print(response.json())</code></pre>
       <button class="copy-btn" onclick="copyToClipboard("import requests\nresponse = requests.get('https://ba-kangombe.vercel.app/api/company')\nprint(response.json())")">Copy</button>
     </section>
 
-    <p style="margin-top: 2rem; font-size: 0.85rem; color: #6c7a91;">Need support? Contact <a href="mailto:bornface.kangombe@cs.unza.zm" style="color:#a0c4ff;">bornface.kangombe@cs.unza.zm</a> or join the waitlist.</p>
+    <p style="margin-top: 2rem; font-size: 0.85rem; color: #6c7a91;">Need support? Contact <a href="mailto:bornface.kangombe@cs.unza.zm" style="color:#a0c4ff;">bornface.kangombe@cs.unza.zm</a> or join the waitlist on the landing page.</p>
   </main>
 </div>
 <div id="toast" class="toast">✓ Copied to clipboard</div>
@@ -360,7 +366,7 @@ print(response.json())</code></pre>
     setTimeout(() => { toast.style.opacity = '0'; }, 2000);
   }
 
-  // Smooth scroll for sidebar links
+  // Smooth scroll for sidebar links and active state
   document.querySelectorAll('.sidebar a').forEach(anchor => {
     anchor.addEventListener('click', function(e) {
       const href = this.getAttribute('href');
