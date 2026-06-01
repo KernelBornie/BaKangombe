@@ -1,5 +1,4 @@
 require('dotenv').config();
-const { incrementUsage, getUsage } = require('../db');
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
@@ -8,12 +7,36 @@ const { faker } = require('@faker-js/faker');
 const axios = require('axios');
 const { Resend } = require('resend');
 const dns = require('dns').promises;
+const multer = require('multer');
+const csv = require('csv-parser');
+const { Readable } = require('stream');
+const { Pool } = require('pg');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// ---------- Database connection (if POSTGRES_URL exists) ----------
+let pool;
+if (process.env.POSTGRES_URL) {
+  pool = new Pool({
+    connectionString: process.env.POSTGRES_URL,
+    ssl: { rejectUnauthorized: false }
+  });
+  pool.query(`
+    CREATE TABLE IF NOT EXISTS usage (
+      id SERIAL PRIMARY KEY,
+      api_key VARCHAR(255) NOT NULL,
+      date DATE NOT NULL,
+      validations INTEGER DEFAULT 0,
+      enrichments INTEGER DEFAULT 0,
+      UNIQUE(api_key, date)
+    );
+  `).catch(console.error);
+}
+
+// ---------- Email providers ----------
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
 
@@ -57,7 +80,7 @@ const getCount = (req, defaultCount = 5) => {
   return Math.min(Math.max(count, 1), 100);
 };
 
-// ---------- MOCK ENDPOINTS ----------
+// ---------- MOCK ENDPOINTS (keep as is) ----------
 app.get('/api/users/:count?', (req, res) => {
   const count = getCount(req, 5);
   const users = Array.from({ length: count }, () => ({
@@ -141,9 +164,9 @@ app.post('/api/create-ls-checkout', async (req, res) => {
   const { email } = req.body;
   if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
 
-  const LS_API_KEY = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiI5NGQ1OWNlZi1kYmI4LTRlYTUtYjE3OC1kMjU0MGZjZDY5MTkiLCJqdGkiOiJhNDJiNmY3MGE4ZmZlODc1MmM3YzhmNjVkZTAwNmMwMTU4MDY3NjE5ZmM0ZmEyMWEzZWUyYzBkYmMyMGU5NzUxMmQ3YTMzMzY0MTg4NjVkNyIsImlhdCI6MTc4MDI0MzI4Mi44NTAyOTksIm5iZiI6MTc4MDI0MzI4Mi44NTAzMDIsImV4cCI6MTc5NTk5NjgwMC4wMzEyMiwic3ViIjoiNzIwMzMyMSIsInNjb3BlcyI6W119.bk-ut2bSJZrxtHqB0dzB6cTfloT7HobpC8nESzc1L4kwzHWp-follS-o6DmCnfR9-HKmMg5GpbDvpIIwKRTM3X3JTVdKSnwCbJwlUaoB6kTyAz8ZsHFkEH8j7gCB1xAxXOKoEXnpW435TQlkiEsJgBd5F3XNCbc5qyNVsE7mAMa2wCZ8hmAv1NjCpnUHoLKGQsoniOZ55QECXcer6gbPnrUH7rktydx4LboXQGFoZxhMJuhedq1fAoBpvnu5K6g4GrNRECDlXNlANw2cbrt5nHWzlub9kXyXGsBJ9WEbMXJPtEwM_Afdw1WzYBbd7-3Tt3qGh9jzrpSL6icEBOav9JsxyoBSTgRlHvXg6-y2BFtsSOQRl0_OlSA-JcfxEwS5sZIdz1miMoBt6H-jEBpAfdbcvIEqk65BrQI6xtourKAok92zJDYfw5oe5e8erqTiGyJgMQ4ndLGddn1XgqsMFDEgDHMs5uIQBitk5Lmk1Umte9Odu7PE8v9i7pgGa0eWekqd7AudJoT3IBhPGxInyH_Nj9HXsGmBgM2AP0ONkRSz9Gd_8yLETQECIB7opL9dhMrsm_XuCPcYPs11K5Jot5cazcaAOzrHMNmmQyo9xUrNPWwBoRfSOeO3xIWd7ZSi-OaWLfinLTFKZoTuDyQK0hQ1Fas2Oq8LctMwT1m-Tj4';
-  const LS_STORE_ID = '387550';
-  const LS_VARIANT_ID = '1705111';
+  const LS_API_KEY = process.env.LEMONSQUEEZY_API_KEY || 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiI5NGQ1OWNlZi1kYmI4LTRlYTUtYjE3OC1kMjU0MGZjZDY5MTkiLCJqdGkiOiJhNDJiNmY3MGE4ZmZlODc1MmM3YzhmNjVkZTAwNmMwMTU4MDY3NjE5ZmM0ZmEyMWEzZWUyYzBkYmMyMGU5NzUxMmQ3YTMzMzY0MTg4NjVkNyIsImlhdCI6MTc4MDI0MzI4Mi44NTAyOTksIm5iZiI6MTc4MDI0MzI4Mi44NTAzMDIsImV4cCI6MTc5NTk5NjgwMC4wMzEyMiwic3ViIjoiNzIwMzMyMSIsInNjb3BlcyI6W119.bk-ut2bSJZrxtHqB0dzB6cTfloT7HobpC8nESzc1L4kwzHWp-follS-o6DmCnfR9-HKmMg5GpbDvpIIwKRTM3X3JTVdKSnwCbJwlUaoB6kTyAz8ZsHFkEH8j7gCB1xAxXOKoEXnpW435TQlkiEsJgBd5F3XNCbc5qyNVsE7mAMa2wCZ8hmAv1NjCpnUHoLKGQsoniOZ55QECXcer6gbPnrUH7rktydx4LboXQGFoZxhMJuhedq1fAoBpvnu5K6g4GrNRECDlXNlANw2cbrt5nHWzlub9kXyXGsBJ9WEbMXJPtEwM_Afdw1WzYBbd7-3Tt3qGh9jzrpSL6icEBOav9JsxyoBSTgRlHvXg6-y2BFtsSOQRl0_OlSA-JcfxEwS5sZIdz1miMoBt6H-jEBpAfdbcvIEqk65BrQI6xtourKAok92zJDYfw5oe5e8erqTiGyJgMQ4ndLGddn1XgqsMFDEgDHMs5uIQBitk5Lmk1Umte9Odu7PE8v9i7pgGa0eWekqd7AudJoT3IBhPGxInyH_Nj9HXsGmBgM2AP0ONkRSz9Gd_8yLETQECIB7opL9dhMrsm_XuCPcYPs11K5Jot5cazcaAOzrHMNmmQyo9xUrNPWwBoRfSOeO3xIWd7ZSi-OaWLfinLTFKZoTuDyQK0hQ1Fas2Oq8LctMwT1m-Tj4';
+  const LS_STORE_ID = process.env.LEMONSQUEEZY_STORE_ID || '387550';
+  const LS_VARIANT_ID = process.env.LEMONSQUEEZY_VARIANT_ID || '1705111';
 
   try {
     const response = await axios.post('https://api.lemonsqueezy.com/v1/checkouts', {
@@ -178,7 +201,7 @@ app.post('/api/create-ls-checkout', async (req, res) => {
   }
 });
 
-// ---------- EMAIL VALIDATION ----------
+// ---------- EMAIL VALIDATION (core) ----------
 const disposableDomains = new Set([
   'mailinator.com', 'guerrillamail.com', '10minutemail.com', 'tempmail.com',
   'throwawaymail.com', 'yopmail.com', 'mailnator.com', 'spamgourmet.com',
@@ -224,7 +247,7 @@ app.post('/api/validate', async (req, res) => {
   const { email } = req.body;
   if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email address required' });
   const result = await validateEmail(email);
-  if (req.isPremium) result.enriched = false; // placeholder
+  if (req.isPremium) result.enriched = false;
   res.json({ email, ...result });
 });
 
@@ -261,6 +284,81 @@ app.post('/api/waitlist', async (req, res) => {
   res.json({ message: sent ? 'Added to waitlist and welcome email sent!' : 'Added to waitlist (but email could not be sent).' });
 });
 
+// ---------- LEAD ENRICHMENT (Hunter.io) ----------
+const HUNTER_API_KEY = process.env.HUNTER_API_KEY;
+const enrichmentCache = new Map();
+
+async function enrichEmailWithHunter(email) {
+  if (!HUNTER_API_KEY) return { error: 'Hunter API key missing' };
+  const cacheKey = `hunter:${email}`;
+  if (enrichmentCache.has(cacheKey)) return enrichmentCache.get(cacheKey);
+  try {
+    const url = `https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(email)}&api_key=${HUNTER_API_KEY}`;
+    const response = await axios.get(url);
+    const data = response.data.data;
+    const result = {
+      email,
+      verified: data.status === 'valid',
+      accept_all: data.accept_all || false,
+      disposable: data.disposable || false,
+      webmail: data.webmail || false,
+      mx_records: data.mx_records || false,
+      score: data.score || 0,
+      name: data.first_name && data.last_name ? `${data.first_name} ${data.last_name}` : null,
+      company: data.company || null
+    };
+    enrichmentCache.set(cacheKey, result);
+    return result;
+  } catch (err) {
+    console.error('Hunter error:', err.response?.data || err.message);
+    return { error: 'Hunter enrichment failed' };
+  }
+}
+
+app.post('/api/enrich', async (req, res) => {
+  const { email } = req.body;
+  if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email address required' });
+  if (!req.isPremium) return res.status(402).json({ error: 'Enrichment requires a valid premium API key' });
+  const result = await enrichEmailWithHunter(email);
+  res.json(result);
+});
+
+// ---------- BATCH VALIDATION (CSV) ----------
+const upload = multer({ storage: multer.memoryStorage() });
+
+async function parseCSVBuffer(buffer) {
+  const results = [];
+  const readable = Readable.from(buffer.toString());
+  return new Promise((resolve, reject) => {
+    readable
+      .pipe(csv({ headers: false }))
+      .on('data', (row) => {
+        const email = Object.values(row)[0]?.trim();
+        if (email && email.includes('@')) results.push(email);
+      })
+      .on('end', () => resolve(results))
+      .on('error', reject);
+  });
+}
+
+app.post('/api/validate/batch', upload.single('file'), async (req, res) => {
+  if (!req.isPremium) return res.status(402).json({ error: 'Batch validation requires a valid premium API key' });
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  try {
+    const emails = await parseCSVBuffer(req.file.buffer);
+    if (emails.length === 0) return res.status(400).json({ error: 'No valid emails found in CSV' });
+    const results = [];
+    for (const email of emails) {
+      const result = await validateEmail(email);
+      results.push({ email, ...result });
+    }
+    res.json({ count: results.length, results });
+  } catch (err) {
+    console.error('Batch error:', err);
+    res.status(500).json({ error: 'Failed to process CSV' });
+  }
+});
+
 // ----- Success page -----
 app.get('/success', (req, res) => {
   res.send(`<!DOCTYPE html>
@@ -289,133 +387,9 @@ app.get('/success', (req, res) => {
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// ... (keep all your require statements and app initialization, including all mock endpoints, etc.) ...
-
-// ---------- LEAD ENRICHMENT API (Hunter.io) ----------
-// This Map is now declared once, globally
-const enrichmentCache = new Map();
-const HUNTER_API_KEY = process.env.HUNTER_API_KEY;
-
-async function enrichEmailWithHunter(email) {
-  // Check for missing API key first
-  if (!HUNTER_API_KEY) {
-    console.error('Hunter API key is missing');
-    return { error: 'Hunter API key is missing' };
-  }
-
-  // Check cache
-  const cacheKey = `hunter:${email}`;
-  if (enrichmentCache.has(cacheKey)) {
-    return enrichmentCache.get(cacheKey);
-  }
-
-  try {
-    const url = `https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(email)}&api_key=${HUNTER_API_KEY}`;
-    const response = await axios.get(url);
-    const data = response.data.data;
-    const result = {
-      email,
-      verified: data.status === 'valid',
-      accept_all: data.accept_all || false,
-      disposable: data.disposable || false,
-      webmail: data.webmail || false,
-      mx_records: data.mx_records || false,
-      score: data.score || 0,
-      name: data.first_name && data.last_name ? `${data.first_name} ${data.last_name}` : null,
-      company: data.company || null,
-    };
-    enrichmentCache.set(cacheKey, result);
-    return result;
-  } catch (err) {
-    console.error('Hunter API error details:', err.response?.data || err.message);
-    return { error: 'Hunter enrichment failed: Invalid API key or request' };
-  }
-}
-
-// --- The rest of the code (e.g., domain enrichment, waitlist, etc.) stays the same ---
-// ... (the original domain enrichment function can be kept or omitted) ...
-
-// POST /api/enrich – main enrichment endpoint
-app.post('/api/enrich', async (req, res) => {
-  const { email } = req.body; // Simplified to only accept email
-
-  if (!email || !email.includes('@')) {
-    return res.status(400).json({ error: 'Valid email address required' });
-  }
-
-  // Check for premium API key in request headers
-  if (!req.isPremium) {
-    return res.status(402).json({ error: 'Enrichment requires a valid premium API key. Subscribe at /pricing.' });
-  }
-
-  const result = await enrichEmailWithHunter(email);
-  
-  // Check if the error is due to missing API key
-  if (result.error === 'Hunter API key is missing') {
-    return res.status(500).json({ error: 'Enrichment service is not configured. Please contact support.' });
-  }
-  res.json(result);
+// ---------- CATCH-ALL ----------
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-app.get('/api/me/usage', checkPremiumKey, async (req, res) => {
-  if (!req.isPremium) {
-    return res.status(401).json({ error: 'Premium API key required' });
-  }
-  const apiKey = req.headers['x-api-key'];
-  const validations = await getUsage(apiKey, 'validate');
-  const enrichments = await getUsage(apiKey, 'enrich');
-  res.json({ validations_today: validations, enrichments_today: enrichments, limit: 10000 });
-});
-// ---------- BATCH EMAIL VALIDATION (CSV) ----------
-const multer = require('multer');
-const csv = require('csv-parser');
-const { Readable } = require('stream');
-
-const upload = multer({ storage: multer.memoryStorage() });
-
-// Helper to parse CSV buffer into array of emails
-async function parseCSVBuffer(buffer) {
-  const results = [];
-  const readable = Readable.from(buffer.toString());
-  return new Promise((resolve, reject) => {
-    readable
-      .pipe(csv({ headers: false }))
-      .on('data', (row) => {
-        // Assume email is in first column (index 0)
-        const email = Object.values(row)[0]?.trim();
-        if (email && email.includes('@')) results.push(email);
-      })
-      .on('end', () => resolve(results))
-      .on('error', reject);
-  });
-}
-
-app.post('/api/validate/batch', upload.single('file'), async (req, res) => {
-  // Premium check
-  if (!req.isPremium) {
-    return res.status(402).json({ error: 'Batch validation requires a valid premium API key' });
-  }
-
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
-  }
-
-  try {
-    const emails = await parseCSVBuffer(req.file.buffer);
-    if (emails.length === 0) {
-      return res.status(400).json({ error: 'No valid emails found in CSV' });
-    }
-
-    const results = [];
-    for (const email of emails) {
-      const result = await validateEmail(email); // reuse your existing validate function
-      results.push({ email, ...result });
-    }
-
-    res.json({ count: results.length, results });
-  } catch (err) {
-    console.error('Batch error:', err);
-    res.status(500).json({ error: 'Failed to process CSV' });
-  }
-});
 module.exports = app;
