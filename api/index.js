@@ -1,4 +1,5 @@
 require('dotenv').config();
+const { incrementUsage, getUsage } = require('../db');
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
@@ -356,4 +357,65 @@ app.post('/api/enrich', async (req, res) => {
   res.json(result);
 });
 
+app.get('/api/me/usage', checkPremiumKey, async (req, res) => {
+  if (!req.isPremium) {
+    return res.status(401).json({ error: 'Premium API key required' });
+  }
+  const apiKey = req.headers['x-api-key'];
+  const validations = await getUsage(apiKey, 'validate');
+  const enrichments = await getUsage(apiKey, 'enrich');
+  res.json({ validations_today: validations, enrichments_today: enrichments, limit: 10000 });
+});
+// ---------- BATCH EMAIL VALIDATION (CSV) ----------
+const multer = require('multer');
+const csv = require('csv-parser');
+const { Readable } = require('stream');
+
+const upload = multer({ storage: multer.memoryStorage() });
+
+// Helper to parse CSV buffer into array of emails
+async function parseCSVBuffer(buffer) {
+  const results = [];
+  const readable = Readable.from(buffer.toString());
+  return new Promise((resolve, reject) => {
+    readable
+      .pipe(csv({ headers: false }))
+      .on('data', (row) => {
+        // Assume email is in first column (index 0)
+        const email = Object.values(row)[0]?.trim();
+        if (email && email.includes('@')) results.push(email);
+      })
+      .on('end', () => resolve(results))
+      .on('error', reject);
+  });
+}
+
+app.post('/api/validate/batch', upload.single('file'), async (req, res) => {
+  // Premium check
+  if (!req.isPremium) {
+    return res.status(402).json({ error: 'Batch validation requires a valid premium API key' });
+  }
+
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  try {
+    const emails = await parseCSVBuffer(req.file.buffer);
+    if (emails.length === 0) {
+      return res.status(400).json({ error: 'No valid emails found in CSV' });
+    }
+
+    const results = [];
+    for (const email of emails) {
+      const result = await validateEmail(email); // reuse your existing validate function
+      results.push({ email, ...result });
+    }
+
+    res.json({ count: results.length, results });
+  } catch (err) {
+    console.error('Batch error:', err);
+    res.status(500).json({ error: 'Failed to process CSV' });
+  }
+});
 module.exports = app;
