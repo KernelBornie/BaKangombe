@@ -10,6 +10,22 @@
       "destination": "/api/index.js"
     },
     {
+      "source": "/docs",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/success",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/admin",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/health",
+      "destination": "/api/index.js"
+    },
+    {
       "source": "/(.*)",
       "destination": "/public/$1"
     }
