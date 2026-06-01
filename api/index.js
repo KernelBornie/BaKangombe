@@ -12,20 +12,22 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// ---------- PostgreSQL (safe fallback) ----------
+// ---------- PostgreSQL (with retry and fallback) ----------
 let pool = null;
 let dbReady = false;
 let feedbackStore = [];
 
-try {
-  const { Pool } = require('pg');
-  if (process.env.POSTGRES_URL) {
-    pool = new Pool({
-      connectionString: process.env.POSTGRES_URL,
-      ssl: { rejectUnauthorized: false }
-    });
-    (async () => {
+// Only attempt PostgreSQL if POSTGRES_URL exists
+if (process.env.POSTGRES_URL) {
+  // Use an IIFE to retry connection up to 5 times (2s intervals)
+  (async () => {
+    for (let attempt = 1; attempt <= 5; attempt++) {
       try {
+        const { Pool } = require('pg');
+        pool = new Pool({
+          connectionString: process.env.POSTGRES_URL,
+          ssl: { rejectUnauthorized: false }
+        });
         await pool.query('SELECT 1');
         await pool.query(`
           CREATE TABLE IF NOT EXISTS feedback (
@@ -45,14 +47,23 @@ try {
           );
         `);
         dbReady = true;
-        console.log('PostgreSQL ready');
+        console.log('PostgreSQL connected and tables ready');
+        break; // success, exit loop
       } catch (err) {
-        console.error('PostgreSQL init error:', err.message);
+        console.error(`PostgreSQL attempt ${attempt} failed:`, err.message);
+        if (attempt === 5) {
+          console.error('All PostgreSQL attempts failed – falling back to in‑memory storage');
+          dbReady = false;
+          pool = null;
+        } else {
+          // Wait 2 seconds before next attempt (gives Neon time to wake up)
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
       }
-    })();
-  }
-} catch (err) {
-  console.log('pg module not available – using in‑memory');
+    }
+  })();
+} else {
+  console.log('POSTGRES_URL not set – using in‑memory feedback storage');
 }
 
 // ---------- Brevo email ----------
