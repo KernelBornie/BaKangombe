@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BaKangombe Admin</title>
+  <style>
+    body { background: #0a0c10; color: #eef2ff; font-family: system-ui; padding: 2rem; }
+    .card { background: rgba(255,255,255,0.03); border-radius: 1rem; padding: 1.5rem; margin-bottom: 1rem; }
+    input, textarea, button { background: #0f1117; border: 1px solid rgba(255,255,255,0.2); padding: 0.5rem; border-radius: 2rem; color: white; }
+    button { background: #4f46e5; cursor: pointer; }
+    .feedback-item { border-left: 4px solid #4f46e5; margin-bottom: 1rem; padding: 1rem; background: rgba(255,255,255,0.02); }
+  </style>
+</head>
+<body>
+<h1>Admin – Feedback Manager</h1>
+<input type="password" id="adminKey" placeholder="Admin key">
+<button id="loginBtn">Login</button>
+<div id="dashboard" style="display:none;">
+  <button id="refreshBtn">Refresh</button>
+  <div id="feedbackList"></div>
+</div>
+<script>
+  let adminKey = '';
+  async function fetchFeedback() {
+    const res = await fetch('/api/admin/feedback', { headers: { 'x-admin-key': adminKey } });
+    if (!res.ok) throw new Error('Unauthorized or error');
+    const data = await res.json();
+    renderFeedback(data.feedback || []);
+  }
+  function renderFeedback(list) {
+    const container = document.getElementById('feedbackList');
+    if (!list.length) { container.innerHTML = '<p>No feedback yet.</p>'; return; }
+    let html = '';
+    for (let fb of list) {
+      html += `<div class="feedback-item">
+        <strong>${escapeHtml(fb.name)}</strong> (${escapeHtml(fb.email)})<br/>
+        <small>${new Date(fb.created_at || fb.createdAt).toLocaleString()}</small>
+        <p>${escapeHtml(fb.message)}</p>
+        <textarea id="reply-${fb.id}" placeholder="Write reply..."></textarea>
+        <button onclick="sendReply(${fb.id}, '${escapeHtml(fb.email)}', '${escapeHtml(fb.name)}', document.getElementById('reply-${fb.id}').value)">Send Reply</button>
+      </div>`;
+    }
+    container.innerHTML = html;
+  }
+  async function sendReply(id, email, name, msg) {
+    if (!msg.trim()) return alert('Empty reply');
+    const res = await fetch('/api/admin/respond', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
+      body: JSON.stringify({ feedbackId: id, replyMessage: msg, userEmail: email, userName: name })
+    });
+    const data = await res.json();
+    alert(data.emailSent ? 'Reply sent!' : 'Reply stored but email failed');
+    fetchFeedback();
+  }
+  function escapeHtml(str) { return str.replace(/[&<>]/g, function(m){ if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+  document.getElementById('loginBtn').onclick = async () => {
+    const key = document.getElementById('adminKey').value;
+    const test = await fetch('/api/admin/feedback', { headers: { 'x-admin-key': key } });
+    if (test.status === 401) { alert('Invalid key'); return; }
+    adminKey = key;
+    document.querySelector('#dashboard').style.display = 'block';
+    document.getElementById('loginBtn').style.display = 'none';
+    fetchFeedback();
+  };
+  document.getElementById('refreshBtn').onclick = fetchFeedback;
+</script>
+</body>
+</html>
