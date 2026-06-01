@@ -12,12 +12,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// ---------- PostgreSQL (safe – requires 'pg' package) ----------
+// ---------- PostgreSQL (safe fallback) ----------
 let pool = null;
 let dbReady = false;
-let feedbackStore = []; // in‑memory fallback
+let feedbackStore = [];
 
-// Only attempt to use PostgreSQL if the module is available
 try {
   const { Pool } = require('pg');
   if (process.env.POSTGRES_URL) {
@@ -25,7 +24,6 @@ try {
       connectionString: process.env.POSTGRES_URL,
       ssl: { rejectUnauthorized: false }
     });
-    // Initialize asynchronously (never blocks startup)
     (async () => {
       try {
         await pool.query('SELECT 1');
@@ -50,17 +48,14 @@ try {
         console.log('PostgreSQL ready');
       } catch (err) {
         console.error('PostgreSQL init error:', err.message);
-        dbReady = false;
       }
     })();
-  } else {
-    console.log('POSTGRES_URL not set – using in‑memory');
   }
 } catch (err) {
-  console.log('pg module not available – using in‑memory feedback');
+  console.log('pg module not available – using in‑memory');
 }
 
-// ---------- Email sender (Brevo) ----------
+// ---------- Brevo email ----------
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
 const SENDER_EMAIL = 'bornfacek135@gmail.com';
 const SENDER_NAME = 'BaKangombe';
@@ -118,7 +113,7 @@ const getCount = (req, defaultCount = 5) => {
   return Math.min(Math.max(count, 1), 100);
 };
 
-// ---------- MOCK ENDPOINTS (unchanged) ----------
+// ---------- MOCK ENDPOINTS ----------
 app.get('/api/users/:count?', (req, res) => {
   const count = getCount(req, 5);
   const users = Array.from({ length: count }, () => ({
@@ -310,15 +305,12 @@ app.post('/api/website/generate', async (req, res) => {
   res.json({ html, template, title });
 });
 
-// ---------- FEEDBACK (with confirmation email) ----------
+// ---------- FEEDBACK ----------
 app.post('/api/feedback', async (req, res) => {
   const { name, email, message } = req.body;
-  if (!name || !email || !message) {
-    return res.status(400).json({ error: 'name, email, message required' });
-  }
+  if (!name || !email || !message) return res.status(400).json({ error: 'Missing fields' });
 
   let feedbackId = null;
-  // Store in DB if possible
   if (dbReady && pool) {
     try {
       const result = await pool.query(
@@ -326,91 +318,48 @@ app.post('/api/feedback', async (req, res) => {
         [name, email, message, req.headers['user-agent']]
       );
       feedbackId = result.rows[0].id;
-    } catch (err) {
-      console.error('DB insert error:', err);
-    }
+    } catch (err) { console.error(err); }
   }
-  // Fallback to memory
   if (!feedbackId) {
     feedbackStore.push({ id: feedbackStore.length + 1, name, email, message, createdAt: new Date().toISOString() });
     feedbackId = feedbackStore.length;
   }
 
-  // Send confirmation email to user
-  const confirmHtml = `
-    <html><body>
-      <h2>Thank you for your feedback, ${name}!</h2>
-      <p>We have received your message and will review it shortly.</p>
-      <p><strong>Your message:</strong><br/>${message.replace(/\n/g, '<br/>')}</p>
-      <p>– BaKangombe Team</p>
-    </body></html>
-  `;
+  const confirmHtml = `<html><body><h2>Thank you for your feedback, ${name}!</h2><p>We received your message.</p><p>${message.replace(/\n/g, '<br/>')}</p><p>– BaKangombe Team</p></body></html>`;
   await sendEmail(email, 'We received your feedback', confirmHtml);
-
-  res.json({ success: true, message: 'Thank you for your feedback! A confirmation email has been sent.' });
+  res.json({ success: true, message: 'Thank you! A confirmation email has been sent.' });
 });
 
-// ---------- ADMIN ENDPOINTS ----------
+// ---------- ADMIN ----------
 app.get('/api/admin/feedback', async (req, res) => {
   const adminKey = req.headers['x-admin-key'];
-  if (adminKey !== process.env.ADMIN_KEY) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  if (adminKey !== process.env.ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' });
   if (dbReady && pool) {
     try {
-      const result = await pool.query(`
-        SELECT f.*, 
-          (SELECT json_agg(json_build_object('reply', r.reply_message, 'replied_by', r.replied_by, 'created_at', r.created_at))
-           FROM feedback_responses r WHERE r.feedback_id = f.id) as responses
-        FROM feedback f ORDER BY f.created_at DESC
-      `);
+      const result = await pool.query('SELECT * FROM feedback ORDER BY created_at DESC');
       return res.json({ feedback: result.rows, source: 'postgres' });
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   }
   res.json({ feedback: feedbackStore, source: 'memory' });
 });
 
 app.post('/api/admin/respond', async (req, res) => {
   const adminKey = req.headers['x-admin-key'];
-  if (adminKey !== process.env.ADMIN_KEY) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  if (adminKey !== process.env.ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' });
   const { feedbackId, replyMessage, userEmail, userName } = req.body;
-  if (!feedbackId || !replyMessage || !userEmail) {
-    return res.status(400).json({ error: 'feedbackId, replyMessage, and userEmail required' });
-  }
+  if (!feedbackId || !replyMessage || !userEmail) return res.status(400).json({ error: 'Missing fields' });
 
-  // Store reply in DB if possible
   if (dbReady && pool) {
     try {
-      await pool.query(
-        'INSERT INTO feedback_responses (feedback_id, reply_message, replied_by) VALUES ($1, $2, $3)',
-        [feedbackId, replyMessage, 'admin']
-      );
-    } catch (err) {
-      console.error('Store reply error:', err);
-    }
+      await pool.query('INSERT INTO feedback_responses (feedback_id, reply_message, replied_by) VALUES ($1, $2, $3)', [feedbackId, replyMessage, 'admin']);
+    } catch (err) { console.error(err); }
   }
-
-  // Send email to user
-  const html = `
-    <html><body>
-      <h2>Response from BaKangombe Support</h2>
-      <p>Hello ${userName || 'Valued User'},</p>
-      <p>Regarding your feedback:</p>
-      <blockquote>${replyMessage}</blockquote>
-      <p>Thank you for helping us improve.</p>
-      <p>– BaKangombe Team</p>
-    </body></html>
-  `;
+  const html = `<html><body><h2>Response from BaKangombe Support</h2><p>Hello ${userName || 'Valued User'},</p><p>${replyMessage}</p><p>– BaKangombe Team</p></body></html>`;
   const sent = await sendEmail(userEmail, 'Response to your feedback', html);
-
-  res.json({ success: true, emailSent: sent, message: 'Reply sent and stored.' });
+  res.json({ success: true, emailSent: sent });
 });
 
-// ---------- Static pages ----------
+// ---------- Static ----------
 app.get('/success', (req, res) => {
   res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment Successful</title><style>body{background:#0a0c10;color:#eef2ff;font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh;text-align:center}.card{background:rgba(255,255,255,0.03);border-radius:1.5rem;padding:2rem;border:1px solid rgba(255,255,255,0.08);max-width:500px}h1{color:#10b981}a{color:#a0c4ff}</style></head><body><div class="card"><h1>✓ Payment Successful!</h1><p>Thank you for subscribing.<br>Your premium API key will be sent to your email.</p><p><a href="/">← Back</a></p></div></body></html>`);
 });
@@ -419,7 +368,6 @@ app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/docs', (req, res) => res.sendFile(path.join(__dirname, '../public/docs.html')));
 
-// ---------- CATCH-ALL ----------
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
