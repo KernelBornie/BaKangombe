@@ -3,17 +3,37 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="BaKangombe – Interactive fake data API. Test endpoints live, copy code, automate, learn.">
-  <title>BaKangombe · Live Mock Data API</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+  <meta name="description" content="BaKangombe – Email Validation API. Validate emails in real time, detect disposables, enrich company data.">
+  <title>BaKangombe · Email Validation API</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✉️</text></svg>">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: #0a0c10; color: #eef2ff; line-height: 1.5; overflow-x: hidden; }
-    .bg-gradient { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at 20% 30%, rgba(79,70,229,0.08), transparent 70%), radial-gradient(circle at 80% 70%, rgba(160,196,255,0.05), transparent 60%); pointer-events: none; z-index: -1; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0c10;
+      color: #eef2ff;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+    .bg-gradient {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at 20% 30%, rgba(79,70,229,0.08), transparent 70%),
+                  radial-gradient(circle at 80% 70%, rgba(160,196,255,0.05), transparent 60%);
+      pointer-events: none;
+      z-index: -1;
+    }
     .container { max-width: 1280px; margin: 0 auto; padding: 0 1.5rem; }
     .reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.7s ease, transform 0.7s ease; }
     .reveal.active { opacity: 1; transform: translateY(0); }
-    .navbar { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 0; flex-wrap: wrap; gap: 1rem; backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100; }
+    .navbar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1.5rem 0; flex-wrap: wrap; gap: 1rem;
+      backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100;
+    }
     .logo { font-size: 1.6rem; font-weight: 800; background: linear-gradient(135deg, #d9a7c7, #fff0d4, #a0c4ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
     .nav-links { display: flex; gap: 2rem; }
     .nav-links a { color: #cbd5e6; text-decoration: none; font-weight: 500; transition: color 0.2s; }
@@ -35,23 +55,49 @@
     .card { background: rgba(255,255,255,0.02); backdrop-filter: blur(8px); border-radius: 1.5rem; padding: 1.8rem; border: 1px solid rgba(255,255,255,0.05); transition: 0.3s; }
     .card:hover { border-color: rgba(79,70,229,0.5); transform: translateY(-6px); background: rgba(255,255,255,0.04); }
     .card h3 { font-size: 1.6rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
-    .endpoint { background: #0f1117; padding: 0.6rem 1rem; border-radius: 0.75rem; font-family: monospace; font-size: 0.8rem; color: #a0c4ff; margin: 1rem 0 0.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
-    .tester-card { background: rgba(255,255,255,0.03); border-radius: 1.5rem; padding: 1.8rem; margin: 2rem 0; border: 1px solid rgba(255,255,255,0.08); }
-    .tester-header { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
-    .tester-header input, .tester-header select, .premium-key-input { background: #0f1117; border: 1px solid rgba(255,255,255,0.2); padding: 0.6rem 1rem; border-radius: 2rem; color: white; }
-    .response-area { background: #0a0c10; border-radius: 1rem; padding: 1rem; margin-top: 1rem; font-family: monospace; font-size: 0.8rem; max-height: 300px; overflow: auto; white-space: pre-wrap; }
-    .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #4f46e5; animation: spin 0.8s linear infinite; vertical-align: middle; margin-left: 8px; }
+    .tester-card {
+      background: rgba(255,255,255,0.03);
+      border-radius: 1.5rem;
+      padding: 1.8rem;
+      margin: 2rem 0;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .tester-header {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .tester-header input, .tester-header button {
+      background: #0f1117;
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 0.6rem 1rem;
+      border-radius: 2rem;
+      color: white;
+    }
+    .response-area {
+      background: #0a0c10;
+      border-radius: 1rem;
+      padding: 1rem;
+      margin-top: 1rem;
+      font-family: monospace;
+      font-size: 0.8rem;
+      max-height: 300px;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: #4f46e5;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .resources { margin: 4rem 0; }
-    .resources h2 { text-align: center; margin-bottom: 2rem; }
-    .tabs { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 2rem; }
-    .tab-btn { background: transparent; border: 1px solid rgba(255,255,255,0.2); padding: 0.6rem 1.5rem; border-radius: 3rem; cursor: pointer; transition: 0.2s; color: #cbd5e6; font-weight: 500; }
-    .tab-btn.active { background: #4f46e5; border-color: #4f46e5; color: white; }
-    .tab-content { display: none; background: rgba(255,255,255,0.02); border-radius: 1.5rem; padding: 2rem; border: 1px solid rgba(255,255,255,0.05); }
-    .tab-content.active { display: block; }
-    .resource-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
-    .resource-card { background: #0f1117; border-radius: 1rem; padding: 1.2rem; }
-    .resource-card pre { background: #0a0c10; padding: 0.8rem; border-radius: 0.5rem; overflow-x: auto; font-size: 0.75rem; margin: 0.8rem 0; }
     .pricing-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 2rem; margin: 3rem 0; }
     .pricing-card { background: rgba(255,255,255,0.03); backdrop-filter: blur(8px); border-radius: 1.5rem; padding: 2rem; text-align: center; flex: 1; min-width: 260px; border: 1px solid rgba(255,255,255,0.08); transition: 0.2s; }
     .pricing-card.premium { border-color: rgba(79,70,229,0.5); background: rgba(79,70,229,0.05); }
@@ -65,7 +111,12 @@
     .toast { position: fixed; bottom: 20px; right: 20px; background: #10b981; color: white; padding: 0.8rem 1.5rem; border-radius: 2rem; font-size: 0.9rem; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 1000; }
     .footer { text-align: center; padding: 2rem 0; border-top: 1px solid rgba(255,255,255,0.05); color: #6c7a91; font-size: 0.85rem; }
     .footer a { color: #a0c4ff; text-decoration: none; }
-    @media (max-width: 768px) { h1 { font-size: 2.5rem; } .hero-sub { font-size: 1rem; } .navbar { flex-direction: column; } .nav-links { gap: 1.5rem; } }
+    @media (max-width: 768px) {
+      h1 { font-size: 2.5rem; }
+      .hero-sub { font-size: 1rem; }
+      .navbar { flex-direction: column; }
+      .nav-links { gap: 1.5rem; }
+    }
   </style>
 </head>
 <body>
@@ -75,130 +126,208 @@
     <div class="logo">BaKangombe</div>
     <div class="nav-links">
       <a href="#features">Features</a>
-      <a href="#resources">Free Resources</a>
       <a href="#pricing">Pricing</a>
       <a href="https://github.com/KernelBornie/BaKangombe" target="_blank">GitHub</a>
     </div>
   </nav>
+
   <div class="hero reveal">
-    <div class="badge">⚡ PRODUCTION‑READY MOCK DATA</div>
+    <div class="badge">⚡ REAL‑TIME EMAIL VALIDATION API</div>
     <h1>BaKangombe</h1>
-    <p class="hero-sub">Instant fake data for developers. No signup, no API key – just honest data.</p>
+    <p class="hero-sub">Validate emails in milliseconds. Detect disposable addresses, verify MX records, and enrich with company data.</p>
     <div class="hero-cta">
-      <button class="btn btn-primary" id="subscribeBtn">Subscribe for $9/month</button>
+      <button class="btn btn-primary" id="subscribeBtn">Get API Key – $9/month</button>
       <a href="#waitlist" class="btn btn-outline">Join Waitlist</a>
     </div>
     <div class="code-block">
-      <code>curl https://ba-kangombe.vercel.app/api/users/3</code>
-      <button class="copy-btn" onclick="copyToClipboard('curl https://ba-kangombe.vercel.app/api/users/3')">Copy</button>
+      <code>curl -X POST https://ba-kangombe.vercel.app/api/validate -H "Content-Type: application/json" -d '{"email":"user@example.com"}'</code>
+      <button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/validate -H \"Content-Type: application/json\" -d \'{\"email\":\"user@example.com\"}\'')">Copy</button>
     </div>
   </div>
+
   <div class="grid reveal" id="features">
-    <div class="card"><h3>👥 Users</h3><p>Names, emails, avatars, addresses, job titles.</p><div class="endpoint"><span>GET /api/users/:count?</span><button class="copy-btn" onclick="copyToClipboard('/api/users/3')">Copy</button></div></div>
-    <div class="card"><h3>📦 Products</h3><p>Prices, categories, ratings, stock, images.</p><div class="endpoint"><span>GET /api/products/:count?</span><button class="copy-btn" onclick="copyToClipboard('/api/products/5')">Copy</button></div></div>
-    <div class="card"><h3>🏢 Company</h3><p>Full company profile, CEO, revenue, HQ.</p><div class="endpoint"><span>GET /api/company</span><button class="copy-btn" onclick="copyToClipboard('/api/company')">Copy</button></div></div>
-    <div class="card"><h3>💸 Transactions</h3><p>Payments, statuses, currencies, customers.</p><div class="endpoint"><span>GET /api/transactions/:count?</span><button class="copy-btn" onclick="copyToClipboard('/api/transactions/3')">Copy</button></div></div>
+    <div class="card">
+      <h3>✅ Syntax & MX Check</h3>
+      <p>Verifies email format and domain mail exchanger records.</p>
+    </div>
+    <div class="card">
+      <h3>🚫 Disposable Detection</h3>
+      <p>Identifies temporary emails from Mailinator, 10minutemail, etc.</p>
+    </div>
+    <div class="card">
+      <h3>🏢 Company Enrichment</h3>
+      <p>Get company name, logo, social profiles (premium).</p>
+    </div>
+    <div class="card">
+      <h3>📊 Batch Validation</h3>
+      <p>Upload CSV and get results – ideal for cleaning large lists.</p>
+    </div>
   </div>
+
   <div class="tester-card reveal">
     <h3>🔧 Live API Tester</h3>
+    <p>Test the email validation endpoint instantly.</p>
     <div class="tester-header">
-      <select id="apiEndpoint"><option value="users">Users</option><option value="products">Products</option><option value="company">Company</option><option value="transactions">Transactions</option></select>
-      <input type="number" id="apiCount" value="2" min="1" max="20">
-      <input type="text" id="premiumKey" class="premium-key-input" placeholder="Premium API Key (optional)">
-      <button class="btn btn-primary" id="testApiBtn">Test Endpoint</button>
+      <input type="email" id="testEmail" placeholder="email@example.com" style="flex:1;">
+      <button class="btn btn-primary" id="testValidateBtn">Validate</button>
     </div>
-    <div id="apiResponse" class="response-area">Click "Test Endpoint" to see live response.</div>
+    <div id="apiResponse" class="response-area">Click "Validate" to see the result.</div>
   </div>
-  <div class="resources reveal" id="resources">
-    <h2>✨ Free resources to accelerate your workflow</h2>
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="automation">🤖 Automation</button>
-      <button class="tab-btn" data-tab="templates">📚 Templates</button>
-      <button class="tab-btn" data-tab="skills">🧠 Coding Skills</button>
-    </div>
-    <div id="automation" class="tab-content active"><div class="resource-grid"><div class="resource-card"><h4>⏱️ Cron Job (Linux/macOS)</h4><pre><code>0 * * * * curl -s https://ba-kangombe.vercel.app/api/users/5 >> /var/log/mock_data.log</code></pre><button class="copy-btn" onclick="copyToClipboard('0 * * * * curl -s https://ba-kangombe.vercel.app/api/users/5 >> /var/log/mock_data.log')">Copy</button></div><div class="resource-card"><h4>🖥️ Windows Task Scheduler</h4><pre><code>Invoke-WebRequest -Uri "https://ba-kangombe.vercel.app/api/products/10" -OutFile "$env:TEMP\mock_products.json"</code></pre><button class="copy-btn" onclick="copyToClipboard('Invoke-WebRequest -Uri \"https://ba-kangombe.vercel.app/api/products/10\" -OutFile \"$env:TEMP\\mock_products.json\"')">Copy</button></div><div class="resource-card"><h4>🐍 Python script (scheduled)</h4><pre><code>import requests, schedule, time\ndef fetch():\n    r = requests.get('https://ba-kangombe.vercel.app/api/users/3')\n    print(r.json())\nschedule.every(30).minutes.do(fetch)\nwhile True:\n    schedule.run_pending()\n    time.sleep(1)</code></pre><button class="copy-btn" onclick="copyToClipboard('import requests, schedule, time\ndef fetch():\n    r = requests.get(\'https://ba-kangombe.vercel.app/api/users/3\')\n    print(r.json())\nschedule.every(30).minutes.do(fetch)\nwhile True:\n    schedule.run_pending()\n    time.sleep(1)')">Copy</button></div></div></div>
-    <div id="templates" class="tab-content"><div class="resource-grid"><div class="resource-card"><h4>🌐 JavaScript / Node.js</h4><pre><code>const res = await fetch('https://ba-kangombe.vercel.app/api/users/5');\nconst data = await res.json();\nconsole.log(data);</code></pre><button class="copy-btn" onclick="copyToClipboard('const res = await fetch(\'https://ba-kangombe.vercel.app/api/users/5\');\nconst data = await res.json();\nconsole.log(data);')">Copy</button></div><div class="resource-card"><h4>🐍 Python</h4><pre><code>import requests\nres = requests.get('https://ba-kangombe.vercel.app/api/company')\nprint(res.json())</code></pre><button class="copy-btn" onclick="copyToClipboard('import requests\nres = requests.get(\'https://ba-kangombe.vercel.app/api/company\')\nprint(res.json())')">Copy</button></div><div class="resource-card"><h4>☕ Java (Unirest)</h4><pre><code>HttpResponse<String> res = Unirest.get(\"https://ba-kangombe.vercel.app/api/products/3\").asString();\nSystem.out.println(res.getBody());</code></pre><button class="copy-btn" onclick="copyToClipboard('HttpResponse<String> res = Unirest.get(\"https://ba-kangombe.vercel.app/api/products/3\").asString();\nSystem.out.println(res.getBody());')">Copy</button></div><div class="resource-card"><h4>🐹 Go</h4><pre><code>resp, _ := http.Get(\"https://ba-kangombe.vercel.app/api/transactions/2\")\ndefer resp.Body.Close()\nbody, _ := io.ReadAll(resp.Body)\nfmt.Println(string(body))</code></pre><button class="copy-btn" onclick="copyToClipboard('resp, _ := http.Get(\"https://ba-kangombe.vercel.app/api/transactions/2\")\ndefer resp.Body.Close()\nbody, _ := io.ReadAll(resp.Body)\nfmt.Println(string(body))')">Copy</button></div></div></div>
-    <div id="skills" class="tab-content"><div class="resource-grid"><div class="resource-card"><h4>📖 Unit testing with mock data</h4><p>Use BaKangombe to generate realistic test data for your API or database tests.</p><button class="copy-btn" onclick="copyToClipboard('fetch(\'https://ba-kangombe.vercel.app/api/users/10\').then(r=>r.json()).then(data => console.log(data))')">Copy Snippet</button></div><div class="resource-card"><h4>🛠️ Load testing with k6</h4><pre><code>import http from 'k6/http';\nexport default function () {\n  http.get('https://ba-kangombe.vercel.app/api/users/10');\n}</code></pre><button class="copy-btn" onclick="copyToClipboard('import http from \'k6/http\';\nexport default function () {\n  http.get(\'https://ba-kangombe.vercel.app/api/users/10\');\n}')">Copy</button></div><div class="resource-card"><h4>💡 Mock API for frontend prototypes</h4><p>Use BaKangombe as a drop‑in fake backend while building your UI.</p><button class="copy-btn" onclick="copyToClipboard('fetch(\'https://ba-kangombe.vercel.app/api/users/3\').then(r=>r.json()).then(console.log)')">Copy Snippet</button></div></div></div>
-  </div>
+
   <div class="reveal" id="pricing">
     <h2 style="text-align: center; margin-bottom: 1rem;">Simple, transparent pricing</h2>
     <div class="pricing-grid">
-      <div class="pricing-card"><h3>Free</h3><div class="price">$0</div><ul class="feature-list"><li>✅ 100 requests / minute</li><li>✅ 4 core endpoints</li><li>✅ No API key required</li><li>❌ Custom schemas</li><li>❌ CSV export</li></ul><button class="btn btn-outline" id="freeStartBtn">Get Started →</button></div>
-      <div class="pricing-card premium"><h3>Premium</h3><div class="price">$9 <small>/ month</small></div><ul class="feature-list"><li>✅ 10,000 requests / minute</li><li>✅ All endpoints + custom schemas</li><li>✅ CSV / JSON export</li><li>✅ Priority support</li><li>✅ Unique API key</li></ul><button class="btn btn-primary" id="subscribeBtn2">Subscribe Now</button></div>
+      <div class="pricing-card">
+        <h3>Free</h3>
+        <div class="price">$0</div>
+        <ul class="feature-list">
+          <li>✅ 100 validations / minute</li>
+          <li>✅ Syntax & MX checks</li>
+          <li>✅ Disposable detection</li>
+          <li>❌ Batch validation</li>
+          <li>❌ Company enrichment</li>
+        </ul>
+        <button class="btn btn-outline" id="freeStartBtn">Get Started →</button>
+      </div>
+      <div class="pricing-card premium">
+        <h3>Email Validation Pro</h3>
+        <div class="price">$9 <small>/ month</small></div>
+        <ul class="feature-list">
+          <li>✅ 10,000 validations / month</li>
+          <li>✅ Real‑time MX & syntax checks</li>
+          <li>✅ Disposable / temporary email detection</li>
+          <li>✅ Batch CSV validation</li>
+          <li>✅ Company enrichment</li>
+          <li>✅ Priority support</li>
+        </ul>
+        <button class="btn btn-primary" id="subscribeBtn2">Subscribe Now</button>
+      </div>
     </div>
   </div>
+
   <div class="cta-card reveal" id="waitlist">
     <h3>📧 Join the Waitlist</h3>
+    <p>Get early access to new features and launch updates.</p>
     <div class="input-group">
       <input type="email" id="waitlist-email" placeholder="your@email.com">
       <button id="waitlist-btn" class="btn btn-primary">Join Waitlist</button>
     </div>
-    <p style="font-size: 0.8rem; opacity: 0.7;">Free tier: 100 requests/minute – always free, no token needed.</p>
+    <p style="font-size: 0.8rem; opacity: 0.7;">Free tier: 100 validations/minute – always free, no token needed.</p>
   </div>
+
   <div class="footer">
     <p>Built by <strong>Bornface Kangombe Kernel</strong> – developer, creator, founder.</p>
-    <p><a href="https://ba-kangombe.vercel.app">Documentation</a> · <a href="https://github.com/KernelBornie/BaKangombe">GitHub</a> · <a href="https://ba-kangombe.vercel.app/api/users/1">Live Demo</a></p>
+    <p><a href="https://ba-kangombe.vercel.app">Documentation</a> · <a href="https://github.com/KernelBornie/BaKangombe">GitHub</a> · <a href="https://ba-kangombe.vercel.app/api/validate">Live Demo</a></p>
   </div>
 </div>
 <div id="toast" class="toast">✓ Copied to clipboard</div>
+
 <script>
-  function copyToClipboard(text) { navigator.clipboard.writeText(text); const toast = document.getElementById('toast'); toast.style.opacity = '1'; setTimeout(() => { toast.style.opacity = '0'; }, 2000); }
-  const apiEndpointSelect = document.getElementById('apiEndpoint');
-  const apiCountInput = document.getElementById('apiCount');
-  const testBtn = document.getElementById('testApiBtn');
-  const responseDiv = document.getElementById('apiResponse');
-  const premiumKeyInput = document.getElementById('premiumKey');
-  async function testApi() {
-    const endpoint = apiEndpointSelect.value;
-    let count = apiCountInput.value;
-    let url = `/api/${endpoint}`;
-    if (endpoint !== 'company' && count) url += `/${count}`;
-    responseDiv.innerHTML = '<div class="spinner"></div> Loading...';
-    try {
-      const headers = {};
-      const premiumKey = premiumKeyInput.value.trim();
-      if (premiumKey) headers['X-API-Key'] = premiumKey;
-      const res = await fetch(url, { headers });
-      const data = await res.json();
-      responseDiv.innerHTML = `<strong>Response from ${url}</strong> (Premium mode: ${data.premium ? '✅ ACTIVE' : '❌ NO'})<br>${JSON.stringify(data, null, 2)}`;
-    } catch (err) { responseDiv.innerHTML = `Error: ${err.message}`; }
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text);
+    const toast = document.getElementById('toast');
+    toast.style.opacity = '1';
+    setTimeout(() => { toast.style.opacity = '0'; }, 2000);
   }
-  testBtn.addEventListener('click', testApi);
+
+  const testValidateBtn = document.getElementById('testValidateBtn');
+  const testEmail = document.getElementById('testEmail');
+  const responseDiv = document.getElementById('apiResponse');
+
+  async function testValidation() {
+    const email = testEmail.value.trim();
+    if (!email) {
+      responseDiv.innerHTML = 'Please enter an email address.';
+      return;
+    }
+    responseDiv.innerHTML = '<div class="spinner"></div> Validating...';
+    try {
+      const res = await fetch('/api/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      responseDiv.innerHTML = `<strong>Result:</strong>\n${JSON.stringify(data, null, 2)}`;
+    } catch (err) {
+      responseDiv.innerHTML = `Error: ${err.message}`;
+    }
+  }
+  testValidateBtn.addEventListener('click', testValidation);
+  testEmail.addEventListener('keypress', (e) => { if (e.key === 'Enter') testValidation(); });
+
+  // Scroll reveal
   const reveals = document.querySelectorAll('.reveal');
-  function checkReveal() { reveals.forEach(el => { const rect = el.getBoundingClientRect(); if (rect.top < window.innerHeight - 100) el.classList.add('active'); }); }
+  function checkReveal() {
+    reveals.forEach(el => {
+      const rect = el.getBoundingClientRect();
+      if (rect.top < window.innerHeight - 100) el.classList.add('active');
+    });
+  }
   window.addEventListener('scroll', checkReveal);
   window.addEventListener('load', checkReveal);
-  const tabBtns = document.querySelectorAll('.tab-btn');
-  const tabContents = document.querySelectorAll('.tab-content');
-  tabBtns.forEach(btn => { btn.addEventListener('click', () => { const tabId = btn.getAttribute('data-tab'); tabBtns.forEach(b => b.classList.remove('active')); btn.classList.add('active'); tabContents.forEach(content => content.classList.remove('active')); document.getElementById(tabId).classList.add('active'); }); });
+
+  // Lemon Squeezy checkout
   async function startCheckout(email) {
     try {
-      const response = await fetch('/api/create-ls-checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
-      if (!response.ok) { const errorText = await response.text(); throw new Error(`Server error (${response.status}): ${errorText}`); }
+      const response = await fetch('/api/create-ls-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      if (!response.ok) throw new Error(`Server error (${response.status})`);
       const data = await response.json();
       if (data.url) window.location.href = data.url;
       else alert('Error creating checkout: ' + (data.error || 'Unknown'));
-    } catch (err) { console.error('Checkout failed:', err); alert('Failed to connect to checkout service. Please try again later.\n' + err.message); }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to connect to checkout service. Please try again later.');
+    }
   }
-  function promptAndSubscribe() { let email = prompt('Enter your email for the subscription receipt:'); if (email && email.includes('@')) startCheckout(email); else alert('Please enter a valid email address.'); }
-  document.getElementById('subscribeBtn').addEventListener('click', promptAndSubscribe);
-  document.getElementById('subscribeBtn2').addEventListener('click', promptAndSubscribe);
+  function promptAndSubscribe() {
+    let email = prompt('Enter your email for the subscription receipt:');
+    if (email && email.includes('@')) startCheckout(email);
+    else alert('Please enter a valid email address.');
+  }
+  document.getElementById('subscribeBtn')?.addEventListener('click', promptAndSubscribe);
+  document.getElementById('subscribeBtn2')?.addEventListener('click', promptAndSubscribe);
+
+  // Waitlist
   const emailInput = document.getElementById('waitlist-email');
   const waitlistBtn = document.getElementById('waitlist-btn');
   async function submitWaitlist(email) {
     waitlistBtn.disabled = true;
     waitlistBtn.textContent = 'Submitting...';
     try {
-      const response = await fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+      const response = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
       const data = await response.json();
       alert(`Mvua (thank you), ${email}! ${data.message || 'You are now on the waitlist.'}`);
       emailInput.value = '';
-    } catch (err) { alert('Network error. Please try again.'); }
-    finally { waitlistBtn.disabled = false; waitlistBtn.textContent = 'Join Waitlist'; }
+    } catch (err) {
+      alert('Network error. Please try again.');
+    } finally {
+      waitlistBtn.disabled = false;
+      waitlistBtn.textContent = 'Join Waitlist';
+    }
   }
-  waitlistBtn.addEventListener('click', () => { const email = emailInput.value.trim(); if (!email || !email.includes('@')) { alert('Please enter a valid email address.'); return; } submitWaitlist(email); });
+  waitlistBtn?.addEventListener('click', () => {
+    const email = emailInput.value.trim();
+    if (!email || !email.includes('@')) {
+      alert('Please enter a valid email address.');
+      return;
+    }
+    submitWaitlist(email);
+  });
+
   const freeStartBtn = document.getElementById('freeStartBtn');
-  freeStartBtn.addEventListener('click', () => { document.getElementById('features').scrollIntoView({ behavior: 'smooth' }); alert('🎉 Use the "Live API Tester" above to try the API instantly!'); });
+  freeStartBtn?.addEventListener('click', () => {
+    document.getElementById('features').scrollIntoView({ behavior: 'smooth' });
+    alert('🎉 Use the "Live API Tester" above to try the email validation API instantly!');
+  });
 </script>
 </body>
 </html>
