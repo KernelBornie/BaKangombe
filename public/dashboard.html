@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BaKangombe Developer Dashboard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #0a0c10;
+      color: #eef2ff;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      padding: 2rem;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1, h2 {
+      margin-bottom: 1rem;
+    }
+    .card {
+      background: rgba(255,255,255,0.03);
+      border-radius: 1.5rem;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .card h3 {
+      margin-bottom: 1rem;
+    }
+    input, button, .file-label {
+      background: #0f1117;
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 0.6rem 1rem;
+      border-radius: 2rem;
+      color: white;
+      font-size: 0.9rem;
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    button {
+      background: #4f46e5;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    button:hover {
+      background: #6366f1;
+    }
+    pre {
+      background: #0a0c10;
+      padding: 1rem;
+      border-radius: 1rem;
+      overflow-x: auto;
+      font-size: 0.8rem;
+      margin-top: 1rem;
+    }
+    .usage {
+      display: flex;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+    .usage-item {
+      background: rgba(255,255,255,0.02);
+      padding: 1rem;
+      border-radius: 1rem;
+      flex: 1;
+    }
+    .usage-number {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #a0c4ff;
+    }
+    hr {
+      border-color: rgba(255,255,255,0.1);
+      margin: 1rem 0;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>🔐 BaKangombe Developer Dashboard</h1>
+  <p>Manage your API usage and validate emails in bulk.</p>
+
+  <div class="card">
+    <h3>🔑 API Key</h3>
+    <input type="text" id="apiKey" placeholder="Enter your premium API key" style="width: 100%; max-width: 400px;">
+    <button id="loadUsageBtn">Load My Usage</button>
+  </div>
+
+  <div id="usageSection" style="display: none;">
+    <div class="card">
+      <h3>📊 Today's Usage (limits reset daily)</h3>
+      <div class="usage">
+        <div class="usage-item">
+          <div>✅ Validations</div>
+          <div class="usage-number" id="validationsToday">0</div>
+          <div>limit: 10,000</div>
+        </div>
+        <div class="usage-item">
+          <div>🏢 Enrichments</div>
+          <div class="usage-number" id="enrichmentsToday">0</div>
+          <div>limit: 10,000</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>📂 Batch CSV Validation</h3>
+    <p>Upload a CSV file where the first column contains email addresses.</p>
+    <input type="file" id="csvFile" accept=".csv">
+    <button id="batchValidateBtn">Validate CSV</button>
+    <pre id="batchResult">Results will appear here...</pre>
+  </div>
+
+  <div class="card">
+    <h3>🔗 Quick Links</h3>
+    <p><a href="/" style="color: #a0c4ff;">← Back to Home</a> | <a href="https://github.com/KernelBornie/BaKangombe" style="color: #a0c4ff;">GitHub</a></p>
+  </div>
+</div>
+
+<script>
+  const apiKeyInput = document.getElementById('apiKey');
+  const loadUsageBtn = document.getElementById('loadUsageBtn');
+  const usageSection = document.getElementById('usageSection');
+  const validationsSpan = document.getElementById('validationsToday');
+  const enrichmentsSpan = document.getElementById('enrichmentsToday');
+  const csvFileInput = document.getElementById('csvFile');
+  const batchValidateBtn = document.getElementById('batchValidateBtn');
+  const batchResultPre = document.getElementById('batchResult');
+
+  // Load usage data
+  async function loadUsage() {
+    const key = apiKeyInput.value.trim();
+    if (!key) {
+      alert('Please enter your premium API key');
+      return;
+    }
+    try {
+      const res = await fetch('/api/me/usage', {
+        headers: { 'X-API-Key': key }
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text}`);
+      }
+      const data = await res.json();
+      validationsSpan.innerText = data.validations_today || 0;
+      enrichmentsSpan.innerText = data.enrichments_today || 0;
+      usageSection.style.display = 'block';
+    } catch (err) {
+      alert('Failed to load usage: ' + err.message);
+    }
+  }
+
+  // Batch validation
+  async function batchValidate() {
+    const key = apiKeyInput.value.trim();
+    if (!key) {
+      alert('Please enter your premium API key');
+      return;
+    }
+    const file = csvFileInput.files[0];
+    if (!file) {
+      alert('Please select a CSV file');
+      return;
+    }
+    const formData = new FormData();
+    formData.append('file', file);
+    batchResultPre.innerText = 'Processing...';
+    try {
+      const res = await fetch('/api/validate/batch', {
+        method: 'POST',
+        headers: { 'X-API-Key': key },
+        body: formData
+      });
+      const data = await res.json();
+      batchResultPre.innerText = JSON.stringify(data, null, 2);
+    } catch (err) {
+      batchResultPre.innerText = 'Error: ' + err.message;
+    }
+  }
+
+  loadUsageBtn.addEventListener('click', loadUsage);
+  batchValidateBtn.addEventListener('click', batchValidate);
+</script>
+</body>
+</html>
