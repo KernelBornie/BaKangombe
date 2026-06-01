@@ -1,19 +1,24 @@
-{ 
-  "name": "bakangombe", 
-  "version": "1.0.0", 
-  "main": "api/index.js", 
-  "scripts": { 
-    "vercel-build": "npm install" 
-  }, 
-  "dependencies": { 
-    "@faker-js/faker": "^8.4.1", 
-    "axios": "^1.6.0", 
-    "cors": "^2.8.5", 
-    "csv-parser": "^3.0.0", 
-    "dotenv": "^16.3.1", 
-    "express": "^4.18.2", 
-    "express-rate-limit": "^7.1.5", 
-    "multer": "^1.4.5-lts.1" 
-  }, 
-  "engines": { "node": "20.x" } 
-} 
+{
+  "name": "bakangombe",
+  "version": "1.0.0",
+  "main": "api/index.js",
+  "scripts": {
+    "vercel-build": "npm install"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^8.4.1",
+    "axios": "^1.6.0",
+    "cors": "^2.8.5",
+    "csv-parser": "^3.0.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "multer": "^1.4.5-lts.1",
+    "qrcode": "^1.5.3",
+    "uuid": "^9.0.1",
+    "whois-json": "^2.0.5"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}

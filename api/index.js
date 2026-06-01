@@ -8,6 +8,8 @@ const axios = require('axios');
 const dns = require('dns').promises;
 const multer = require('multer');
 const crypto = require('crypto');
+const { v4: uuidv4 } = require('uuid');
+const QRCode = require('qrcode');
 
 const app = express();
 app.use(cors());
@@ -131,33 +133,29 @@ app.get('/api/transactions/:count?', (req, res) => {
 // ---------- EMAIL VALIDATION (free) ----------
 const disposableDomains = new Set([
   'mailinator.com', 'guerrillamail.com', '10minutemail.com', 'tempmail.com',
-  'throwawaymail.com', 'yopmail.com', 'mailnator.com', 'spamgourmet.com',
-  'trashmail.com', 'fakeinbox.com', 'getnada.com', 'maildrop.cc'
+  'throwawaymail.com', 'yopmail.com', 'mailnator.com', 'spamgourmet.com'
 ]);
 
 async function validateEmail(email) {
-  const [localPart, domain] = email.split('@');
+  const [local, domain] = email.split('@');
   if (!domain) return { valid: false, reason: 'missing domain' };
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) return { valid: false, reason: 'invalid syntax' };
-  let hasMx = false, hasA = false;
-  try { const mxRecords = await dns.resolveMx(domain); hasMx = mxRecords && mxRecords.length > 0; } catch (err) {}
-  if (!hasMx) { try { const aRecords = await dns.resolve4(domain); hasA = aRecords && aRecords.length > 0; } catch (err) {} }
-  if (!hasMx && !hasA) return { valid: false, reason: 'domain does not exist' };
+  let hasMx = false;
+  try { const mx = await dns.resolveMx(domain); hasMx = mx && mx.length > 0; } catch(e) {}
+  if (!hasMx) return { valid: false, reason: 'domain does not exist' };
   const isDisposable = disposableDomains.has(domain.toLowerCase());
-  const freeProviders = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com', 'protonmail.com'];
-  const isFreeProvider = freeProviders.includes(domain.toLowerCase());
+  const isFreeProvider = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com'].includes(domain.toLowerCase());
   let score = 100;
   if (isDisposable) score -= 60;
   if (isFreeProvider) score -= 10;
-  if (!hasMx && hasA) score -= 20;
   if (score < 0) score = 0;
-  return { valid: true, has_mx: hasMx, has_a: hasA, is_disposable: isDisposable, is_free_provider: isFreeProvider, score };
+  return { valid: true, has_mx: hasMx, is_disposable: isDisposable, is_free_provider: isFreeProvider, score };
 }
 
 app.post('/api/validate', async (req, res) => {
   const { email } = req.body;
-  if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email address required' });
+  if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
   const result = await validateEmail(email);
   res.json({ email, ...result });
 });
@@ -188,7 +186,7 @@ app.post('/api/waitlist', async (req, res) => {
 app.post('/api/create-ls-checkout', async (req, res) => {
   const { email } = req.body;
   if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
-  const LS_API_KEY = process.env.LEMONSQUEEZY_API_KEY || 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiI5NGQ1OWNlZi1kYmI4LTRlYTUtYjE3OC1kMjU0MGZjZDY5MTkiLCJqdGkiOiJhNDJiNmY3MGE4ZmZlODc1MmM3YzhmNjVkZTAwNmMwMTU4MDY3NjE5ZmM0ZmEyMWEzZWUyYzBkYmMyMGU5NzUxMmQ3YTMzMzY0MTg4NjVkNyIsImlhdCI6MTc4MDI0MzI4Mi44NTAyOTksIm5iZiI6MTc4MDI0MzI4Mi44NTAzMDIsImV4cCI6MTc5NTk5NjgwMC4wMzEyMiwic3ViIjoiNzIwMzMyMSIsInNjb3BlcyI6W119.bk-ut2bSJZrxtHqB0dzB6cTfloT7HobpC8nESzc1L4kwzHWp-follS-o6DmCnfR9-HKmMg5GpbDvpIIwKRTM3X3JTVdKSnwCbJwlUaoB6kTyAz8ZsHFkEH8j7gCB1xAxXOKoEXnpW435TQlkiEsJgBd5F3XNCbc5qyNVsE7mAMa2wCZ8hmAv1NjCpnUHoLKGQsoniOZ55QECXcer6gbPnrUH7rktydx4LboXQGFoZxhMJuhedq1fAoBpvnu5K6g4GrNRECDlXNlANw2cbrt5nHWzlub9kXyXGsBJ9WEbMXJPtEwM_Afdw1WzYBbd7-3Tt3qGh9jzrpSL6icEBOav9JsxyoBSTgRlHvXg6-y2BFtsSOQRl0_OlSA-JcfxEwS5sZIdz1miMoBt6H-jEBpAfdbcvIEqk65BrQI6xtourKAok92zJDYfw5oe5e8erqTiGyJgMQ4ndLGddn1XgqsMFDEgDHMs5uIQBitk5Lmk1Umte9Odu7PE8v9i7pgGa0eWekqd7AudJoT3IBhPGxInyH_Nj9HXsGmBgM2AP0ONkRSz9Gd_8yLETQECIB7opL9dhMrsm_XuCPcYPs11K5Jot5cazcaAOzrHMNmmQyo9xUrNPWwBoRfSOeO3xIWd7ZSi-OaWLfinLTFKZoTuDyQK0hQ1Fas2Oq8LctMwT1m-Tj4';
+  const LS_API_KEY = process.env.LEMONSQUEEZY_API_KEY || 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...'; // full key from env
   const LS_STORE_ID = process.env.LEMONSQUEEZY_STORE_ID || '387550';
   const LS_VARIANT_ID = process.env.LEMONSQUEEZY_VARIANT_ID || '1705111';
   try {
@@ -208,6 +206,49 @@ app.post('/api/create-ls-checkout', async (req, res) => {
     console.error(err.response?.data || err.message);
     res.status(500).json({ error: 'Checkout failed' });
   }
+});
+
+// ---------- ENRICHMENT (Hunter.io) ----------
+const HUNTER_API_KEY = process.env.HUNTER_API_KEY;
+app.post('/api/enrich', async (req, res) => {
+  const { email } = req.body;
+  if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
+  if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
+  if (!HUNTER_API_KEY) return res.status(500).json({ error: 'Hunter API key missing' });
+  try {
+    const url = `https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(email)}&api_key=${HUNTER_API_KEY}`;
+    const response = await axios.get(url);
+    const data = response.data.data;
+    res.json({
+      email,
+      verified: data.status === 'valid',
+      accept_all: data.accept_all,
+      disposable: data.disposable,
+      webmail: data.webmail,
+      mx_records: data.mx_records,
+      score: data.score,
+      name: data.first_name && data.last_name ? `${data.first_name} ${data.last_name}` : null,
+      company: data.company
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Enrichment failed' });
+  }
+});
+
+// ---------- WEBSITE BUILDER (premium) ----------
+app.post('/api/website/generate', async (req, res) => {
+  const { template = 'landing', title = 'My Site', content = 'Welcome!' } = req.body;
+  if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
+  let html;
+  if (template === 'landing') {
+    html = `<!DOCTYPE html><html><head><title>${title}</title><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:system-ui;background:#0a0c10;color:#eef2ff;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;text-align:center}.card{background:rgba(255,255,255,0.05);border-radius:1rem;padding:2rem;max-width:500px}button{background:#4f46e5;border:none;padding:0.5rem 1rem;border-radius:2rem;color:white;cursor:pointer}</style></head><body><div class="card"><h1>${title}</h1><p>${content}</p><button onclick="alert('Hello!')">Click me</button></div></body></html>`;
+  } else if (template === 'blog') {
+    html = `<!DOCTYPE html><html><head><title>${title}</title><style>body{background:#0a0c10;color:#eef2ff;font-family:system-ui;padding:2rem}article{max-width:800px;margin:auto}</style></head><body><article><h1>${title}</h1><p>${content}</p></article></body></html>`;
+  } else {
+    return res.status(400).json({ error: 'Invalid template' });
+  }
+  res.json({ html, template, title });
 });
 
 // ---------- FEEDBACK (in-memory) ----------
