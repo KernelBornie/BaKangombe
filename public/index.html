@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="BaKangombe – Email Validation API. Validate emails in real time, detect disposables, enrich company data.">
-  <title>BaKangombe · Email Validation API</title>
+  <meta name="description" content="BaKangombe – Email Validation & Enrichment API. Validate emails in real time, detect disposables, enrich company data.">
+  <title>BaKangombe · Email Validation & Enrichment API</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✉️</text></svg>">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -132,9 +132,9 @@
   </nav>
 
   <div class="hero reveal">
-    <div class="badge">⚡ REAL‑TIME EMAIL VALIDATION API</div>
+    <div class="badge">⚡ REAL‑TIME EMAIL VALIDATION & ENRICHMENT API</div>
     <h1>BaKangombe</h1>
-    <p class="hero-sub">Validate emails in milliseconds. Detect disposable addresses, verify MX records, and enrich with company data.</p>
+    <p class="hero-sub">Validate emails in milliseconds, detect disposables, and enrich with company data.</p>
     <div class="hero-cta">
       <button class="btn btn-primary" id="subscribeBtn">Get API Key – $9/month</button>
       <a href="#waitlist" class="btn btn-outline">Join Waitlist</a>
@@ -146,32 +146,31 @@
   </div>
 
   <div class="grid reveal" id="features">
-    <div class="card">
-      <h3>✅ Syntax & MX Check</h3>
-      <p>Verifies email format and domain mail exchanger records.</p>
-    </div>
-    <div class="card">
-      <h3>🚫 Disposable Detection</h3>
-      <p>Identifies temporary emails from Mailinator, 10minutemail, etc.</p>
-    </div>
-    <div class="card">
-      <h3>🏢 Company Enrichment</h3>
-      <p>Get company name, logo, social profiles (premium).</p>
-    </div>
-    <div class="card">
-      <h3>📊 Batch Validation</h3>
-      <p>Upload CSV and get results – ideal for cleaning large lists.</p>
-    </div>
+    <div class="card"><h3>✅ Syntax & MX Check</h3><p>Verifies email format and domain mail exchanger records.</p></div>
+    <div class="card"><h3>🚫 Disposable Detection</h3><p>Identifies temporary emails from Mailinator, 10minutemail, etc.</p></div>
+    <div class="card"><h3>🏢 Company Enrichment</h3><p>Get company name, logo, social profiles (premium).</p></div>
+    <div class="card"><h3>📊 Batch Validation</h3><p>Upload CSV and get results – ideal for cleaning large lists.</p></div>
   </div>
 
+  <!-- VALIDATION TESTER (free) -->
   <div class="tester-card reveal">
-    <h3>🔧 Live API Tester</h3>
-    <p>Test the email validation endpoint instantly.</p>
+    <h3>🔧 Live API Tester – Email Validation</h3>
     <div class="tester-header">
       <input type="email" id="testEmail" placeholder="email@example.com" style="flex:1;">
       <button class="btn btn-primary" id="testValidateBtn">Validate</button>
     </div>
-    <div id="apiResponse" class="response-area">Click "Validate" to see the result.</div>
+    <div id="validateResponse" class="response-area">Click "Validate" to see the result.</div>
+  </div>
+
+  <!-- ENRICHMENT TESTER (requires premium API key) -->
+  <div class="tester-card reveal">
+    <h3>🏢 Live API Tester – Enrichment (Premium only)</h3>
+    <div class="tester-header">
+      <input type="email" id="enrichEmail" placeholder="email@example.com" style="flex:1;">
+      <input type="text" id="premiumApiKey" placeholder="Premium API Key (required)" style="width: 220px;">
+      <button class="btn btn-primary" id="testEnrichBtn">Enrich</button>
+    </div>
+    <div id="enrichResponse" class="response-area">Enter an email and your premium API key to see company/person data.</div>
   </div>
 
   <div class="reveal" id="pricing">
@@ -197,7 +196,7 @@
           <li>✅ Real‑time MX & syntax checks</li>
           <li>✅ Disposable / temporary email detection</li>
           <li>✅ Batch CSV validation</li>
-          <li>✅ Company enrichment</li>
+          <li>✅ Company enrichment (via Hunter)</li>
           <li>✅ Priority support</li>
         </ul>
         <button class="btn btn-primary" id="subscribeBtn2">Subscribe Now</button>
@@ -207,7 +206,6 @@
 
   <div class="cta-card reveal" id="waitlist">
     <h3>📧 Join the Waitlist</h3>
-    <p>Get early access to new features and launch updates.</p>
     <div class="input-group">
       <input type="email" id="waitlist-email" placeholder="your@email.com">
       <button id="waitlist-btn" class="btn btn-primary">Join Waitlist</button>
@@ -230,17 +228,15 @@
     setTimeout(() => { toast.style.opacity = '0'; }, 2000);
   }
 
+  // ------ Validation tester (free) ------
   const testValidateBtn = document.getElementById('testValidateBtn');
   const testEmail = document.getElementById('testEmail');
-  const responseDiv = document.getElementById('apiResponse');
+  const validateResponse = document.getElementById('validateResponse');
 
   async function testValidation() {
     const email = testEmail.value.trim();
-    if (!email) {
-      responseDiv.innerHTML = 'Please enter an email address.';
-      return;
-    }
-    responseDiv.innerHTML = '<div class="spinner"></div> Validating...';
+    if (!email) { validateResponse.innerHTML = 'Please enter an email address.'; return; }
+    validateResponse.innerHTML = '<div class="spinner"></div> Validating...';
     try {
       const res = await fetch('/api/validate', {
         method: 'POST',
@@ -248,13 +244,44 @@
         body: JSON.stringify({ email })
       });
       const data = await res.json();
-      responseDiv.innerHTML = `<strong>Result:</strong>\n${JSON.stringify(data, null, 2)}`;
+      validateResponse.innerHTML = `<strong>Result:</strong>\n${JSON.stringify(data, null, 2)}`;
     } catch (err) {
-      responseDiv.innerHTML = `Error: ${err.message}`;
+      validateResponse.innerHTML = `Error: ${err.message}`;
     }
   }
   testValidateBtn.addEventListener('click', testValidation);
   testEmail.addEventListener('keypress', (e) => { if (e.key === 'Enter') testValidation(); });
+
+  // ------ Enrichment tester (premium) ------
+  const testEnrichBtn = document.getElementById('testEnrichBtn');
+  const enrichEmail = document.getElementById('enrichEmail');
+  const premiumApiKey = document.getElementById('premiumApiKey');
+  const enrichResponse = document.getElementById('enrichResponse');
+
+  async function testEnrichment() {
+    const email = enrichEmail.value.trim();
+    const key = premiumApiKey.value.trim();
+    if (!email) { enrichResponse.innerHTML = 'Please enter an email address.'; return; }
+    if (!key) { enrichResponse.innerHTML = 'Please enter your premium API key.'; return; }
+    enrichResponse.innerHTML = '<div class="spinner"></div> Enriching...';
+    try {
+      const res = await fetch('/api/enrich', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': key
+        },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      enrichResponse.innerHTML = `<strong>Enrichment result:</strong>\n${JSON.stringify(data, null, 2)}`;
+    } catch (err) {
+      enrichResponse.innerHTML = `Error: ${err.message}`;
+    }
+  }
+  testEnrichBtn.addEventListener('click', testEnrichment);
+  enrichEmail.addEventListener('keypress', (e) => { if (e.key === 'Enter') testEnrichment(); });
+  premiumApiKey.addEventListener('keypress', (e) => { if (e.key === 'Enter') testEnrichment(); });
 
   // Scroll reveal
   const reveals = document.querySelectorAll('.reveal');
