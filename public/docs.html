@@ -172,6 +172,8 @@
             <li><a href="#validate">Validate Email</a></li>
             <li><a href="#enrich">Enrich Email</a></li>
             <li><a href="#batch">Batch Validation</a></li>
+            <li><a href="#domain-score">Domain Reputation Score</a></li>
+            <li><a href="#disposable">Disposable Email Check</a></li>
           </ul>
         </li>
         <li><a href="#errors">Error Codes</a></li>
@@ -185,7 +187,7 @@
 
     <section id="overview">
       <h2>Overview</h2>
-      <p>BaKangombe offers a real‑time API to validate emails, detect disposable addresses, verify MX records, and enrich email addresses with company and person data (using Hunter.io). Free tier available – no API key required.</p>
+      <p>BaKangombe offers a real‑time API to validate emails, detect disposable addresses, verify MX records, enrich with company data, and score domain security. Free tier available – no API key required for validation.</p>
     </section>
 
     <section id="base-url">
@@ -196,7 +198,7 @@
     <section id="authentication">
       <h2>Authentication</h2>
       <p><strong>Free tier (validation only):</strong> No authentication required.</p>
-      <p><strong>Premium tier (enrichment & batch):</strong> Requires an API key obtained after subscribing. Include the key in the <code>X-API-Key</code> header.</p>
+      <p><strong>Premium tier (enrichment, batch, domain score, disposable check):</strong> Requires an API key obtained after subscribing. Include the key in the <code>X-API-Key</code> header.</p>
       <pre><code>curl -H "X-API-Key: YOUR_API_KEY" https://ba-kangombe.vercel.app/api/enrich -d '{"email":"user@example.com"}'</code></pre>
     </section>
 
@@ -206,7 +208,7 @@
         <thead><tr><th>Plan</th><th>Requests per minute</th></tr></thead>
         <tbody>
           <tr><td>Free</td><td>100 (validation only)</td></tr>
-          <tr><td>Pro ($9/month)</td><td>10,000 (includes enrichment & batch)</td></tr>
+          <tr><td>Pro ($9/month)</td><td>10,000 (includes all endpoints)</td></tr>
         </tbody>
       </table>
     </section>
@@ -214,18 +216,18 @@
     <section id="pricing">
       <h2>Pricing</h2>
       <p><strong>Free:</strong> 100 validations/minute, syntax + MX + disposable detection.</p>
-      <p><strong>Pro:</strong> $9/month – 10,000 validations/month, enrichment (company/person data), batch CSV validation, priority support.</p>
+      <p><strong>Pro:</strong> $9/month – 10,000 requests/month, includes validation, enrichment, batch CSV, domain reputation scoring, and disposable email check. Priority support.</p>
       <p><a href="https://ba-kangombe.vercel.app/#pricing" style="color:#a0c4ff;">Subscribe here</a></p>
     </section>
 
     <section id="endpoints">
       <h2>Endpoints</h2>
 
+      <!-- existing endpoints -->
       <div id="validate" class="endpoint-card">
         <h3><span class="method">POST</span> <span class="path">/api/validate</span></h3>
         <p>Validates a single email address. Returns syntax check, MX records, disposable status, and a quality score (0‑100). Free tier.</p>
-        <p><strong>Request body:</strong></p>
-        <pre><code>{ "email": "user@example.com" }</code></pre>
+        <p><strong>Request body:</strong> <code>{ "email": "user@example.com" }</code></p>
         <p><strong>Example response:</strong></p>
         <pre><code>{
   "email": "user@example.com",
@@ -272,6 +274,36 @@
 }</code></pre>
         <button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/validate/batch -H \"X-API-Key: YOUR_KEY\" -F \"file=@emails.csv\"')">Copy curl</button>
       </div>
+
+      <!-- NEW: Domain Reputation Score -->
+      <div id="domain-score" class="endpoint-card">
+        <h3><span class="method">POST</span> <span class="path">/api/domain/score</span></h3>
+        <p>Checks SPF, DKIM, and DMARC records for a domain, returning a security score (0‑100) and recommendations. Requires premium API key.</p>
+        <p><strong>Request body:</strong> <code>{ "domain": "example.com" }</code></p>
+        <p><strong>Example response:</strong></p>
+        <pre><code>{
+  "domain": "example.com",
+  "spf": true,
+  "dkim": false,
+  "dmarc": true,
+  "score": 70,
+  "recommendation": "Needs improvement"
+}</code></pre>
+        <button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/domain/score -H \"Content-Type: application/json\" -H \"X-API-Key: YOUR_KEY\" -d \'{\"domain\":\"example.com\"}\'')">Copy curl</button>
+      </div>
+
+      <!-- NEW: Disposable Email Check -->
+      <div id="disposable" class="endpoint-card">
+        <h3><span class="method">POST</span> <span class="path">/api/disposable</span></h3>
+        <p>Checks if an email address belongs to a disposable/temporary domain (e.g., Mailinator, 10minutemail). Requires premium API key.</p>
+        <p><strong>Request body:</strong> <code>{ "email": "test@mailinator.com" }</code></p>
+        <p><strong>Example response:</strong></p>
+        <pre><code>{
+  "email": "test@mailinator.com",
+  "isDisposable": true
+}</code></pre>
+        <button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/disposable -H \"Content-Type: application/json\" -H \"X-API-Key: YOUR_KEY\" -d \'{\"email\":\"test@mailinator.com\"}\'')">Copy curl</button>
+      </div>
     </section>
 
     <section id="errors">
@@ -279,7 +311,7 @@
       <table>
         <thead><tr><th>Status Code</th><th>Meaning</th></tr></thead>
         <tbody>
-          <tr><td>400</td><td>Bad request – missing email or invalid JSON</td></tr>
+          <tr><td>400</td><td>Bad request – missing email/domain or invalid JSON</td></tr>
           <tr><td>402</td><td>Payment required – premium endpoint called without valid API key</td></tr>
           <tr><td>429</td><td>Rate limit exceeded</td></tr>
           <tr><td>500</td><td>Internal server error</td></tr>
@@ -290,31 +322,22 @@
     <section id="examples">
       <h2>Code Examples</h2>
 
-      <h3>cURL – Validation (free)</h3>
-      <pre><code>curl -X POST https://ba-kangombe.vercel.app/api/validate -H "Content-Type: application/json" -d '{"email":"user@example.com"}'</code></pre>
-      <button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/validate -H \"Content-Type: application/json\" -d \'{\"email\":\"user@example.com\"}\'')">Copy</button>
+      <h3>cURL – Domain Score (premium)</h3>
+      <pre><code>curl -X POST https://ba-kangombe.vercel.app/api/domain/score -H "Content-Type: application/json" -H "X-API-Key: YOUR_KEY" -d '{"domain":"github.com"}'</code></pre>
+      <button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/domain/score -H \"Content-Type: application/json\" -H \"X-API-Key: YOUR_KEY\" -d \'{\"domain\":\"github.com\"}\'')">Copy</button>
 
-      <h3>JavaScript (fetch) – Enrichment (premium)</h3>
-      <pre><code>fetch('https://ba-kangombe.vercel.app/api/enrich', {
+      <h3>JavaScript – Disposable Check (premium)</h3>
+      <pre><code>fetch('https://ba-kangombe.vercel.app/api/disposable', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'X-API-Key': 'YOUR_API_KEY'
+    'X-API-Key': 'YOUR_KEY'
   },
-  body: JSON.stringify({ email: 'bill.gates@microsoft.com' })
+  body: JSON.stringify({ email: 'temp@mailinator.com' })
 })
 .then(res => res.json())
 .then(console.log);</code></pre>
-      <button class="copy-btn" onclick="copyToClipboard("fetch('https://ba-kangombe.vercel.app/api/enrich', {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/json',\n    'X-API-Key': 'YOUR_API_KEY'\n  },\n  body: JSON.stringify({ email: 'bill.gates@microsoft.com' })\n})\n.then(res => res.json())\n.then(console.log);")">Copy</button>
-
-      <h3>Python – Batch validation (premium)</h3>
-      <pre><code>import requests
-
-files = {'file': open('emails.csv', 'rb')}
-headers = {'X-API-Key': 'YOUR_API_KEY'}
-response = requests.post('https://ba-kangombe.vercel.app/api/validate/batch', headers=headers, files=files)
-print(response.json())</code></pre>
-      <button class="copy-btn" onclick="copyToClipboard("import requests\n\nfiles = {'file': open('emails.csv', 'rb')}\nheaders = {'X-API-Key': 'YOUR_API_KEY'}\nresponse = requests.post('https://ba-kangombe.vercel.app/api/validate/batch', headers=headers, files=files)\nprint(response.json())")">Copy</button>
+      <button class="copy-btn" onclick="copyToClipboard("fetch('https://ba-kangombe.vercel.app/api/disposable', {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/json',\n    'X-API-Key': 'YOUR_KEY'\n  },\n  body: JSON.stringify({ email: 'temp@mailinator.com' })\n})\n.then(res => res.json())\n.then(console.log);")">Copy</button>
     </section>
 
     <p style="margin-top: 2rem; font-size: 0.85rem; color: #6c7a91;">Questions? Contact <a href="mailto:bornface.kangombe@cs.unza.zm" style="color:#a0c4ff;">bornface.kangombe@cs.unza.zm</a> or visit <a href="https://ba-kangombe.vercel.app" style="color:#a0c4ff;">ba-kangombe.vercel.app</a>.</p>
