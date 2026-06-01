@@ -122,7 +122,219 @@ app.get('/api/products/:count?', (req, res) => {
   }));
   res.json({ count, data: products, premium: req.isPremium });
 });
+// ---------- UTILITY ENDPOINTS (FREE, NO KEY REQUIRED) ----------
 
+// 1. UUID v4 generator
+const { v4: uuidv4 } = require('uuid');
+app.get('/api/uuid', (req, res) => {
+  res.json({ uuid: uuidv4() });
+});
+
+// 2. Random number
+app.get('/api/random/number', (req, res) => {
+  let { min = 0, max = 100 } = req.query;
+  min = parseInt(min);
+  max = parseInt(max);
+  const random = Math.floor(Math.random() * (max - min + 1)) + min;
+  res.json({ random, min, max });
+});
+
+// 3. Random alphanumeric string
+app.get('/api/random/string', (req, res) => {
+  let { length = 10 } = req.query;
+  length = parseInt(length);
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  res.json({ random_string: result, length });
+});
+
+// 4. Random color (hex)
+app.get('/api/random/color', (req, res) => {
+  const color = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+  res.json({ color });
+});
+
+// 5. QR code generator (returns PNG as base64)
+const QRCode = require('qrcode');
+app.post('/api/qrcode', async (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'text required' });
+  try {
+    const qrDataURL = await QRCode.toDataURL(text);
+    res.json({ qr_code: qrDataURL });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to generate QR code' });
+  }
+});
+
+// 6. Phone number validator (basic)
+app.post('/api/validate/phone', (req, res) => {
+  const { phone } = req.body;
+  if (!phone) return res.status(400).json({ error: 'phone required' });
+  const phoneRegex = /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,6}[-\s\.]?[0-9]{1,6}$/im;
+  const valid = phoneRegex.test(phone);
+  res.json({ phone, valid });
+});
+
+// 7. Credit card validator (Luhn)
+app.post('/api/validate/credit-card', (req, res) => {
+  const { cardNumber } = req.body;
+  if (!cardNumber) return res.status(400).json({ error: 'cardNumber required' });
+  const sanitized = cardNumber.replace(/\s/g, '');
+  let sum = 0;
+  let alternate = false;
+  for (let i = sanitized.length - 1; i >= 0; i--) {
+    let n = parseInt(sanitized.charAt(i), 10);
+    if (alternate) {
+      n *= 2;
+      if (n > 9) n = (n % 10) + 1;
+    }
+    sum += n;
+    alternate = !alternate;
+  }
+  const valid = sum % 10 === 0;
+  res.json({ cardNumber, valid });
+});
+
+// 8. URL validator
+app.post('/api/validate/url', (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ error: 'url required' });
+  const pattern = new RegExp('^(https?:\\/\\/)?'+ // protocol
+    '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ // domain name
+    '((\\d{1,3}\\.){3}\\d{1,3}))'+ // OR ip (v4) address
+    '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // port and path
+    '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
+    '(\\#[-a-z\\d_]*)?$','i'); // fragment locator
+  const valid = pattern.test(url);
+  res.json({ url, valid });
+});
+
+// 9. Base64 encode/decode
+app.post('/api/base64/encode', (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'text required' });
+  const encoded = Buffer.from(text).toString('base64');
+  res.json({ encoded });
+});
+app.post('/api/base64/decode', (req, res) => {
+  const { encoded } = req.body;
+  if (!encoded) return res.status(400).json({ error: 'encoded required' });
+  try {
+    const decoded = Buffer.from(encoded, 'base64').toString('utf8');
+    res.json({ decoded });
+  } catch (err) {
+    res.status(400).json({ error: 'Invalid base64 string' });
+  }
+});
+
+// 10. Slugify
+app.post('/api/slugify', (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'text required' });
+  const slug = text.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, '-');
+  res.json({ slug });
+});
+
+// 11. Current timestamp
+app.get('/api/timestamp', (req, res) => {
+  const now = new Date();
+  res.json({
+    unix: Math.floor(now.getTime() / 1000),
+    utc: now.toUTCString(),
+    iso: now.toISOString(),
+    local: now.toString()
+  });
+});
+
+// 12. Get client IP address
+app.get('/api/ip', (req, res) => {
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  res.json({ ip });
+});
+
+// 13. Parse User-Agent
+const useragent = require('express-useragent');
+app.use(useragent.express());
+app.get('/api/user-agent', (req, res) => {
+  res.json({
+    browser: req.useragent.browser,
+    version: req.useragent.version,
+    os: req.useragent.os,
+    platform: req.useragent.platform,
+    isMobile: req.useragent.isMobile,
+    isDesktop: req.useragent.isDesktop,
+    source: req.useragent.source
+  });
+});
+
+// 14. Random quote (static list)
+const quotes = [
+  "The only limit is your mind.",
+  "Code is poetry.",
+  "Simplicity is the soul of efficiency.",
+  "First, solve the problem. Then, write the code.",
+  "Experience is the name everyone gives to their mistakes.",
+  "Any fool can write code that a computer can understand. Good programmers write code that humans can understand.",
+  "Make it work, make it right, make it fast."
+];
+app.get('/api/quote', (req, res) => {
+  const randomIndex = Math.floor(Math.random() * quotes.length);
+  res.json({ quote: quotes[randomIndex], source: 'BaKangombe' });
+});
+
+// 15. Random fact (static list)
+const facts = [
+  "Octopuses have three hearts.",
+  "Bananas are berries, but strawberries aren't.",
+  "The Eiffel Tower can be 15 cm taller during summer.",
+  "Honey never spoils.",
+  "A day on Venus is longer than a year on Venus.",
+  "Cows have best friends.",
+  "The shortest war in history lasted 38 minutes."
+];
+app.get('/api/fact', (req, res) => {
+  const randomIndex = Math.floor(Math.random() * facts.length);
+  res.json({ fact: facts[randomIndex] });
+});
+
+// 16. MD5 hash (no external lib, Node.js built-in crypto)
+app.post('/api/hash/md5', (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'text required' });
+  const hash = crypto.createHash('md5').update(text).digest('hex');
+  res.json({ hash, algorithm: 'md5' });
+});
+
+// 17. SHA256 hash
+app.post('/api/hash/sha256', (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'text required' });
+  const hash = crypto.createHash('sha256').update(text).digest('hex');
+  res.json({ hash, algorithm: 'sha256' });
+});
+
+// 18. Character & word count
+app.post('/api/text/stats', (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'text required' });
+  const characters = text.length;
+  const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+  const lines = text.split(/\r?\n/).length;
+  res.json({ characters, words, lines });
+});
+
+// 19. Palindrome check
+app.post('/api/palindrome', (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'text required' });
+  const cleaned = text.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const isPalindrome = cleaned === cleaned.split('').reverse().join('');
+  res.json({ text, isPalindrome });
+});
 app.get('/api/company', (req, res) => {
   const company = {
     id: faker.string.uuid(),
