@@ -81,7 +81,7 @@ const getCount = (req, defaultCount = 5) => {
   return Math.min(Math.max(count, 1), 100);
 };
 
-// ---------- MOCK ENDPOINTS (keep as is) ----------
+// ---------- MOCK ENDPOINTS ----------
 app.get('/api/users/:count?', (req, res) => {
   const count = getCount(req, 5);
   const users = Array.from({ length: count }, () => ({
@@ -393,7 +393,6 @@ app.post('/api/generate-key', checkPremiumKey, async (req, res) => {
   if (!req.isPremium) return res.status(402).json({ error: 'Premium subscription required' });
   const newKey = crypto.randomUUID();
   // TODO: store in database with user email and creation date
-  // For now, just return the key
   res.json({ api_key: newKey });
 });
 
@@ -417,9 +416,41 @@ app.post('/api/contact', async (req, res) => {
   }
 });
 
-// ---------- DOCUMENTATION PAGE (explicit route) ----------
+// ---------- DOCUMENTATION PAGE ----------
 app.get('/docs', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/docs.html'));
+});
+
+// ---------- COMPANY ENRICHMENT BY DOMAIN (Hunter.io) ----------
+app.post('/api/company/enrich', async (req, res) => {
+  const { domain } = req.body;
+  if (!domain) return res.status(400).json({ error: 'Domain required' });
+
+  if (!req.isPremium) {
+    return res.status(402).json({ error: 'Premium API key required' });
+  }
+
+  if (!HUNTER_API_KEY) {
+    return res.status(500).json({ error: 'Hunter API key missing' });
+  }
+
+  try {
+    const url = `https://api.hunter.io/v2/domain-search?domain=${encodeURIComponent(domain)}&api_key=${HUNTER_API_KEY}`;
+    const response = await axios.get(url);
+    const data = response.data.data;
+    const result = {
+      domain,
+      organization: data.organization || null,
+      industry: data.industry || null,
+      emails_count: data.emails_count || 0,
+      pattern: data.pattern || null,
+      emails_sample: data.emails ? data.emails.slice(0,5).map(e => e.value) : []
+    };
+    res.json(result);
+  } catch (err) {
+    console.error('Hunter domain error:', err.response?.data || err.message);
+    res.status(500).json({ error: 'Company enrichment failed' });
+  }
 });
 
 // ---------- CATCH-ALL (must be the very last route) ----------
