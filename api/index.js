@@ -10,6 +10,7 @@ const { sql } = require('@vercel/postgres');
 const multer = require('multer');
 const csv = require('csv-parser');
 const { Readable } = require('stream');
+const jwt = require('jsonwebtoken');   // <-- ADDED for admin JWT
 
 const app = express();
 app.use(cors());
@@ -67,6 +68,28 @@ async function sendEmail(toEmail, subject, htmlContent) {
   }
 }
 
+// ---------- Admin JWT config (ADDED) ----------
+const JWT_SECRET = process.env.JWT_SECRET || 'ba-kangombe-admin-secret-key-change-in-prod';
+const ALLOWED_ADMIN_EMAILS = [
+  'bornface.kangombe@cs.unza.zm',
+  'bornfacek135@gmail.com'
+];
+
+function verifyAdminToken(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized. Missing or invalid token format.' });
+  }
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.adminEmail = decoded.email;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid or expired token.' });
+  }
+}
+
 // ---------- Rate limiting ----------
 const FREE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX) || 100;
 const PREMIUM_LIMIT_MAX = 10000;
@@ -102,7 +125,7 @@ const getCount = (req, defaultCount = 5) => {
   return Math.min(Math.max(count, 1), 100);
 };
 
-// ---------- MOCK ENDPOINTS (unchanged) ----------
+// ---------- MOCK ENDPOINTS ----------
 app.get('/api/users/:count?', (req, res) => {
   const count = getCount(req, 5);
   const users = Array.from({ length: count }, () => ({
@@ -394,47 +417,129 @@ app.post('/api/feedback', async (req, res) => {
 app.post('/api/generate-key', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Email required' });
-  // In production, verify payment via LemonSqueezy webhook first.
   const newKey = `pk_${Math.random().toString(36).substr(2, 16)}`;
-  // Store in DB (simplified – you should save it)
   res.json({ apiKey: newKey, message: 'Premium key generated. Save it securely.' });
 });
 
-// ---------- ADMIN ----------
-app.get('/api/admin/feedback', async (req, res) => {
-  const adminKey = req.headers['x-admin-key'];
-  if (adminKey !== process.env.ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' });
+// ========== ADMIN ROUTES (protected with JWT) ==========
+app.post('/api/admin/login', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email required' });
+  if (!ALLOWED_ADMIN_EMAILS.includes(email)) {
+    return res.status(403).json({ error: 'Not authorized. You are not an admin.' });
+  }
+  const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '1h' });
+  res.json({ success: true, token, email, expiresIn: '1 hour' });
+});
+
+app.get('/api/admin/feedback', verifyAdminToken, async (req, res) => {
   if (dbReady) {
     try {
       const result = await sql`SELECT * FROM feedback ORDER BY created_at DESC`;
-      return res.json({ feedback: result.rows, source: 'postgres' });
+      return res.json({ feedback: result.rows, source: 'postgres', admin: req.adminEmail });
     } catch (err) { console.error(err); }
   }
-  res.json({ feedback: feedbackStore, source: 'memory' });
+  res.json({ feedback: feedbackStore, source: 'memory', admin: req.adminEmail });
 });
 
-app.post('/api/admin/respond', async (req, res) => {
-  const adminKey = req.headers['x-admin-key'];
-  if (adminKey !== process.env.ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' });
+app.post('/api/admin/respond', verifyAdminToken, async (req, res) => {
   const { feedbackId, replyMessage, userEmail, userName } = req.body;
   if (!feedbackId || !replyMessage || !userEmail) return res.status(400).json({ error: 'Missing fields' });
-
   if (dbReady) {
     try {
       await sql`
         INSERT INTO feedback_responses (feedback_id, reply_message, replied_by)
-        VALUES (${feedbackId}, ${replyMessage}, 'admin')
+        VALUES (${feedbackId}, ${replyMessage}, ${req.adminEmail})
       `;
     } catch (err) { console.error(err); }
   }
   const html = `<html><body><h2>Response from BaKangombe Support</h2><p>Hello ${userName || 'Valued User'},</p><p>${replyMessage}</p><p>– BaKangombe Team</p></body></html>`;
   const sent = await sendEmail(userEmail, 'Response to your feedback', html);
-  res.json({ success: true, emailSent: sent });
+  res.json({ success: true, emailSent: sent, admin: req.adminEmail });
 });
 
-// ---------- Admin dashboard ----------
+// ---------- Admin dashboard HTML (with JWT login) ----------
 app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/admin.html'));
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - BaKangombe</title>
+  <style>
+    body { background: #0a0c10; color: #eef2ff; font-family: system-ui; padding: 2rem; max-width: 1000px; margin: 0 auto; }
+    input, button, textarea { background: #0f1117; border: 1px solid rgba(255,255,255,0.1); color: #eef2ff; padding: 0.5rem; border-radius: 0.5rem; margin: 0.5rem 0; }
+    button { background: #4f46e5; cursor: pointer; }
+    pre { background: #0f1117; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; }
+    .card { background: rgba(255,255,255,0.03); border-radius: 1rem; padding: 1rem; margin: 1rem 0; }
+    hr { border-color: rgba(255,255,255,0.1); }
+  </style>
+</head>
+<body>
+  <h1>BaKangombe Admin Panel</h1>
+  <div id="loginSection">
+    <h2>Admin Login</h2>
+    <input type="email" id="adminEmail" placeholder="Your admin email" value="bornface.kangombe@cs.unza.zm">
+    <button onclick="login()">Login with Email</button>
+    <div id="loginResult"></div>
+  </div>
+  <div id="adminContent" style="display:none;">
+    <hr>
+    <h2>Feedback Management</h2>
+    <button onclick="loadFeedback()">Load Feedback</button>
+    <div id="feedbackList"></div>
+    <hr>
+    <h3>Reply to Feedback</h3>
+    <input type="number" id="replyId" placeholder="Feedback ID">
+    <input type="email" id="replyUserEmail" placeholder="User email">
+    <input type="text" id="replyUserName" placeholder="User name">
+    <textarea id="replyMessage" rows="3" placeholder="Your reply..."></textarea>
+    <button onclick="sendReply()">Send Reply</button>
+    <div id="replyResult"></div>
+  </div>
+  <script>
+    let token = localStorage.getItem('adminToken');
+    if (token) { document.getElementById('loginSection').style.display = 'none'; document.getElementById('adminContent').style.display = 'block'; loadFeedback(); }
+    async function login() {
+      const email = document.getElementById('adminEmail').value;
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        localStorage.setItem('adminToken', data.token);
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('adminContent').style.display = 'block';
+        loadFeedback();
+      } else {
+        document.getElementById('loginResult').innerText = 'Error: ' + data.error;
+      }
+    }
+    async function loadFeedback() {
+      const token = localStorage.getItem('adminToken');
+      const res = await fetch('/api/admin/feedback', { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await res.json();
+      document.getElementById('feedbackList').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+    }
+    async function sendReply() {
+      const token = localStorage.getItem('adminToken');
+      const feedbackId = parseInt(document.getElementById('replyId').value);
+      const userEmail = document.getElementById('replyUserEmail').value;
+      const userName = document.getElementById('replyUserName').value;
+      const replyMessage = document.getElementById('replyMessage').value;
+      const res = await fetch('/api/admin/respond', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ feedbackId, replyMessage, userEmail, userName })
+      });
+      const data = await res.json();
+      document.getElementById('replyResult').innerText = JSON.stringify(data);
+    }
+  </script>
+</body>
+</html>`);
 });
 
 // ---------- Professional Documentation Page (inline HTML) ----------
