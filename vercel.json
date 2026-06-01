@@ -1,21 +1,7 @@
-{
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 10
-    }
-  },
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index.js"
-    },
-    {
-      "source": "/docs",
-      "destination": "/docs.html"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/public/$1"
-    }
-  ]
-}
+{ 
+  "functions": { 
+    "api/index.js": { 
+      "maxDuration": 60 
+    } 
+  } 
+} 
