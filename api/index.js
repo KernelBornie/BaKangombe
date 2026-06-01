@@ -7,19 +7,12 @@ const { faker } = require('@faker-js/faker');
 const axios = require('axios');
 const dns = require('dns').promises;
 const multer = require('multer');
-const csv = require('csv-parser');
-const { Readable } = require('stream');
 const crypto = require('crypto');
-const { v4: uuidv4 } = require('uuid');
-const QRCode = require('qrcode');
-const useragent = require('express-useragent');
-const whois = require('whois-json');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
-app.use(useragent.express());
 
 // ---------- Rate limiting ----------
 const FREE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX) || 100;
@@ -56,7 +49,7 @@ const getCount = (req, defaultCount = 5) => {
   return Math.min(Math.max(count, 1), 100);
 };
 
-// ---------- MOCK ENDPOINTS (free) ----------
+// ---------- MOCK ENDPOINTS ----------
 app.get('/api/users/:count?', (req, res) => {
   const count = getCount(req, 5);
   const users = Array.from({ length: count }, () => ({
