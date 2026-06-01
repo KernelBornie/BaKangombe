@@ -6,15 +6,82 @@ const rateLimit = require('express-rate-limit');
 const { faker } = require('@faker-js/faker');
 const axios = require('axios');
 const dns = require('dns').promises;
-const multer = require('multer');
-const crypto = require('crypto');
-const { v4: uuidv4 } = require('uuid');
-const QRCode = require('qrcode');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+
+// ---------- PostgreSQL (safe – requires 'pg' package) ----------
+let pool = null;
+let dbReady = false;
+let feedbackStore = []; // in‑memory fallback
+
+// Only attempt to use PostgreSQL if the module is available
+try {
+  const { Pool } = require('pg');
+  if (process.env.POSTGRES_URL) {
+    pool = new Pool({
+      connectionString: process.env.POSTGRES_URL,
+      ssl: { rejectUnauthorized: false }
+    });
+    // Initialize asynchronously (never blocks startup)
+    (async () => {
+      try {
+        await pool.query('SELECT 1');
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS feedback (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(255),
+            email VARCHAR(255),
+            message TEXT,
+            user_agent TEXT,
+            created_at TIMESTAMP DEFAULT NOW()
+          );
+          CREATE TABLE IF NOT EXISTS feedback_responses (
+            id SERIAL PRIMARY KEY,
+            feedback_id INTEGER REFERENCES feedback(id) ON DELETE CASCADE,
+            reply_message TEXT NOT NULL,
+            replied_by VARCHAR(255),
+            created_at TIMESTAMP DEFAULT NOW()
+          );
+        `);
+        dbReady = true;
+        console.log('PostgreSQL ready');
+      } catch (err) {
+        console.error('PostgreSQL init error:', err.message);
+        dbReady = false;
+      }
+    })();
+  } else {
+    console.log('POSTGRES_URL not set – using in‑memory');
+  }
+} catch (err) {
+  console.log('pg module not available – using in‑memory feedback');
+}
+
+// ---------- Email sender (Brevo) ----------
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const SENDER_EMAIL = 'bornfacek135@gmail.com';
+const SENDER_NAME = 'BaKangombe';
+
+async function sendEmail(toEmail, subject, htmlContent) {
+  if (!BREVO_API_KEY) return false;
+  try {
+    await axios.post('https://api.brevo.com/v3/smtp/email', {
+      sender: { name: SENDER_NAME, email: SENDER_EMAIL },
+      to: [{ email: toEmail, name: toEmail.split('@')[0] }],
+      subject,
+      htmlContent
+    }, {
+      headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json' }
+    });
+    return true;
+  } catch (err) {
+    console.error('Email error:', err.response?.data || err.message);
+    return false;
+  }
+}
 
 // ---------- Rate limiting ----------
 const FREE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX) || 100;
@@ -51,7 +118,7 @@ const getCount = (req, defaultCount = 5) => {
   return Math.min(Math.max(count, 1), 100);
 };
 
-// ---------- MOCK ENDPOINTS ----------
+// ---------- MOCK ENDPOINTS (unchanged) ----------
 app.get('/api/users/:count?', (req, res) => {
   const count = getCount(req, 5);
   const users = Array.from({ length: count }, () => ({
@@ -130,7 +197,7 @@ app.get('/api/transactions/:count?', (req, res) => {
   res.json({ count, data: transactions, premium: req.isPremium });
 });
 
-// ---------- EMAIL VALIDATION (free) ----------
+// ---------- EMAIL VALIDATION ----------
 const disposableDomains = new Set([
   'mailinator.com', 'guerrillamail.com', '10minutemail.com', 'tempmail.com',
   'throwawaymail.com', 'yopmail.com', 'mailnator.com', 'spamgourmet.com'
@@ -160,19 +227,11 @@ app.post('/api/validate', async (req, res) => {
   res.json({ email, ...result });
 });
 
-// ---------- WAITLIST (Brevo) ----------
-const BREVO_API_KEY = process.env.BREVO_API_KEY;
+// ---------- WAITLIST ----------
 async function sendWelcomeEmail(email) {
   if (!BREVO_API_KEY) return false;
-  try {
-    await axios.post('https://api.brevo.com/v3/smtp/email', {
-      sender: { name: 'BaKangombe', email: 'bornfacek135@gmail.com' },
-      to: [{ email, name: email.split('@')[0] }],
-      subject: 'Welcome to the BaKangombe Waitlist!',
-      htmlContent: `<html><body><h2>Thank you for joining!</h2><p>– Bornface Kangombe Kernel</p></body></html>`
-    }, { headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json' } });
-    return true;
-  } catch (err) { return false; }
+  const html = `<html><body><h2>Thank you for joining the BaKangombe waitlist!</h2><p>– Bornface Kangombe Kernel</p></body></html>`;
+  return await sendEmail(email, 'Welcome to BaKangombe Waitlist', html);
 }
 
 app.post('/api/waitlist', async (req, res) => {
@@ -186,7 +245,7 @@ app.post('/api/waitlist', async (req, res) => {
 app.post('/api/create-ls-checkout', async (req, res) => {
   const { email } = req.body;
   if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
-  const LS_API_KEY = process.env.LEMONSQUEEZY_API_KEY || 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...'; // full key from env
+  const LS_API_KEY = process.env.LEMONSQUEEZY_API_KEY || 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...';
   const LS_STORE_ID = process.env.LEMONSQUEEZY_STORE_ID || '387550';
   const LS_VARIANT_ID = process.env.LEMONSQUEEZY_VARIANT_ID || '1705111';
   try {
@@ -208,7 +267,7 @@ app.post('/api/create-ls-checkout', async (req, res) => {
   }
 });
 
-// ---------- ENRICHMENT (Hunter.io) ----------
+// ---------- ENRICHMENT ----------
 const HUNTER_API_KEY = process.env.HUNTER_API_KEY;
 app.post('/api/enrich', async (req, res) => {
   const { email } = req.body;
@@ -236,7 +295,7 @@ app.post('/api/enrich', async (req, res) => {
   }
 });
 
-// ---------- WEBSITE BUILDER (premium) ----------
+// ---------- WEBSITE BUILDER ----------
 app.post('/api/website/generate', async (req, res) => {
   const { template = 'landing', title = 'My Site', content = 'Welcome!' } = req.body;
   if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
@@ -251,13 +310,104 @@ app.post('/api/website/generate', async (req, res) => {
   res.json({ html, template, title });
 });
 
-// ---------- FEEDBACK (in-memory) ----------
-let feedbackStore = [];
-app.post('/api/feedback', (req, res) => {
+// ---------- FEEDBACK (with confirmation email) ----------
+app.post('/api/feedback', async (req, res) => {
   const { name, email, message } = req.body;
-  if (!name || !email || !message) return res.status(400).json({ error: 'name, email, message required' });
-  feedbackStore.push({ id: feedbackStore.length + 1, name, email, message, createdAt: new Date().toISOString() });
-  res.json({ success: true, message: 'Thank you for your feedback!' });
+  if (!name || !email || !message) {
+    return res.status(400).json({ error: 'name, email, message required' });
+  }
+
+  let feedbackId = null;
+  // Store in DB if possible
+  if (dbReady && pool) {
+    try {
+      const result = await pool.query(
+        'INSERT INTO feedback (name, email, message, user_agent) VALUES ($1, $2, $3, $4) RETURNING id',
+        [name, email, message, req.headers['user-agent']]
+      );
+      feedbackId = result.rows[0].id;
+    } catch (err) {
+      console.error('DB insert error:', err);
+    }
+  }
+  // Fallback to memory
+  if (!feedbackId) {
+    feedbackStore.push({ id: feedbackStore.length + 1, name, email, message, createdAt: new Date().toISOString() });
+    feedbackId = feedbackStore.length;
+  }
+
+  // Send confirmation email to user
+  const confirmHtml = `
+    <html><body>
+      <h2>Thank you for your feedback, ${name}!</h2>
+      <p>We have received your message and will review it shortly.</p>
+      <p><strong>Your message:</strong><br/>${message.replace(/\n/g, '<br/>')}</p>
+      <p>– BaKangombe Team</p>
+    </body></html>
+  `;
+  await sendEmail(email, 'We received your feedback', confirmHtml);
+
+  res.json({ success: true, message: 'Thank you for your feedback! A confirmation email has been sent.' });
+});
+
+// ---------- ADMIN ENDPOINTS ----------
+app.get('/api/admin/feedback', async (req, res) => {
+  const adminKey = req.headers['x-admin-key'];
+  if (adminKey !== process.env.ADMIN_KEY) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  if (dbReady && pool) {
+    try {
+      const result = await pool.query(`
+        SELECT f.*, 
+          (SELECT json_agg(json_build_object('reply', r.reply_message, 'replied_by', r.replied_by, 'created_at', r.created_at))
+           FROM feedback_responses r WHERE r.feedback_id = f.id) as responses
+        FROM feedback f ORDER BY f.created_at DESC
+      `);
+      return res.json({ feedback: result.rows, source: 'postgres' });
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  res.json({ feedback: feedbackStore, source: 'memory' });
+});
+
+app.post('/api/admin/respond', async (req, res) => {
+  const adminKey = req.headers['x-admin-key'];
+  if (adminKey !== process.env.ADMIN_KEY) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const { feedbackId, replyMessage, userEmail, userName } = req.body;
+  if (!feedbackId || !replyMessage || !userEmail) {
+    return res.status(400).json({ error: 'feedbackId, replyMessage, and userEmail required' });
+  }
+
+  // Store reply in DB if possible
+  if (dbReady && pool) {
+    try {
+      await pool.query(
+        'INSERT INTO feedback_responses (feedback_id, reply_message, replied_by) VALUES ($1, $2, $3)',
+        [feedbackId, replyMessage, 'admin']
+      );
+    } catch (err) {
+      console.error('Store reply error:', err);
+    }
+  }
+
+  // Send email to user
+  const html = `
+    <html><body>
+      <h2>Response from BaKangombe Support</h2>
+      <p>Hello ${userName || 'Valued User'},</p>
+      <p>Regarding your feedback:</p>
+      <blockquote>${replyMessage}</blockquote>
+      <p>Thank you for helping us improve.</p>
+      <p>– BaKangombe Team</p>
+    </body></html>
+  `;
+  const sent = await sendEmail(userEmail, 'Response to your feedback', html);
+
+  res.json({ success: true, emailSent: sent, message: 'Reply sent and stored.' });
 });
 
 // ---------- Static pages ----------
@@ -269,14 +419,6 @@ app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/docs', (req, res) => res.sendFile(path.join(__dirname, '../public/docs.html')));
 
-// Admin endpoint to view feedback (protect with a secret key)
-app.get('/api/admin/feedback', (req, res) => {
-  const adminKey = req.headers['x-admin-key'];
-  if (adminKey !== process.env.ADMIN_KEY) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  res.json({ count: feedbackStore.length, feedback: feedbackStore });
-});
 // ---------- CATCH-ALL ----------
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
