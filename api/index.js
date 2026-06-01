@@ -292,5 +292,168 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
+// ---------- LEAD ENRICHMENT API ----------
+const CLEARBIT_API_KEY = process.env.CLEARBIT_API_KEY; // Get free key from clearbit.com
+// Simple in‑memory cache (per function instance)
+const enrichmentCache = new Map();
 
+// Enrich a single email address
+async function enrichEmail(email) {
+  if (!CLEARBIT_API_KEY) return { error: 'Clearbit API key missing' };
+  const cacheKey = `email:${email}`;
+  if (enrichmentCache.has(cacheKey)) return enrichmentCache.get(cacheKey);
+
+  try {
+    const response = await axios.get(`https://person.clearbit.com/v2/people/find?email=${email}`, {
+      headers: { Authorization: `Bearer ${CLEARBIT_API_KEY}` }
+    });
+    const data = response.data;
+    const result = {
+      name: data.name?.fullName || null,
+      title: data.employment?.title || null,
+      company: data.company?.name || null,
+      industry: data.company?.industry || null,
+      linkedin: data.linkedin?.handle ? `https://linkedin.com/in/${data.linkedin.handle}` : null,
+      twitter: data.twitter?.handle ? `https://twitter.com/${data.twitter.handle}` : null,
+      bio: data.bio || null,
+      avatar: data.avatar || null,
+      location: data.geo?.city || null
+    };
+    enrichmentCache.set(cacheKey, result);
+    return result;
+  } catch (err) {
+    if (err.response?.status === 404) return { error: 'No enrichment found for this email' };
+    return { error: err.message };
+  }
+}
+
+// Enrich a company domain
+async function enrichDomain(domain) {
+  if (!CLEARBIT_API_KEY) return { error: 'Clearbit API key missing' };
+  const cacheKey = `domain:${domain}`;
+  if (enrichmentCache.has(cacheKey)) return enrichmentCache.get(cacheKey);
+
+  try {
+    const response = await axios.get(`https://company.clearbit.com/v2/companies/find?domain=${domain}`, {
+      headers: { Authorization: `Bearer ${CLEARBIT_API_KEY}` }
+    });
+    const data = response.data;
+    const result = {
+      name: data.name,
+      legalName: data.legalName,
+      domain: data.domain,
+      industry: data.category?.industry,
+      sector: data.category?.sector,
+      description: data.description,
+      logo: data.logo,
+      twitter: data.twitter?.handle ? `https://twitter.com/${data.twitter.handle}` : null,
+      linkedin: data.linkedin?.handle ? `https://linkedin.com/company/${data.linkedin.handle}` : null,
+      employees: data.metrics?.employees,
+      foundedYear: data.foundedYear,
+      location: data.location,
+      techStack: data.tech ? data.tech.map(t => t.technology) : null
+    };
+    enrichmentCache.set(cacheKey, result);
+    return result;
+  } catch (err) {
+    if (err.response?.status === 404) return { error: 'No enrichment found for this domain' };
+    return { error: err.message };
+  }
+}
+
+// POST /api/enrich – main enrichment endpoint
+app.post('/api/enrich', async (req, res) => {
+  const { email, domain } = req.body;
+  if (!email && !domain) {
+    return res.status(400).json({ error: 'Provide either "email" or "domain" field' });
+  }
+
+  // Check premium API key (same as email validation)
+  if (!req.isPremium) {
+    return res.status(402).json({ error: 'Enrichment requires a valid premium API key. Subscribe at /pricing.' });
+  }
+
+  let result;
+  if (email) {
+    const enrichResult = await enrichEmail(email);
+    result = { type: 'email', input: email, ...enrichResult };
+  } else {
+    const enrichResult = await enrichDomain(domain);
+    result = { type: 'domain', input: domain, ...enrichResult };
+  }
+  res.json(result);
+});
+// ---------- LEAD ENRICHMENT API (Hunter.io) ----------
+const HUNTER_API_KEY = process.env.HUNTER_API_KEY;
+const enrichmentCache = new Map(); // simple per‑instance cache
+
+async function enrichEmailWithHunter(email) {
+  if (!HUNTER_API_KEY) return { error: 'Hunter API key missing' };
+  const cacheKey = `hunter:${email}`;
+  if (enrichmentCache.has(cacheKey)) return enrichmentCache.get(cacheKey);
+
+  try {
+    const url = `https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(email)}&api_key=${HUNTER_API_KEY}`;
+    const response = await axios.get(url);
+    const data = response.data.data;
+    const result = {
+      email,
+      verified: data.status === 'valid',
+      accept_all: data.accept_all || false,
+      disposable: data.disposable || false,
+      webmail: data.webmail || false,
+      mx_records: data.mx_records || false,
+      score: data.score || 0,
+      name: data.first_name && data.last_name ? `${data.first_name} ${data.last_name}` : null,
+      company: data.company || null
+    };
+    enrichmentCache.set(cacheKey, result);
+    return result;
+  } catch (err) {
+    console.error('Hunter error:', err.response?.data || err.message);
+    return { error: 'Hunter enrichment failed' };
+  }
+}
+
+async function enrichDomainWithHunter(domain) {
+  if (!HUNTER_API_KEY) return { error: 'Hunter API key missing' };
+  const cacheKey = `hunter-domain:${domain}`;
+  if (enrichmentCache.has(cacheKey)) return enrichmentCache.get(cacheKey);
+
+  try {
+    const url = `https://api.hunter.io/v2/domain-search?domain=${encodeURIComponent(domain)}&api_key=${HUNTER_API_KEY}`;
+    const response = await axios.get(url);
+    const data = response.data.data;
+    const result = {
+      domain,
+      organization: data.organization || null,
+      industry: data.industry || null,
+      emails_count: data.emails_count || 0,
+      pattern: data.pattern || null
+    };
+    enrichmentCache.set(cacheKey, result);
+    return result;
+  } catch (err) {
+    return { error: 'Domain enrichment failed' };
+  }
+}
+
+// POST /api/enrich – main enrichment endpoint
+app.post('/api/enrich', async (req, res) => {
+  const { email, domain } = req.body;
+  if (!email && !domain) {
+    return res.status(400).json({ error: 'Provide either "email" or "domain" field' });
+  }
+  // Require premium API key (same as validation)
+  if (!req.isPremium) {
+    return res.status(402).json({ error: 'Enrichment requires a valid premium API key. Subscribe at /pricing.' });
+  }
+  let result;
+  if (email) {
+    result = await enrichEmailWithHunter(email);
+  } else {
+    result = await enrichDomainWithHunter(domain);
+  }
+  res.json(result);
+});
 module.exports = app;
