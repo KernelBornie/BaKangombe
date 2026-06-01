@@ -14,12 +14,6 @@ app.use(express.json());
 // Serve static files from the "public" folder
 app.use(express.static('public'));
 
-// Catch-all to serve index.html for any non-API route (for SPA routing)
-app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api')) return next();
-  res.sendFile(path.join(__dirname, '../public/index.html'));
-});
-
 // ---------- Email providers (optional) ----------
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
@@ -143,45 +137,40 @@ app.get('/api/transactions/:count?', (req, res) => {
   res.json({ count, data: transactions, premium: req.isPremium });
 });
 
-// ---------- LEMON SQUEEZY CHECKOUT (hardcoded – guaranteed to work) ----------
+// ---------- LEMON SQUEEZY CHECKOUT ----------
 app.post('/api/create-ls-checkout', async (req, res) => {
   const { email } = req.body;
   if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
 
-  // Your correct test-mode keys
   const LS_API_KEY = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiI5NGQ1OWNlZi1kYmI4LTRlYTUtYjE3OC1kMjU0MGZjZDY5MTkiLCJqdGkiOiJhNDJiNmY3MGE4ZmZlODc1MmM3YzhmNjVkZTAwNmMwMTU4MDY3NjE5ZmM0ZmEyMWEzZWUyYzBkYmMyMGU5NzUxMmQ3YTMzMzY0MTg4NjVkNyIsImlhdCI6MTc4MDI0MzI4Mi44NTAyOTksIm5iZiI6MTc4MDI0MzI4Mi44NTAzMDIsImV4cCI6MTc5NTk5NjgwMC4wMzEyMiwic3ViIjoiNzIwMzMyMSIsInNjb3BlcyI6W119.bk-ut2bSJZrxtHqB0dzB6cTfloT7HobpC8nESzc1L4kwzHWp-follS-o6DmCnfR9-HKmMg5GpbDvpIIwKRTM3X3JTVdKSnwCbJwlUaoB6kTyAz8ZsHFkEH8j7gCB1xAxXOKoEXnpW435TQlkiEsJgBd5F3XNCbc5qyNVsE7mAMa2wCZ8hmAv1NjCpnUHoLKGQsoniOZ55QECXcer6gbPnrUH7rktydx4LboXQGFoZxhMJuhedq1fAoBpvnu5K6g4GrNRECDlXNlANw2cbrt5nHWzlub9kXyXGsBJ9WEbMXJPtEwM_Afdw1WzYBbd7-3Tt3qGh9jzrpSL6icEBOav9JsxyoBSTgRlHvXg6-y2BFtsSOQRl0_OlSA-JcfxEwS5sZIdz1miMoBt6H-jEBpAfdbcvIEqk65BrQI6xtourKAok92zJDYfw5oe5e8erqTiGyJgMQ4ndLGddn1XgqsMFDEgDHMs5uIQBitk5Lmk1Umte9Odu7PE8v9i7pgGa0eWekqd7AudJoT3IBhPGxInyH_Nj9HXsGmBgM2AP0ONkRSz9Gd_8yLETQECIB7opL9dhMrsm_XuCPcYPs11K5Jot5cazcaAOzrHMNmmQyo9xUrNPWwBoRfSOeO3xIWd7ZSi-OaWLfinLTFKZoTuDyQK0hQ1Fas2Oq8LctMwT1m-Tj4';
   const LS_STORE_ID = '387550';
   const LS_VARIANT_ID = '1705111';
 
   try {
-    const response = await axios.post(
-      'https://api.lemonsqueezy.com/v1/checkouts',
-      {
-        data: {
-          type: 'checkouts',
-          attributes: {
-            checkout_data: { email, custom: { user_email: email } },
-            product_options: {
-              redirect_url: 'https://ba-kangombe.vercel.app/success',
-              receipt_button_text: 'Go to Dashboard',
-              receipt_link_url: 'https://ba-kangombe.vercel.app/dashboard'
-            },
-            checkout_options: { embed: false, media: false, logo: false, desc: false, discount: true, dark: false }
+    const response = await axios.post('https://api.lemonsqueezy.com/v1/checkouts', {
+      data: {
+        type: 'checkouts',
+        attributes: {
+          checkout_data: { email, custom: { user_email: email } },
+          product_options: {
+            redirect_url: 'https://ba-kangombe.vercel.app/success',
+            receipt_button_text: 'Go to Dashboard',
+            receipt_link_url: 'https://ba-kangombe.vercel.app/dashboard'
           },
-          relationships: {
-            store: { data: { type: 'stores', id: LS_STORE_ID } },
-            variant: { data: { type: 'variants', id: LS_VARIANT_ID } }
-          }
-        }
-      },
-      {
-        headers: {
-          Accept: 'application/vnd.api+json',
-          'Content-Type': 'application/vnd.api+json',
-          Authorization: `Bearer ${LS_API_KEY}`
+          checkout_options: { embed: false, media: false, logo: false, desc: false, discount: true, dark: false }
+        },
+        relationships: {
+          store: { data: { type: 'stores', id: LS_STORE_ID } },
+          variant: { data: { type: 'variants', id: LS_VARIANT_ID } }
         }
       }
-    );
+    }, {
+      headers: {
+        Accept: 'application/vnd.api+json',
+        'Content-Type': 'application/vnd.api+json',
+        Authorization: `Bearer ${LS_API_KEY}`
+      }
+    });
     const checkoutUrl = response.data.data.attributes.url;
     res.json({ url: checkoutUrl });
   } catch (err) {
@@ -189,33 +178,6 @@ app.post('/api/create-ls-checkout', async (req, res) => {
     res.status(500).json({ error: 'Checkout failed' });
   }
 });
-
-// ----- Explicit routes for success page and favicon -----
-app.get('/success', (req, res) => {
-  res.send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Payment Successful – BaKangombe</title>
-  <style>
-    body { background: #0a0c10; color: #eef2ff; font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; text-align: center; }
-    .card { background: rgba(255,255,255,0.03); border-radius: 1.5rem; padding: 2rem; border: 1px solid rgba(255,255,255,0.08); max-width: 500px; }
-    h1 { color: #10b981; } a { color: #a0c4ff; text-decoration: none; } a:hover { text-decoration: underline; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>✓ Payment Successful!</h1>
-    <p>Thank you for subscribing to BaKangombe Premium.</p>
-    <p>Your premium API key will be sent to your email shortly.</p>
-    <p><a href="/">← Back to BaKangombe</a></p>
-  </div>
-</body>
-</html>`);
-});
-
-app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 // ---------- WAITLIST (Brevo) ----------
 async function sendWelcomeEmail(email) {
@@ -251,6 +213,39 @@ app.post('/api/waitlist', async (req, res) => {
   res.json({ message: sent ? 'Added to waitlist and welcome email sent!' : 'Added to waitlist (but email could not be sent).' });
 });
 
+// ----- Success page (inline HTML, serves as fallback if static file missing) -----
+app.get('/success', (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Successful – BaKangombe</title>
+  <style>
+    body { background: #0a0c10; color: #eef2ff; font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; text-align: center; }
+    .card { background: rgba(255,255,255,0.03); border-radius: 1.5rem; padding: 2rem; border: 1px solid rgba(255,255,255,0.08); max-width: 500px; }
+    h1 { color: #10b981; } a { color: #a0c4ff; text-decoration: none; } a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>✓ Payment Successful!</h1>
+    <p>Thank you for subscribing to BaKangombe Premium.</p>
+    <p>Your premium API key will be sent to your email shortly.</p>
+    <p><a href="/">← Back to BaKangombe</a></p>
+  </div>
+</body>
+</html>`);
+});
+
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
+// ---------- CATCH‑ALL (must be the very last route) ----------
+// Serves index.html for any non‑API request that didn't match a static file or specific route
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
+});
 
 module.exports = app;
