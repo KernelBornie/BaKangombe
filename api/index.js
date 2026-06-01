@@ -269,6 +269,14 @@ app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/docs', (req, res) => res.sendFile(path.join(__dirname, '../public/docs.html')));
 
+// Admin endpoint to view feedback (protect with a secret key)
+app.get('/api/admin/feedback', (req, res) => {
+  const adminKey = req.headers['x-admin-key'];
+  if (adminKey !== process.env.ADMIN_KEY) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  res.json({ count: feedbackStore.length, feedback: feedbackStore });
+});
 // ---------- CATCH-ALL ----------
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
