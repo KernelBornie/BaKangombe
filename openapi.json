@@ -1,0 +1,45 @@
+    "/api/company/enrich": {
+      "post": {
+        "summary": "Enrich company data from domain",
+        "description": "Returns organization name, industry, estimated employee count, email pattern, and sample emails. Requires premium API key.",
+        "operationId": "companyEnrich",
+        "security": [{ "apiKeyHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["domain"],
+                "properties": {
+                  "domain": {
+                    "type": "string",
+                    "example": "github.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Company data",
+            "content": {
+              "application/json": {
+                "example": {
+                  "domain": "github.com",
+                  "organization": "GitHub",
+                  "industry": "Software Development",
+                  "emails_count": 1200,
+                  "pattern": "{first}.{last}",
+                  "emails_sample": ["tom@github.com", "sarah@github.com"]
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Premium key required"
+          }
+        }
+      }
+    },
