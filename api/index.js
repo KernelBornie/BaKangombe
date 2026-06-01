@@ -11,6 +11,7 @@ const multer = require('multer');
 const csv = require('csv-parser');
 const { Readable } = require('stream');
 const { Pool } = require('pg');
+const crypto = require('crypto');
 
 const app = express();
 app.use(cors());
@@ -387,19 +388,43 @@ app.get('/success', (req, res) => {
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// ---------- CATCH-ALL ----------
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
-});
 // ---------- API KEY GENERATION (premium only) ----------
-const crypto = require('crypto');
-
 app.post('/api/generate-key', checkPremiumKey, async (req, res) => {
   if (!req.isPremium) return res.status(402).json({ error: 'Premium subscription required' });
   const newKey = crypto.randomUUID();
   // TODO: store in database with user email and creation date
   // For now, just return the key
   res.json({ api_key: newKey });
+});
+
+// ---------- CONTACT FORM ----------
+app.post('/api/contact', async (req, res) => {
+  const { name, email, message } = req.body;
+  if (!name || !email || !message) return res.status(400).json({ error: 'Missing fields' });
+  try {
+    await axios.post('https://api.brevo.com/v3/smtp/email', {
+      sender: { name: 'BaKangombe', email: 'bornfacek135@gmail.com' },
+      to: [{ email: 'bornfacek135@gmail.com', name: 'Support' }],
+      subject: `Contact from ${name}`,
+      htmlContent: `<p><strong>From:</strong> ${email}</p><p><strong>Message:</strong><br/>${message}</p>`
+    }, {
+      headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' }
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to send' });
+  }
+});
+
+// ---------- DOCUMENTATION PAGE (explicit route) ----------
+app.get('/docs', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/docs.html'));
+});
+
+// ---------- CATCH-ALL (must be the very last route) ----------
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
 module.exports = app;
