@@ -122,6 +122,7 @@ app.get('/api/products/:count?', (req, res) => {
   }));
   res.json({ count, data: products, premium: req.isPremium });
 });
+
 // ---------- UTILITY ENDPOINTS (FREE, NO KEY REQUIRED) ----------
 
 // 1. UUID v4 generator
@@ -335,6 +336,7 @@ app.post('/api/palindrome', (req, res) => {
   const isPalindrome = cleaned === cleaned.split('').reverse().join('');
   res.json({ text, isPalindrome });
 });
+
 app.get('/api/company', (req, res) => {
   const company = {
     id: faker.string.uuid(),
@@ -787,6 +789,130 @@ app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/docs', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/docs.html'));
+});
+
+// ---------- AI ENDPOINTS (OpenAI) ----------
+const OpenAI = require('openai');
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+app.post('/api/ai/summarize', async (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'text required' });
+  if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
+  if (!process.env.OPENAI_API_KEY) return res.status(500).json({ error: 'OpenAI API key missing' });
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [{ role: 'user', content: `Summarize this text in 2-3 sentences:\n\n${text}` }],
+      max_tokens: 150,
+    });
+    res.json({ summary: completion.choices[0].message.content });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'AI summarization failed' });
+  }
+});
+
+app.post('/api/ai/sentiment', async (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'text required' });
+  if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
+  if (!process.env.OPENAI_API_KEY) return res.status(500).json({ error: 'OpenAI API key missing' });
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [{ role: 'user', content: `Analyze sentiment of this text. Return JSON: { "sentiment": "positive|neutral|negative", "confidence": 0-100, "explanation": "..." }\n\nText: ${text}` }],
+      max_tokens: 100,
+    });
+    let result = completion.choices[0].message.content;
+    try {
+      const jsonMatch = result.match(/\{.*\}/s);
+      if (jsonMatch) result = JSON.parse(jsonMatch[0]);
+      else result = { sentiment: 'unknown', confidence: 0, explanation: result };
+    } catch (e) { /* keep as string */ }
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'AI sentiment failed' });
+  }
+});
+
+// ---------- DOMAIN / DNS TOOLS (premium) ----------
+const whois = require('whois-json');
+
+// WHOIS lookup
+app.post('/api/whois', async (req, res) => {
+  const { domain } = req.body;
+  if (!domain) return res.status(400).json({ error: 'domain required' });
+  if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
+  try {
+    const result = await whois(domain);
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'WHOIS lookup failed' });
+  }
+});
+
+// SSL certificate checker
+app.post('/api/ssl-check', async (req, res) => {
+  const { domain } = req.body;
+  if (!domain) return res.status(400).json({ error: 'domain required' });
+  if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
+  const https = require('https');
+  const options = { method: 'HEAD', host: domain, port: 443, timeout: 5000 };
+  const start = Date.now();
+  const reqHttps = https.request(options, (resp) => {
+    const elapsed = Date.now() - start;
+    const valid = resp.socket.authorized !== false;
+    const cert = resp.socket.getPeerCertificate();
+    res.json({
+      domain,
+      valid,
+      duration_ms: elapsed,
+      certificate: {
+        subject: cert.subject,
+        issuer: cert.issuer,
+        valid_from: cert.valid_from,
+        valid_to: cert.valid_to,
+      }
+    });
+  });
+  reqHttps.on('error', (err) => res.status(500).json({ error: 'SSL check failed', message: err.message }));
+  reqHttps.end();
+});
+
+// DNS lookup (A, MX, TXT, CNAME, NS)
+app.post('/api/dns', async (req, res) => {
+  const { domain, type = 'A' } = req.body;
+  if (!domain) return res.status(400).json({ error: 'domain required' });
+  if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
+  try {
+    let records;
+    switch (type.toUpperCase()) {
+      case 'A':
+        records = await dns.resolve4(domain);
+        break;
+      case 'MX':
+        records = await dns.resolveMx(domain);
+        break;
+      case 'TXT':
+        const txt = await dns.resolveTxt(domain);
+        records = txt.flat();
+        break;
+      case 'CNAME':
+        records = await dns.resolveCname(domain);
+        break;
+      case 'NS':
+        records = await dns.resolveNs(domain);
+        break;
+      default:
+        return res.status(400).json({ error: 'Unsupported DNS type. Use A, MX, TXT, CNAME, or NS' });
+    }
+    res.json({ domain, type: type.toUpperCase(), records });
+  } catch (err) {
+    res.status(500).json({ error: 'DNS lookup failed', message: err.message });
+  }
 });
 
 // ---------- CATCH-ALL (must be the very last route) ----------
