@@ -391,5 +391,15 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
+// ---------- API KEY GENERATION (premium only) ----------
+const crypto = require('crypto');
+
+app.post('/api/generate-key', checkPremiumKey, async (req, res) => {
+  if (!req.isPremium) return res.status(402).json({ error: 'Premium subscription required' });
+  const newKey = crypto.randomUUID();
+  // TODO: store in database with user email and creation date
+  // For now, just return the key
+  res.json({ api_key: newKey });
+});
 
 module.exports = app;
