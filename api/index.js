@@ -7,6 +7,9 @@ const { faker } = require('@faker-js/faker');
 const axios = require('axios');
 const dns = require('dns').promises;
 const { sql } = require('@vercel/postgres');
+const multer = require('multer');
+const csv = require('csv-parser');
+const { Readable } = require('stream');
 
 const app = express();
 app.use(cors());
@@ -99,7 +102,7 @@ const getCount = (req, defaultCount = 5) => {
   return Math.min(Math.max(count, 1), 100);
 };
 
-// ---------- MOCK ENDPOINTS ----------
+// ---------- MOCK ENDPOINTS (unchanged) ----------
 app.get('/api/users/:count?', (req, res) => {
   const count = getCount(req, 5);
   const users = Array.from({ length: count }, () => ({
@@ -206,6 +209,76 @@ app.post('/api/validate', async (req, res) => {
   if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
   const result = await validateEmail(email);
   res.json({ email, ...result });
+});
+
+// ---------- BATCH VALIDATION (CSV) ----------
+const upload = multer({ storage: multer.memoryStorage() });
+
+app.post('/api/validate/batch', upload.single('file'), async (req, res) => {
+  if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
+  if (!req.file) return res.status(400).json({ error: 'CSV file required' });
+
+  const results = [];
+  const stream = Readable.from(req.file.buffer.toString());
+  stream.pipe(csv())
+    .on('data', (row) => {
+      const email = row.email || Object.values(row)[0];
+      if (email && email.includes('@')) {
+        results.push(validateEmail(email).then(result => ({ email, ...result })));
+      }
+    })
+    .on('end', async () => {
+      const validated = await Promise.all(results);
+      res.json({ count: validated.length, results: validated });
+    });
+});
+
+// ---------- DOMAIN REPUTATION SCORE ----------
+async function checkDnsRecord(domain, type) {
+  try {
+    const records = await dns.resolve(domain, type);
+    return records && records.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+app.post('/api/domain/score', async (req, res) => {
+  const { domain } = req.body;
+  if (!domain) return res.status(400).json({ error: 'Domain required' });
+  if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
+
+  const spf = await checkDnsRecord(domain, 'TXT').then(records =>
+    records.some(record => record.includes('v=spf1'))
+  );
+  const dkim = await checkDnsRecord(`default._domainkey.${domain}`, 'TXT').then(records =>
+    records.some(record => record.includes('v=DKIM1'))
+  );
+  const dmarc = await checkDnsRecord(`_dmarc.${domain}`, 'TXT').then(records =>
+    records.some(record => record.includes('v=DMARC1'))
+  );
+
+  let score = 0;
+  if (spf) score += 35;
+  if (dkim) score += 35;
+  if (dmarc) score += 30;
+  let recommendation = 'Poor security';
+  if (score >= 80) recommendation = 'Excellent';
+  else if (score >= 60) recommendation = 'Good';
+  else if (score >= 30) recommendation = 'Needs improvement';
+
+  res.json({ domain, spf, dkim, dmarc, score, recommendation });
+});
+
+// ---------- DISPOSABLE EMAIL CHECK ----------
+app.post('/api/disposable', async (req, res) => {
+  const { email } = req.body;
+  if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
+  if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
+
+  const domain = email.split('@')[1].toLowerCase();
+  const isDisposable = disposableDomains.has(domain);
+  res.json({ email, isDisposable });
 });
 
 // ---------- WAITLIST ----------
@@ -315,6 +388,16 @@ app.post('/api/feedback', async (req, res) => {
   const confirmHtml = `<html><body><h2>Thank you for your feedback, ${name}!</h2><p>We received your message.</p><p>${message.replace(/\n/g, '<br/>')}</p><p>– BaKangombe Team</p></body></html>`;
   await sendEmail(email, 'We received your feedback', confirmHtml);
   res.json({ success: true, message: 'Thank you! A confirmation email has been sent.' });
+});
+
+// ---------- GENERATE PREMIUM API KEY (after purchase) ----------
+app.post('/api/generate-key', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email required' });
+  // In production, verify payment via LemonSqueezy webhook first.
+  const newKey = `pk_${Math.random().toString(36).substr(2, 16)}`;
+  // Store in DB (simplified – you should save it)
+  res.json({ apiKey: newKey, message: 'Premium key generated. Save it securely.' });
 });
 
 // ---------- ADMIN ----------
