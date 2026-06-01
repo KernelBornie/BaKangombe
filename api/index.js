@@ -6,49 +6,11 @@ const rateLimit = require('express-rate-limit');
 const { faker } = require('@faker-js/faker');
 const axios = require('axios');
 const dns = require('dns').promises;
-const multer = require('multer');
-const crypto = require('crypto');
-const { v4: uuidv4 } = require('uuid');
-const QRCode = require('qrcode');
-const { Pool } = require('pg');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
-
-// ---------- Database connection ----------
-let pool;
-if (process.env.POSTGRES_URL) {
-  pool = new Pool({
-    connectionString: process.env.POSTGRES_URL,
-    ssl: { rejectUnauthorized: false }
-  });
-  pool.query(`
-    CREATE TABLE IF NOT EXISTS usage (
-      id SERIAL PRIMARY KEY,
-      api_key VARCHAR(255) NOT NULL,
-      date DATE NOT NULL,
-      validations INTEGER DEFAULT 0,
-      enrichments INTEGER DEFAULT 0,
-      UNIQUE(api_key, date)
-    );
-  `).catch(console.error);
-  // Create feedback table if not exists
-  pool.query(`
-    CREATE TABLE IF NOT EXISTS feedback (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(255),
-      email VARCHAR(255),
-      message TEXT,
-      user_agent TEXT,
-      created_at TIMESTAMP DEFAULT NOW()
-    );
-  `).catch(console.error);
-}
-
-// ---------- Email providers ----------
-const BREVO_API_KEY = process.env.BREVO_API_KEY;
 
 // ---------- Rate limiting ----------
 const FREE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX) || 100;
@@ -195,6 +157,7 @@ app.post('/api/validate', async (req, res) => {
 });
 
 // ---------- WAITLIST (Brevo) ----------
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
 async function sendWelcomeEmail(email) {
   if (!BREVO_API_KEY) return false;
   try {
@@ -284,43 +247,22 @@ app.post('/api/website/generate', async (req, res) => {
   res.json({ html, template, title });
 });
 
-// ---------- FEEDBACK (stored in PostgreSQL) ----------
-app.post('/api/feedback', async (req, res) => {
+// ---------- FEEDBACK (in‑memory – simple, no database) ----------
+let feedbackStore = [];
+app.post('/api/feedback', (req, res) => {
   const { name, email, message } = req.body;
-  if (!name || !email || !message) {
-    return res.status(400).json({ error: 'name, email, message required' });
-  }
-  if (!pool) {
-    return res.status(500).json({ error: 'Database not configured' });
-  }
-  try {
-    await pool.query(
-      'INSERT INTO feedback (name, email, message, user_agent) VALUES ($1, $2, $3, $4)',
-      [name, email, message, req.headers['user-agent']]
-    );
-    res.json({ success: true, message: 'Thank you for your feedback!' });
-  } catch (err) {
-    console.error('Feedback save error:', err);
-    res.status(500).json({ error: 'Failed to save feedback' });
-  }
+  if (!name || !email || !message) return res.status(400).json({ error: 'name, email, message required' });
+  feedbackStore.push({ id: feedbackStore.length + 1, name, email, message, createdAt: new Date().toISOString() });
+  res.json({ success: true, message: 'Thank you for your feedback!' });
 });
 
-// ---------- ADMIN ENDPOINT to view feedback ----------
-app.get('/api/admin/feedback', async (req, res) => {
+// Admin endpoint to view feedback (protected)
+app.get('/api/admin/feedback', (req, res) => {
   const adminKey = req.headers['x-admin-key'];
   if (adminKey !== process.env.ADMIN_KEY) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  if (!pool) {
-    return res.status(500).json({ error: 'Database not configured' });
-  }
-  try {
-    const result = await pool.query('SELECT * FROM feedback ORDER BY created_at DESC');
-    res.json({ feedback: result.rows });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch feedback' });
-  }
+  res.json({ count: feedbackStore.length, feedback: feedbackStore });
 });
 
 // ---------- Static pages ----------
