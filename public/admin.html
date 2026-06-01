@@ -3,68 +3,156 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BaKangombe Admin</title>
+  <title>Admin Dashboard - BaKangombe</title>
   <style>
-    body { background: #0a0c10; color: #eef2ff; font-family: system-ui; padding: 2rem; }
-    .card { background: rgba(255,255,255,0.03); border-radius: 1rem; padding: 1.5rem; margin-bottom: 1rem; }
-    input, textarea, button { background: #0f1117; border: 1px solid rgba(255,255,255,0.2); padding: 0.5rem; border-radius: 2rem; color: white; }
+    body { background: #0a0c10; color: #eef2ff; font-family: system-ui; padding: 2rem; max-width: 1200px; margin: 0 auto; }
+    input, button, textarea, select { background: #0f1117; border: 1px solid rgba(255,255,255,0.1); color: #eef2ff; padding: 0.5rem; border-radius: 0.5rem; margin: 0.5rem 0; }
     button { background: #4f46e5; cursor: pointer; }
-    .feedback-item { border-left: 4px solid #4f46e5; margin-bottom: 1rem; padding: 1rem; background: rgba(255,255,255,0.02); }
+    pre { background: #0f1117; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; }
+    .card { background: rgba(255,255,255,0.03); border-radius: 1rem; padding: 1rem; margin: 1rem 0; }
+    hr { border-color: rgba(255,255,255,0.1); }
+    .feedback-item { border-left: 3px solid #4f46e5; margin-bottom: 1rem; padding: 1rem; background: rgba(255,255,255,0.02); }
+    .delete-btn { background: #dc2626; margin-left: 1rem; }
+    .replies { margin-top: 0.5rem; padding-left: 1rem; border-left: 2px solid #10b981; font-size: 0.9rem; }
+    .pagination { display: flex; gap: 1rem; margin-top: 1rem; align-items: center; }
   </style>
 </head>
 <body>
-<h1>Admin – Feedback Manager</h1>
-<input type="password" id="adminKey" placeholder="Admin key">
-<button id="loginBtn">Login</button>
-<div id="dashboard" style="display:none;">
-  <button id="refreshBtn">Refresh</button>
-  <div id="feedbackList"></div>
-</div>
-<script>
-  let adminKey = '';
-  async function fetchFeedback() {
-    const res = await fetch('/api/admin/feedback', { headers: { 'x-admin-key': adminKey } });
-    if (!res.ok) throw new Error('Unauthorized or error');
-    const data = await res.json();
-    renderFeedback(data.feedback || []);
-  }
-  function renderFeedback(list) {
-    const container = document.getElementById('feedbackList');
-    if (!list.length) { container.innerHTML = '<p>No feedback yet.</p>'; return; }
-    let html = '';
-    for (let fb of list) {
-      html += `<div class="feedback-item">
-        <strong>${escapeHtml(fb.name)}</strong> (${escapeHtml(fb.email)})<br/>
-        <small>${new Date(fb.created_at || fb.createdAt).toLocaleString()}</small>
-        <p>${escapeHtml(fb.message)}</p>
-        <textarea id="reply-${fb.id}" placeholder="Write reply..."></textarea>
-        <button onclick="sendReply(${fb.id}, '${escapeHtml(fb.email)}', '${escapeHtml(fb.name)}', document.getElementById('reply-${fb.id}').value)">Send Reply</button>
-      </div>`;
+  <h1>BaKangombe Admin Panel</h1>
+  <div id="loginSection">
+    <h2>Admin Login</h2>
+    <input type="email" id="adminEmail" placeholder="Your admin email" value="bornface.kangombe@cs.unza.zm">
+    <button onclick="login()">Login with Email</button>
+    <div id="loginResult"></div>
+  </div>
+  <div id="adminContent" style="display:none;">
+    <hr>
+    <h2>Feedback Management</h2>
+    <button onclick="loadFeedback()">Refresh Feedback</button>
+    <div id="feedbackList"></div>
+    <div class="pagination" id="pagination"></div>
+    <hr>
+    <h3>Reply to Feedback</h3>
+    <input type="number" id="replyId" placeholder="Feedback ID">
+    <input type="email" id="replyUserEmail" placeholder="User email">
+    <input type="text" id="replyUserName" placeholder="User name">
+    <textarea id="replyMessage" rows="3" placeholder="Your reply..."></textarea>
+    <button onclick="sendReply()">Send Reply</button>
+    <div id="replyResult"></div>
+  </div>
+  <script>
+    let token = localStorage.getItem('adminToken');
+    let allFeedback = [];
+    let currentPage = 1;
+    const pageSize = 10;
+
+    if (token) { showAdminPanel(); loadFeedback(); }
+
+    async function login() {
+      const email = document.getElementById('adminEmail').value;
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        localStorage.setItem('adminToken', data.token);
+        showAdminPanel();
+        loadFeedback();
+      } else {
+        document.getElementById('loginResult').innerText = 'Error: ' + data.error;
+      }
     }
-    container.innerHTML = html;
-  }
-  async function sendReply(id, email, name, msg) {
-    if (!msg.trim()) return alert('Empty reply');
-    const res = await fetch('/api/admin/respond', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
-      body: JSON.stringify({ feedbackId: id, replyMessage: msg, userEmail: email, userName: name })
-    });
-    const data = await res.json();
-    alert(data.emailSent ? 'Reply sent!' : 'Reply stored but email failed');
-    fetchFeedback();
-  }
-  function escapeHtml(str) { return str.replace(/[&<>]/g, function(m){ if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
-  document.getElementById('loginBtn').onclick = async () => {
-    const key = document.getElementById('adminKey').value;
-    const test = await fetch('/api/admin/feedback', { headers: { 'x-admin-key': key } });
-    if (test.status === 401) { alert('Invalid key'); return; }
-    adminKey = key;
-    document.querySelector('#dashboard').style.display = 'block';
-    document.getElementById('loginBtn').style.display = 'none';
-    fetchFeedback();
-  };
-  document.getElementById('refreshBtn').onclick = fetchFeedback;
-</script>
+
+    function showAdminPanel() {
+      document.getElementById('loginSection').style.display = 'none';
+      document.getElementById('adminContent').style.display = 'block';
+    }
+
+    async function loadFeedback() {
+      const res = await fetch('/api/admin/feedback', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') } });
+      const data = await res.json();
+      allFeedback = data.feedback || [];
+      currentPage = 1;
+      renderFeedback();
+    }
+
+    async function deleteFeedback(id) {
+      if (!confirm('Are you sure you want to delete this feedback? Replies will also be deleted.')) return;
+      const res = await fetch(`/api/admin/feedback/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') } });
+      if (res.ok) {
+        loadFeedback();
+      } else {
+        alert('Delete failed');
+      }
+    }
+
+    async function viewReplies(feedbackId, elementId) {
+      const res = await fetch(`/api/admin/feedback/${feedbackId}/responses`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') } });
+      const data = await res.json();
+      const repliesDiv = document.getElementById(elementId);
+      if (data.responses && data.responses.length) {
+        repliesDiv.innerHTML = '<strong>Previous replies:</strong><br>' + data.responses.map(r => `<div>📧 ${r.replied_by} (${new Date(r.created_at).toLocaleString()}): ${r.reply_message}</div>`).join('');
+      } else {
+        repliesDiv.innerHTML = '<em>No previous replies.</em>';
+      }
+    }
+
+    function renderFeedback() {
+      const start = (currentPage - 1) * pageSize;
+      const pageItems = allFeedback.slice(start, start + pageSize);
+      const container = document.getElementById('feedbackList');
+      container.innerHTML = '';
+      for (let fb of pageItems) {
+        const div = document.createElement('div');
+        div.className = 'feedback-item';
+        div.innerHTML = `
+          <strong>ID ${fb.id}</strong> - ${fb.name} (${fb.email})<br>
+          <em>${new Date(fb.created_at).toLocaleString()}</em><br>
+          Message: ${fb.message}<br>
+          <button onclick="deleteFeedback(${fb.id})" class="delete-btn">🗑 Delete</button>
+          <button onclick="viewReplies(${fb.id}, 'replies-${fb.id}')">💬 Show Replies</button>
+          <div id="replies-${fb.id}" class="replies"></div>
+        `;
+        container.appendChild(div);
+      }
+      // Pagination controls
+      const totalPages = Math.ceil(allFeedback.length / pageSize);
+      const pagDiv = document.getElementById('pagination');
+      pagDiv.innerHTML = `
+        <button onclick="changePage(-1)" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>
+        <span>Page ${currentPage} of ${totalPages || 1}</span>
+        <button onclick="changePage(1)" ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}>Next</button>
+      `;
+    }
+
+    function changePage(delta) {
+      currentPage += delta;
+      renderFeedback();
+    }
+
+    async function sendReply() {
+      const token = localStorage.getItem('adminToken');
+      const feedbackId = parseInt(document.getElementById('replyId').value);
+      const userEmail = document.getElementById('replyUserEmail').value;
+      const userName = document.getElementById('replyUserName').value;
+      const replyMessage = document.getElementById('replyMessage').value;
+      const res = await fetch('/api/admin/respond', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ feedbackId, replyMessage, userEmail, userName })
+      });
+      const data = await res.json();
+      document.getElementById('replyResult').innerText = JSON.stringify(data);
+      if (res.ok) {
+        document.getElementById('replyId').value = '';
+        document.getElementById('replyUserEmail').value = '';
+        document.getElementById('replyUserName').value = '';
+        document.getElementById('replyMessage').value = '';
+        loadFeedback(); // refresh list
+      }
+    }
+  </script>
 </body>
 </html>
