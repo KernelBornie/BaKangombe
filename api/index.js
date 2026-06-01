@@ -17,9 +17,7 @@ let pool = null;
 let dbReady = false;
 let feedbackStore = [];
 
-// Only attempt PostgreSQL if POSTGRES_URL exists
 if (process.env.POSTGRES_URL) {
-  // Use an IIFE to retry connection up to 5 times (2s intervals)
   (async () => {
     for (let attempt = 1; attempt <= 5; attempt++) {
       try {
@@ -48,7 +46,7 @@ if (process.env.POSTGRES_URL) {
         `);
         dbReady = true;
         console.log('PostgreSQL connected and tables ready');
-        break; // success, exit loop
+        break;
       } catch (err) {
         console.error(`PostgreSQL attempt ${attempt} failed:`, err.message);
         if (attempt === 5) {
@@ -56,7 +54,6 @@ if (process.env.POSTGRES_URL) {
           dbReady = false;
           pool = null;
         } else {
-          // Wait 2 seconds before next attempt (gives Neon time to wake up)
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
@@ -370,7 +367,12 @@ app.post('/api/admin/respond', async (req, res) => {
   res.json({ success: true, emailSent: sent });
 });
 
-// ---------- Static ----------
+// ---------- Admin dashboard route (serves static HTML) ----------
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/admin.html'));
+});
+
+// ---------- Static pages ----------
 app.get('/success', (req, res) => {
   res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment Successful</title><style>body{background:#0a0c10;color:#eef2ff;font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh;text-align:center}.card{background:rgba(255,255,255,0.03);border-radius:1.5rem;padding:2rem;border:1px solid rgba(255,255,255,0.08);max-width:500px}h1{color:#10b981}a{color:#a0c4ff}</style></head><body><div class="card"><h1>✓ Payment Successful!</h1><p>Thank you for subscribing.<br>Your premium API key will be sent to your email.</p><p><a href="/">← Back</a></p></div></body></html>`);
 });
@@ -379,6 +381,7 @@ app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/docs', (req, res) => res.sendFile(path.join(__dirname, '../public/docs.html')));
 
+// ---------- CATCH-ALL ----------
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });

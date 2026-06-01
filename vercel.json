@@ -11,7 +11,7 @@
     },
     {
       "source": "/admin",
-      "destination": "/public/admin.html"
+      "destination": "/api/index.js"
     },
     {
       "source": "/(.*)",
