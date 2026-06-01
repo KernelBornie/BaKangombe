@@ -5,17 +5,14 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const { faker } = require('@faker-js/faker');
 const axios = require('axios');
-const { Resend } = require('resend');
 const dns = require('dns').promises;
 const multer = require('multer');
 const csv = require('csv-parser');
 const { Readable } = require('stream');
-const { Pool } = require('pg');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
 const useragent = require('express-useragent');
-const whois = require('whois-json');
 
 const app = express();
 app.use(cors());
@@ -23,40 +20,9 @@ app.use(express.json());
 app.use(express.static('public'));
 app.use(useragent.express());
 
-// ---------- Database ----------
-let pool;
-if (process.env.POSTGRES_URL) {
-  pool = new Pool({
-    connectionString: process.env.POSTGRES_URL,
-    ssl: { rejectUnauthorized: false }
-  });
-  pool.query(`
-    CREATE TABLE IF NOT EXISTS usage (
-      id SERIAL PRIMARY KEY,
-      api_key VARCHAR(255) NOT NULL,
-      date DATE NOT NULL,
-      validations INTEGER DEFAULT 0,
-      enrichments INTEGER DEFAULT 0,
-      UNIQUE(api_key, date)
-    );
-    CREATE TABLE IF NOT EXISTS analytics_events (
-      id SERIAL PRIMARY KEY,
-      api_key VARCHAR(255) NOT NULL,
-      event_name VARCHAR(255),
-      event_data JSONB,
-      ip VARCHAR(45),
-      created_at TIMESTAMP DEFAULT NOW()
-    );
-    CREATE TABLE IF NOT EXISTS feedback (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(255),
-      email VARCHAR(255),
-      message TEXT,
-      user_agent TEXT,
-      created_at TIMESTAMP DEFAULT NOW()
-    );
-  `).catch(console.error);
-}
+// ---------- In‑memory storage for feedback and analytics (no DB required) ----------
+let feedbackStore = [];
+let analyticsStore = [];
 
 // ---------- Email providers ----------
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
@@ -584,34 +550,41 @@ app.post('/api/app/generate', async (req, res) => {
   res.json({ type, name, boilerplate });
 });
 
-app.post('/api/analytics/track', async (req, res) => {
-  const { event, data: eventData = {} } = req.body;
+// ---------- FEEDBACK (in‑memory, no DB) ----------
+app.post('/api/feedback', async (req, res) => {
+  const { name, email, message } = req.body;
+  if (!name || !email || !message) {
+    return res.status(400).json({ error: 'name, email, message required' });
+  }
+  const feedback = { id: feedbackStore.length + 1, name, email, message, createdAt: new Date().toISOString() };
+  feedbackStore.push(feedback);
+  console.log(`Feedback saved (${feedbackStore.length} total).`);
+  res.json({ success: true, message: 'Thank you for your feedback!' });
+});
+
+// ---------- ANALYTICS (in‑memory, no DB) ----------
+app.post('/api/analytics/track', (req, res) => {
+  const { event, data = {} } = req.body;
   if (!event) return res.status(400).json({ error: 'event required' });
   if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
-  if (!pool) return res.status(500).json({ error: 'Database not configured' });
   const apiKey = req.headers['x-api-key'];
-  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-  await pool.query('INSERT INTO analytics_events (api_key, event_name, event_data, ip) VALUES ($1, $2, $3, $4)', [apiKey, event, JSON.stringify(eventData), ip]);
+  const entry = { event, data, apiKey, timestamp: new Date().toISOString() };
+  analyticsStore.push(entry);
   res.json({ success: true });
 });
 
-app.get('/api/analytics/stats', async (req, res) => {
+app.get('/api/analytics/stats', (req, res) => {
   if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
-  if (!pool) return res.status(500).json({ error: 'Database not configured' });
   const apiKey = req.headers['x-api-key'];
-  const result = await pool.query('SELECT event_name, COUNT(*) as count FROM analytics_events WHERE api_key = $1 GROUP BY event_name', [apiKey]);
-  res.json({ stats: result.rows });
+  const filtered = analyticsStore.filter(e => e.apiKey === apiKey);
+  const stats = filtered.reduce((acc, e) => {
+    acc[e.event] = (acc[e.event] || 0) + 1;
+    return acc;
+  }, {});
+  res.json({ stats });
 });
 
 app.get('/api/analytics/demo', (req, res) => res.json({ demo: true, message: 'Subscribe to get real tracking.' }));
-
-app.post('/api/feedback', async (req, res) => {
-  const { name, email, message } = req.body;
-  if (!name || !email || !message) return res.status(400).json({ error: 'name, email, message required' });
-  if (!pool) return res.status(500).json({ error: 'Database not configured' });
-  await pool.query('INSERT INTO feedback (name, email, message, user_agent) VALUES ($1, $2, $3, $4)', [name, email, message, req.headers['user-agent']]);
-  res.json({ success: true });
-});
 
 app.post('/api/chatbot', async (req, res) => {
   const { message } = req.body;
@@ -668,6 +641,7 @@ app.post('/api/ai/sentiment', async (req, res) => {
 });
 
 // ---------- DOMAIN / DNS TOOLS ----------
+const whois = require('whois-json');
 app.post('/api/whois', async (req, res) => {
   const { domain } = req.body;
   if (!domain) return res.status(400).json({ error: 'domain required' });
