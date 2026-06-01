@@ -6,62 +6,41 @@ const rateLimit = require('express-rate-limit');
 const { faker } = require('@faker-js/faker');
 const axios = require('axios');
 const dns = require('dns').promises;
+const { sql } = require('@vercel/postgres');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// ---------- PostgreSQL (with retry and fallback) ----------
-let pool = null;
+// ---------- Vercel Postgres (no retry needed, always works) ----------
 let dbReady = false;
 let feedbackStore = [];
 
-if (process.env.POSTGRES_URL) {
-  (async () => {
-    for (let attempt = 1; attempt <= 5; attempt++) {
-      try {
-        const { Pool } = require('pg');
-        pool = new Pool({
-          connectionString: process.env.POSTGRES_URL,
-          ssl: { rejectUnauthorized: false }
-        });
-        await pool.query('SELECT 1');
-        await pool.query(`
-          CREATE TABLE IF NOT EXISTS feedback (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(255),
-            email VARCHAR(255),
-            message TEXT,
-            user_agent TEXT,
-            created_at TIMESTAMP DEFAULT NOW()
-          );
-          CREATE TABLE IF NOT EXISTS feedback_responses (
-            id SERIAL PRIMARY KEY,
-            feedback_id INTEGER REFERENCES feedback(id) ON DELETE CASCADE,
-            reply_message TEXT NOT NULL,
-            replied_by VARCHAR(255),
-            created_at TIMESTAMP DEFAULT NOW()
-          );
-        `);
-        dbReady = true;
-        console.log('PostgreSQL connected and tables ready');
-        break;
-      } catch (err) {
-        console.error(`PostgreSQL attempt ${attempt} failed:`, err.message);
-        if (attempt === 5) {
-          console.error('All PostgreSQL attempts failed – falling back to in‑memory storage');
-          dbReady = false;
-          pool = null;
-        } else {
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        }
-      }
-    }
-  })();
-} else {
-  console.log('POSTGRES_URL not set – using in‑memory feedback storage');
-}
+(async () => {
+  try {
+    await sql`CREATE TABLE IF NOT EXISTS feedback (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255),
+      email VARCHAR(255),
+      message TEXT,
+      user_agent TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    await sql`CREATE TABLE IF NOT EXISTS feedback_responses (
+      id SERIAL PRIMARY KEY,
+      feedback_id INTEGER REFERENCES feedback(id) ON DELETE CASCADE,
+      reply_message TEXT NOT NULL,
+      replied_by VARCHAR(255),
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    dbReady = true;
+    console.log('Vercel Postgres ready');
+  } catch (err) {
+    console.error('Vercel Postgres error:', err);
+    dbReady = false;
+  }
+})();
 
 // ---------- Brevo email ----------
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
@@ -319,12 +298,13 @@ app.post('/api/feedback', async (req, res) => {
   if (!name || !email || !message) return res.status(400).json({ error: 'Missing fields' });
 
   let feedbackId = null;
-  if (dbReady && pool) {
+  if (dbReady) {
     try {
-      const result = await pool.query(
-        'INSERT INTO feedback (name, email, message, user_agent) VALUES ($1, $2, $3, $4) RETURNING id',
-        [name, email, message, req.headers['user-agent']]
-      );
+      const result = await sql`
+        INSERT INTO feedback (name, email, message, user_agent)
+        VALUES (${name}, ${email}, ${message}, ${req.headers['user-agent']})
+        RETURNING id
+      `;
       feedbackId = result.rows[0].id;
     } catch (err) { console.error(err); }
   }
@@ -342,9 +322,9 @@ app.post('/api/feedback', async (req, res) => {
 app.get('/api/admin/feedback', async (req, res) => {
   const adminKey = req.headers['x-admin-key'];
   if (adminKey !== process.env.ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' });
-  if (dbReady && pool) {
+  if (dbReady) {
     try {
-      const result = await pool.query('SELECT * FROM feedback ORDER BY created_at DESC');
+      const result = await sql`SELECT * FROM feedback ORDER BY created_at DESC`;
       return res.json({ feedback: result.rows, source: 'postgres' });
     } catch (err) { console.error(err); }
   }
@@ -357,9 +337,12 @@ app.post('/api/admin/respond', async (req, res) => {
   const { feedbackId, replyMessage, userEmail, userName } = req.body;
   if (!feedbackId || !replyMessage || !userEmail) return res.status(400).json({ error: 'Missing fields' });
 
-  if (dbReady && pool) {
+  if (dbReady) {
     try {
-      await pool.query('INSERT INTO feedback_responses (feedback_id, reply_message, replied_by) VALUES ($1, $2, $3)', [feedbackId, replyMessage, 'admin']);
+      await sql`
+        INSERT INTO feedback_responses (feedback_id, reply_message, replied_by)
+        VALUES (${feedbackId}, ${replyMessage}, 'admin')
+      `;
     } catch (err) { console.error(err); }
   }
   const html = `<html><body><h2>Response from BaKangombe Support</h2><p>Hello ${userName || 'Valued User'},</p><p>${replyMessage}</p><p>– BaKangombe Team</p></body></html>`;
@@ -380,6 +363,15 @@ app.get('/success', (req, res) => {
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/docs', (req, res) => res.sendFile(path.join(__dirname, '../public/docs.html')));
+
+// Diagnostic endpoint to check database status
+app.get('/api/db-status', (req, res) => {
+  res.json({
+    dbReady,
+    postgresUrlSet: !!process.env.POSTGRES_URL,
+    vercelPostgresAvailable: !!require('@vercel/postgres')
+  });
+});
 
 // ---------- CATCH-ALL ----------
 app.get('*', (req, res) => {
