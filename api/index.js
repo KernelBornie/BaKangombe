@@ -288,101 +288,6 @@ app.get('/success', (req, res) => {
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// Catch-all – serve index.html for client-side routing
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
-});
-// ---------- LEAD ENRICHMENT API ----------
-const CLEARBIT_API_KEY = process.env.CLEARBIT_API_KEY; // Get free key from clearbit.com
-// Simple in‑memory cache (per function instance)
-const enrichmentCache = new Map();
-
-// Enrich a single email address
-async function enrichEmail(email) {
-  if (!CLEARBIT_API_KEY) return { error: 'Clearbit API key missing' };
-  const cacheKey = `email:${email}`;
-  if (enrichmentCache.has(cacheKey)) return enrichmentCache.get(cacheKey);
-
-  try {
-    const response = await axios.get(`https://person.clearbit.com/v2/people/find?email=${email}`, {
-      headers: { Authorization: `Bearer ${CLEARBIT_API_KEY}` }
-    });
-    const data = response.data;
-    const result = {
-      name: data.name?.fullName || null,
-      title: data.employment?.title || null,
-      company: data.company?.name || null,
-      industry: data.company?.industry || null,
-      linkedin: data.linkedin?.handle ? `https://linkedin.com/in/${data.linkedin.handle}` : null,
-      twitter: data.twitter?.handle ? `https://twitter.com/${data.twitter.handle}` : null,
-      bio: data.bio || null,
-      avatar: data.avatar || null,
-      location: data.geo?.city || null
-    };
-    enrichmentCache.set(cacheKey, result);
-    return result;
-  } catch (err) {
-    if (err.response?.status === 404) return { error: 'No enrichment found for this email' };
-    return { error: err.message };
-  }
-}
-
-// Enrich a company domain
-async function enrichDomain(domain) {
-  if (!CLEARBIT_API_KEY) return { error: 'Clearbit API key missing' };
-  const cacheKey = `domain:${domain}`;
-  if (enrichmentCache.has(cacheKey)) return enrichmentCache.get(cacheKey);
-
-  try {
-    const response = await axios.get(`https://company.clearbit.com/v2/companies/find?domain=${domain}`, {
-      headers: { Authorization: `Bearer ${CLEARBIT_API_KEY}` }
-    });
-    const data = response.data;
-    const result = {
-      name: data.name,
-      legalName: data.legalName,
-      domain: data.domain,
-      industry: data.category?.industry,
-      sector: data.category?.sector,
-      description: data.description,
-      logo: data.logo,
-      twitter: data.twitter?.handle ? `https://twitter.com/${data.twitter.handle}` : null,
-      linkedin: data.linkedin?.handle ? `https://linkedin.com/company/${data.linkedin.handle}` : null,
-      employees: data.metrics?.employees,
-      foundedYear: data.foundedYear,
-      location: data.location,
-      techStack: data.tech ? data.tech.map(t => t.technology) : null
-    };
-    enrichmentCache.set(cacheKey, result);
-    return result;
-  } catch (err) {
-    if (err.response?.status === 404) return { error: 'No enrichment found for this domain' };
-    return { error: err.message };
-  }
-}
-
-// POST /api/enrich – main enrichment endpoint
-app.post('/api/enrich', async (req, res) => {
-  const { email, domain } = req.body;
-  if (!email && !domain) {
-    return res.status(400).json({ error: 'Provide either "email" or "domain" field' });
-  }
-
-  // Check premium API key (same as email validation)
-  if (!req.isPremium) {
-    return res.status(402).json({ error: 'Enrichment requires a valid premium API key. Subscribe at /pricing.' });
-  }
-
-  let result;
-  if (email) {
-    const enrichResult = await enrichEmail(email);
-    result = { type: 'email', input: email, ...enrichResult };
-  } else {
-    const enrichResult = await enrichDomain(domain);
-    result = { type: 'domain', input: domain, ...enrichResult };
-  }
-  res.json(result);
-});
 // ---------- LEAD ENRICHMENT API (Hunter.io) ----------
 const HUNTER_API_KEY = process.env.HUNTER_API_KEY;
 const enrichmentCache = new Map(); // simple per‑instance cache
@@ -456,4 +361,10 @@ app.post('/api/enrich', async (req, res) => {
   }
   res.json(result);
 });
+
+// ---------- CATCH-ALL (must be last) ----------
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
+});
+
 module.exports = app;
