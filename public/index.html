@@ -205,6 +205,40 @@
     </div>
   </div>
 
+  <!-- New Profitable Features Section -->
+  <div class="cta-card reveal" style="margin-top: 4rem;">
+    <h3>🚀 New Profitable Features</h3>
+    <div class="input-group" style="flex-direction: column; gap: 2rem;">
+      <!-- Feedback Form (Free) -->
+      <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 1rem;">
+        <h4>📝 Give Feedback (Free)</h4>
+        <form id="feedbackForm" style="display: flex; flex-direction: column; gap: 0.5rem; max-width: 400px; margin: 0 auto;">
+          <input type="text" id="feedbackName" placeholder="Your Name" required>
+          <input type="email" id="feedbackEmail" placeholder="Your Email" required>
+          <textarea id="feedbackMessage" rows="3" placeholder="Your message..." required style="background:#0f1117;color:white;border-radius:1rem;padding:0.5rem;"></textarea>
+          <button type="submit" class="btn btn-primary" style="background:#10b981;">Send Feedback</button>
+        </form>
+        <div id="feedbackResult" style="margin-top:0.5rem; font-size:0.8rem;"></div>
+      </div>
+      <!-- Website Builder Demo (Premium) -->
+      <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 1rem;">
+        <h4>🏗️ Website Builder (Premium)</h4>
+        <p>Generate a simple landing page HTML. Requires premium API key.</p>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <input type="text" id="siteTitle" placeholder="Site Title" style="flex:1;">
+          <input type="text" id="siteContent" placeholder="Content" style="flex:1;">
+          <select id="siteTemplate">
+            <option value="landing">Landing</option>
+            <option value="blog">Blog</option>
+          </select>
+          <input type="text" id="builderApiKey" placeholder="Premium API Key" style="flex:1;">
+          <button id="generateWebsiteBtn" class="btn btn-outline">Generate HTML</button>
+        </div>
+        <pre id="websiteOutput" style="background:#0a0c10; padding:0.5rem; border-radius:0.5rem; margin-top:0.5rem; white-space:pre-wrap; font-size:0.7rem;"></pre>
+      </div>
+    </div>
+  </div>
+
   <div class="cta-card reveal" id="waitlist">
     <h3>📧 Join the Waitlist</h3>
     <div class="input-group">
@@ -229,7 +263,7 @@
     setTimeout(() => { toast.style.opacity = '0'; }, 2000);
   }
 
-  // ------ Validation tester (free) ------
+  // Validation tester
   const testValidateBtn = document.getElementById('testValidateBtn');
   const testEmail = document.getElementById('testEmail');
   const validateResponse = document.getElementById('validateResponse');
@@ -253,7 +287,7 @@
   testValidateBtn.addEventListener('click', testValidation);
   testEmail.addEventListener('keypress', (e) => { if (e.key === 'Enter') testValidation(); });
 
-  // ------ Enrichment tester (premium) ------
+  // Enrichment tester
   const testEnrichBtn = document.getElementById('testEnrichBtn');
   const enrichEmail = document.getElementById('enrichEmail');
   const premiumApiKey = document.getElementById('premiumApiKey');
@@ -283,6 +317,42 @@
   testEnrichBtn.addEventListener('click', testEnrichment);
   enrichEmail.addEventListener('keypress', (e) => { if (e.key === 'Enter') testEnrichment(); });
   premiumApiKey.addEventListener('keypress', (e) => { if (e.key === 'Enter') testEnrichment(); });
+
+  // Feedback form
+  document.getElementById('feedbackForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('feedbackName').value;
+    const email = document.getElementById('feedbackEmail').value;
+    const message = document.getElementById('feedbackMessage').value;
+    const res = await fetch('/api/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, message })
+    });
+    const data = await res.json();
+    document.getElementById('feedbackResult').innerHTML = data.success ? '✓ Thank you for your feedback!' : '❌ Error sending feedback.';
+    if (data.success) document.getElementById('feedbackForm').reset();
+  });
+
+  // Website builder demo
+  document.getElementById('generateWebsiteBtn').addEventListener('click', async () => {
+    const title = document.getElementById('siteTitle').value;
+    const content = document.getElementById('siteContent').value;
+    const template = document.getElementById('siteTemplate').value;
+    const apiKey = document.getElementById('builderApiKey').value;
+    if (!apiKey) { alert('Premium API key required'); return; }
+    const res = await fetch('/api/website/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+      body: JSON.stringify({ title, content, template })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      document.getElementById('websiteOutput').innerHTML = data.html;
+    } else {
+      document.getElementById('websiteOutput').innerHTML = 'Error: ' + (data.error || 'Unknown');
+    }
+  });
 
   // Scroll reveal
   const reveals = document.querySelectorAll('.reveal');

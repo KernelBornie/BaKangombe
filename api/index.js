@@ -12,11 +12,17 @@ const csv = require('csv-parser');
 const { Readable } = require('stream');
 const { Pool } = require('pg');
 const crypto = require('crypto');
+const OpenAI = require('openai');
+const whois = require('whois-json');
+const { v4: uuidv4 } = require('uuid');
+const QRCode = require('qrcode');
+const useragent = require('express-useragent');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+app.use(useragent.express());
 
 // ---------- Database connection ----------
 let pool;
@@ -35,10 +41,30 @@ if (process.env.POSTGRES_URL) {
       UNIQUE(api_key, date)
     );
   `).catch(console.error);
+  pool.query(`
+    CREATE TABLE IF NOT EXISTS analytics_events (
+      id SERIAL PRIMARY KEY,
+      api_key VARCHAR(255) NOT NULL,
+      event_name VARCHAR(255),
+      event_data JSONB,
+      ip VARCHAR(45),
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+  `).catch(console.error);
+  pool.query(`
+    CREATE TABLE IF NOT EXISTS feedback (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255),
+      email VARCHAR(255),
+      message TEXT,
+      user_agent TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+  `).catch(console.error);
 }
 
 // ---------- Email providers ----------
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const resendClient = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
 
 app.use((req, res, next) => {
@@ -82,7 +108,7 @@ const getCount = (req, defaultCount = 5) => {
   return Math.min(Math.max(count, 1), 100);
 };
 
-// ---------- MOCK ENDPOINTS (free, no key required) ----------
+// ---------- MOCK ENDPOINTS (free) ----------
 app.get('/api/users/:count?', (req, res) => {
   const count = getCount(req, 5);
   const users = Array.from({ length: count }, () => ({
@@ -123,220 +149,6 @@ app.get('/api/products/:count?', (req, res) => {
   res.json({ count, data: products, premium: req.isPremium });
 });
 
-// ---------- UTILITY ENDPOINTS (FREE, NO KEY REQUIRED) ----------
-
-// 1. UUID v4 generator
-const { v4: uuidv4 } = require('uuid');
-app.get('/api/uuid', (req, res) => {
-  res.json({ uuid: uuidv4() });
-});
-
-// 2. Random number
-app.get('/api/random/number', (req, res) => {
-  let { min = 0, max = 100 } = req.query;
-  min = parseInt(min);
-  max = parseInt(max);
-  const random = Math.floor(Math.random() * (max - min + 1)) + min;
-  res.json({ random, min, max });
-});
-
-// 3. Random alphanumeric string
-app.get('/api/random/string', (req, res) => {
-  let { length = 10 } = req.query;
-  length = parseInt(length);
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  res.json({ random_string: result, length });
-});
-
-// 4. Random color (hex)
-app.get('/api/random/color', (req, res) => {
-  const color = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
-  res.json({ color });
-});
-
-// 5. QR code generator (returns PNG as base64)
-const QRCode = require('qrcode');
-app.post('/api/qrcode', async (req, res) => {
-  const { text } = req.body;
-  if (!text) return res.status(400).json({ error: 'text required' });
-  try {
-    const qrDataURL = await QRCode.toDataURL(text);
-    res.json({ qr_code: qrDataURL });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to generate QR code' });
-  }
-});
-
-// 6. Phone number validator (basic)
-app.post('/api/validate/phone', (req, res) => {
-  const { phone } = req.body;
-  if (!phone) return res.status(400).json({ error: 'phone required' });
-  const phoneRegex = /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,6}[-\s\.]?[0-9]{1,6}$/im;
-  const valid = phoneRegex.test(phone);
-  res.json({ phone, valid });
-});
-
-// 7. Credit card validator (Luhn)
-app.post('/api/validate/credit-card', (req, res) => {
-  const { cardNumber } = req.body;
-  if (!cardNumber) return res.status(400).json({ error: 'cardNumber required' });
-  const sanitized = cardNumber.replace(/\s/g, '');
-  let sum = 0;
-  let alternate = false;
-  for (let i = sanitized.length - 1; i >= 0; i--) {
-    let n = parseInt(sanitized.charAt(i), 10);
-    if (alternate) {
-      n *= 2;
-      if (n > 9) n = (n % 10) + 1;
-    }
-    sum += n;
-    alternate = !alternate;
-  }
-  const valid = sum % 10 === 0;
-  res.json({ cardNumber, valid });
-});
-
-// 8. URL validator
-app.post('/api/validate/url', (req, res) => {
-  const { url } = req.body;
-  if (!url) return res.status(400).json({ error: 'url required' });
-  const pattern = new RegExp('^(https?:\\/\\/)?'+ // protocol
-    '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ // domain name
-    '((\\d{1,3}\\.){3}\\d{1,3}))'+ // OR ip (v4) address
-    '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // port and path
-    '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
-    '(\\#[-a-z\\d_]*)?$','i'); // fragment locator
-  const valid = pattern.test(url);
-  res.json({ url, valid });
-});
-
-// 9. Base64 encode/decode
-app.post('/api/base64/encode', (req, res) => {
-  const { text } = req.body;
-  if (!text) return res.status(400).json({ error: 'text required' });
-  const encoded = Buffer.from(text).toString('base64');
-  res.json({ encoded });
-});
-app.post('/api/base64/decode', (req, res) => {
-  const { encoded } = req.body;
-  if (!encoded) return res.status(400).json({ error: 'encoded required' });
-  try {
-    const decoded = Buffer.from(encoded, 'base64').toString('utf8');
-    res.json({ decoded });
-  } catch (err) {
-    res.status(400).json({ error: 'Invalid base64 string' });
-  }
-});
-
-// 10. Slugify
-app.post('/api/slugify', (req, res) => {
-  const { text } = req.body;
-  if (!text) return res.status(400).json({ error: 'text required' });
-  const slug = text.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, '-');
-  res.json({ slug });
-});
-
-// 11. Current timestamp
-app.get('/api/timestamp', (req, res) => {
-  const now = new Date();
-  res.json({
-    unix: Math.floor(now.getTime() / 1000),
-    utc: now.toUTCString(),
-    iso: now.toISOString(),
-    local: now.toString()
-  });
-});
-
-// 12. Get client IP address
-app.get('/api/ip', (req, res) => {
-  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-  res.json({ ip });
-});
-
-// 13. Parse User-Agent
-const useragent = require('express-useragent');
-app.use(useragent.express());
-app.get('/api/user-agent', (req, res) => {
-  res.json({
-    browser: req.useragent.browser,
-    version: req.useragent.version,
-    os: req.useragent.os,
-    platform: req.useragent.platform,
-    isMobile: req.useragent.isMobile,
-    isDesktop: req.useragent.isDesktop,
-    source: req.useragent.source
-  });
-});
-
-// 14. Random quote (static list)
-const quotes = [
-  "The only limit is your mind.",
-  "Code is poetry.",
-  "Simplicity is the soul of efficiency.",
-  "First, solve the problem. Then, write the code.",
-  "Experience is the name everyone gives to their mistakes.",
-  "Any fool can write code that a computer can understand. Good programmers write code that humans can understand.",
-  "Make it work, make it right, make it fast."
-];
-app.get('/api/quote', (req, res) => {
-  const randomIndex = Math.floor(Math.random() * quotes.length);
-  res.json({ quote: quotes[randomIndex], source: 'BaKangombe' });
-});
-
-// 15. Random fact (static list)
-const facts = [
-  "Octopuses have three hearts.",
-  "Bananas are berries, but strawberries aren't.",
-  "The Eiffel Tower can be 15 cm taller during summer.",
-  "Honey never spoils.",
-  "A day on Venus is longer than a year on Venus.",
-  "Cows have best friends.",
-  "The shortest war in history lasted 38 minutes."
-];
-app.get('/api/fact', (req, res) => {
-  const randomIndex = Math.floor(Math.random() * facts.length);
-  res.json({ fact: facts[randomIndex] });
-});
-
-// 16. MD5 hash (no external lib, Node.js built-in crypto)
-app.post('/api/hash/md5', (req, res) => {
-  const { text } = req.body;
-  if (!text) return res.status(400).json({ error: 'text required' });
-  const hash = crypto.createHash('md5').update(text).digest('hex');
-  res.json({ hash, algorithm: 'md5' });
-});
-
-// 17. SHA256 hash
-app.post('/api/hash/sha256', (req, res) => {
-  const { text } = req.body;
-  if (!text) return res.status(400).json({ error: 'text required' });
-  const hash = crypto.createHash('sha256').update(text).digest('hex');
-  res.json({ hash, algorithm: 'sha256' });
-});
-
-// 18. Character & word count
-app.post('/api/text/stats', (req, res) => {
-  const { text } = req.body;
-  if (!text) return res.status(400).json({ error: 'text required' });
-  const characters = text.length;
-  const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
-  const lines = text.split(/\r?\n/).length;
-  res.json({ characters, words, lines });
-});
-
-// 19. Palindrome check
-app.post('/api/palindrome', (req, res) => {
-  const { text } = req.body;
-  if (!text) return res.status(400).json({ error: 'text required' });
-  const cleaned = text.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const isPalindrome = cleaned === cleaned.split('').reverse().join('');
-  res.json({ text, isPalindrome });
-});
-
 app.get('/api/company', (req, res) => {
   const company = {
     id: faker.string.uuid(),
@@ -375,7 +187,176 @@ app.get('/api/transactions/:count?', (req, res) => {
   res.json({ count, data: transactions, premium: req.isPremium });
 });
 
-// ---------- EMAIL VALIDATION (free tier) ----------
+// ---------- UTILITY ENDPOINTS (FREE) ----------
+app.get('/api/uuid', (req, res) => res.json({ uuid: uuidv4() }));
+
+app.get('/api/random/number', (req, res) => {
+  let { min = 0, max = 100 } = req.query;
+  min = parseInt(min);
+  max = parseInt(max);
+  const random = Math.floor(Math.random() * (max - min + 1)) + min;
+  res.json({ random, min, max });
+});
+
+app.get('/api/random/string', (req, res) => {
+  let { length = 10 } = req.query;
+  length = parseInt(length);
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+  res.json({ random_string: result, length });
+});
+
+app.get('/api/random/color', (req, res) => {
+  const color = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+  res.json({ color });
+});
+
+app.post('/api/qrcode', async (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'text required' });
+  try {
+    const qrDataURL = await QRCode.toDataURL(text);
+    res.json({ qr_code: qrDataURL });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to generate QR code' });
+  }
+});
+
+app.post('/api/validate/phone', (req, res) => {
+  const { phone } = req.body;
+  if (!phone) return res.status(400).json({ error: 'phone required' });
+  const phoneRegex = /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,6}[-\s\.]?[0-9]{1,6}$/im;
+  const valid = phoneRegex.test(phone);
+  res.json({ phone, valid });
+});
+
+app.post('/api/validate/credit-card', (req, res) => {
+  const { cardNumber } = req.body;
+  if (!cardNumber) return res.status(400).json({ error: 'cardNumber required' });
+  const sanitized = cardNumber.replace(/\s/g, '');
+  let sum = 0, alternate = false;
+  for (let i = sanitized.length - 1; i >= 0; i--) {
+    let n = parseInt(sanitized.charAt(i), 10);
+    if (alternate) { n *= 2; if (n > 9) n = (n % 10) + 1; }
+    sum += n;
+    alternate = !alternate;
+  }
+  const valid = sum % 10 === 0;
+  res.json({ cardNumber, valid });
+});
+
+app.post('/api/validate/url', (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ error: 'url required' });
+  const pattern = new RegExp('^(https?:\\/\\/)?'+'((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+'((\\d{1,3}\\.){3}\\d{1,3}))'+'(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*'+'(\\?[;&a-z\\d%_.~+=-]*)?'+'(\\#[-a-z\\d_]*)?$','i');
+  res.json({ url, valid: pattern.test(url) });
+});
+
+app.post('/api/base64/encode', (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'text required' });
+  res.json({ encoded: Buffer.from(text).toString('base64') });
+});
+app.post('/api/base64/decode', (req, res) => {
+  const { encoded } = req.body;
+  if (!encoded) return res.status(400).json({ error: 'encoded required' });
+  try {
+    const decoded = Buffer.from(encoded, 'base64').toString('utf8');
+    res.json({ decoded });
+  } catch (err) {
+    res.status(400).json({ error: 'Invalid base64 string' });
+  }
+});
+
+app.post('/api/slugify', (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'text required' });
+  const slug = text.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, '-');
+  res.json({ slug });
+});
+
+app.get('/api/timestamp', (req, res) => {
+  const now = new Date();
+  res.json({
+    unix: Math.floor(now.getTime() / 1000),
+    utc: now.toUTCString(),
+    iso: now.toISOString(),
+    local: now.toString()
+  });
+});
+
+app.get('/api/ip', (req, res) => {
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  res.json({ ip });
+});
+
+app.get('/api/user-agent', (req, res) => {
+  res.json({
+    browser: req.useragent.browser,
+    version: req.useragent.version,
+    os: req.useragent.os,
+    platform: req.useragent.platform,
+    isMobile: req.useragent.isMobile,
+    isDesktop: req.useragent.isDesktop,
+    source: req.useragent.source
+  });
+});
+
+const quotes = [
+  "The only limit is your mind.", "Code is poetry.", "Simplicity is the soul of efficiency.",
+  "First, solve the problem. Then, write the code.", "Experience is the name everyone gives to their mistakes.",
+  "Any fool can write code that a computer can understand. Good programmers write code that humans can understand.",
+  "Make it work, make it right, make it fast."
+];
+app.get('/api/quote', (req, res) => {
+  const randomIndex = Math.floor(Math.random() * quotes.length);
+  res.json({ quote: quotes[randomIndex], source: 'BaKangombe' });
+});
+
+const facts = [
+  "Octopuses have three hearts.", "Bananas are berries, but strawberries aren't.",
+  "The Eiffel Tower can be 15 cm taller during summer.", "Honey never spoils.",
+  "A day on Venus is longer than a year on Venus.", "Cows have best friends.",
+  "The shortest war in history lasted 38 minutes."
+];
+app.get('/api/fact', (req, res) => {
+  const randomIndex = Math.floor(Math.random() * facts.length);
+  res.json({ fact: facts[randomIndex] });
+});
+
+app.post('/api/hash/md5', (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'text required' });
+  const hash = crypto.createHash('md5').update(text).digest('hex');
+  res.json({ hash, algorithm: 'md5' });
+});
+
+app.post('/api/hash/sha256', (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'text required' });
+  const hash = crypto.createHash('sha256').update(text).digest('hex');
+  res.json({ hash, algorithm: 'sha256' });
+});
+
+app.post('/api/text/stats', (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'text required' });
+  const characters = text.length;
+  const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+  const lines = text.split(/\r?\n/).length;
+  res.json({ characters, words, lines });
+});
+
+app.post('/api/palindrome', (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'text required' });
+  const cleaned = text.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const isPalindrome = cleaned === cleaned.split('').reverse().join('');
+  res.json({ text, isPalindrome });
+});
+
+// ---------- EMAIL VALIDATION (free) ----------
 const disposableDomains = new Set([
   'mailinator.com', 'guerrillamail.com', '10minutemail.com', 'tempmail.com',
   'throwawaymail.com', 'yopmail.com', 'mailnator.com', 'spamgourmet.com',
@@ -388,15 +369,9 @@ async function validateEmail(email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) return { valid: false, reason: 'invalid syntax' };
   let hasMx = false, hasA = false;
-  try {
-    const mxRecords = await dns.resolveMx(domain);
-    hasMx = mxRecords && mxRecords.length > 0;
-  } catch (err) { /* no MX */ }
+  try { const mxRecords = await dns.resolveMx(domain); hasMx = mxRecords && mxRecords.length > 0; } catch (err) {}
   if (!hasMx) {
-    try {
-      const aRecords = await dns.resolve4(domain);
-      hasA = aRecords && aRecords.length > 0;
-    } catch (err) { /* no A */ }
+    try { const aRecords = await dns.resolve4(domain); hasA = aRecords && aRecords.length > 0; } catch (err) {}
   }
   if (!hasMx && !hasA) return { valid: false, reason: 'domain does not exist' };
   const isDisposable = disposableDomains.has(domain.toLowerCase());
@@ -407,14 +382,7 @@ async function validateEmail(email) {
   if (isFreeProvider) score -= 10;
   if (!hasMx && hasA) score -= 20;
   if (score < 0) score = 0;
-  return {
-    valid: true,
-    has_mx: hasMx,
-    has_a: hasA,
-    is_disposable: isDisposable,
-    is_free_provider: isFreeProvider,
-    score
-  };
+  return { valid: true, has_mx: hasMx, has_a: hasA, is_disposable: isDisposable, is_free_provider: isFreeProvider, score };
 }
 
 app.post('/api/validate', async (req, res) => {
@@ -425,13 +393,9 @@ app.post('/api/validate', async (req, res) => {
   res.json({ email, ...result });
 });
 
-// ---------- WAITLIST (Brevo) ----------
+// ---------- WAITLIST ----------
 async function sendWelcomeEmail(email) {
-  const htmlContent = `<html><body>
-    <h2>Thank you for joining the BaKangombe waitlist!</h2>
-    <p>You'll be the first to know when we launch premium features.</p>
-    <p>– Bornface Kangombe Kernel</p>
-  </body></html>`;
+  const htmlContent = `<html><body><h2>Thank you for joining the BaKangombe waitlist!</h2><p>You'll be the first to know when we launch premium features.</p><p>– Bornface Kangombe Kernel</p></body></html>`;
   if (BREVO_API_KEY) {
     try {
       await axios.post('https://api.brevo.com/v3/smtp/email', {
@@ -462,22 +426,16 @@ app.post('/api/waitlist', async (req, res) => {
 app.post('/api/create-ls-checkout', async (req, res) => {
   const { email } = req.body;
   if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
-
   const LS_API_KEY = process.env.LEMONSQUEEZY_API_KEY || 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiI5NGQ1OWNlZi1kYmI4LTRlYTUtYjE3OC1kMjU0MGZjZDY5MTkiLCJqdGkiOiJhNDJiNmY3MGE4ZmZlODc1MmM3YzhmNjVkZTAwNmMwMTU4MDY3NjE5ZmM0ZmEyMWEzZWUyYzBkYmMyMGU5NzUxMmQ3YTMzMzY0MTg4NjVkNyIsImlhdCI6MTc4MDI0MzI4Mi44NTAyOTksIm5iZiI6MTc4MDI0MzI4Mi44NTAzMDIsImV4cCI6MTc5NTk5NjgwMC4wMzEyMiwic3ViIjoiNzIwMzMyMSIsInNjb3BlcyI6W119.bk-ut2bSJZrxtHqB0dzB6cTfloT7HobpC8nESzc1L4kwzHWp-follS-o6DmCnfR9-HKmMg5GpbDvpIIwKRTM3X3JTVdKSnwCbJwlUaoB6kTyAz8ZsHFkEH8j7gCB1xAxXOKoEXnpW435TQlkiEsJgBd5F3XNCbc5qyNVsE7mAMa2wCZ8hmAv1NjCpnUHoLKGQsoniOZ55QECXcer6gbPnrUH7rktydx4LboXQGFoZxhMJuhedq1fAoBpvnu5K6g4GrNRECDlXNlANw2cbrt5nHWzlub9kXyXGsBJ9WEbMXJPtEwM_Afdw1WzYBbd7-3Tt3qGh9jzrpSL6icEBOav9JsxyoBSTgRlHvXg6-y2BFtsSOQRl0_OlSA-JcfxEwS5sZIdz1miMoBt6H-jEBpAfdbcvIEqk65BrQI6xtourKAok92zJDYfw5oe5e8erqTiGyJgMQ4ndLGddn1XgqsMFDEgDHMs5uIQBitk5Lmk1Umte9Odu7PE8v9i7pgGa0eWekqd7AudJoT3IBhPGxInyH_Nj9HXsGmBgM2AP0ONkRSz9Gd_8yLETQECIB7opL9dhMrsm_XuCPcYPs11K5Jot5cazcaAOzrHMNmmQyo9xUrNPWwBoRfSOeO3xIWd7ZSi-OaWLfinLTFKZoTuDyQK0hQ1Fas2Oq8LctMwT1m-Tj4';
   const LS_STORE_ID = process.env.LEMONSQUEEZY_STORE_ID || '387550';
   const LS_VARIANT_ID = process.env.LEMONSQUEEZY_VARIANT_ID || '1705111';
-
   try {
     const response = await axios.post('https://api.lemonsqueezy.com/v1/checkouts', {
       data: {
         type: 'checkouts',
         attributes: {
           checkout_data: { email, custom: { user_email: email } },
-          product_options: {
-            redirect_url: 'https://ba-kangombe.vercel.app/success',
-            receipt_button_text: 'Go to Dashboard',
-            receipt_link_url: 'https://ba-kangombe.vercel.app/dashboard'
-          },
+          product_options: { redirect_url: 'https://ba-kangombe.vercel.app/success', receipt_button_text: 'Go to Dashboard', receipt_link_url: 'https://ba-kangombe.vercel.app/dashboard' },
           checkout_options: { embed: false, media: false, logo: false, desc: false, discount: true, dark: false }
         },
         relationships: {
@@ -492,8 +450,7 @@ app.post('/api/create-ls-checkout', async (req, res) => {
         Authorization: `Bearer ${LS_API_KEY}`
       }
     });
-    const checkoutUrl = response.data.data.attributes.url;
-    res.json({ url: checkoutUrl });
+    res.json({ url: response.data.data.attributes.url });
   } catch (err) {
     console.error('Lemon Squeezy error:', err.response?.data || err.message);
     res.status(500).json({ error: 'Checkout failed' });
@@ -682,7 +639,7 @@ app.post('/api/clean', upload.single('file'), async (req, res) => {
         try {
           const enrichRes = await enrichEmailWithHunter(email);
           enrichment = { name: enrichRes.name, company: enrichRes.company };
-        } catch (e) { /* ignore */ }
+        } catch (e) {}
       }
       results.push({
         email,
@@ -711,9 +668,7 @@ app.post('/api/social', async (req, res) => {
   if (!CLEARBIT_API_KEY) return res.status(500).json({ error: 'Clearbit API key missing' });
   try {
     const url = `https://person.clearbit.com/v2/people/find?email=${encodeURIComponent(email)}`;
-    const response = await axios.get(url, {
-      headers: { Authorization: `Bearer ${CLEARBIT_API_KEY}` }
-    });
+    const response = await axios.get(url, { headers: { Authorization: `Bearer ${CLEARBIT_API_KEY}` } });
     const data = response.data;
     res.json({
       email,
@@ -724,12 +679,8 @@ app.post('/api/social', async (req, res) => {
       bio: data.bio
     });
   } catch (err) {
-    if (err.response?.status === 404) {
-      res.json({ email, error: 'No social profiles found' });
-    } else {
-      console.error('Clearbit error:', err.message);
-      res.status(500).json({ error: 'Social enrichment failed' });
-    }
+    if (err.response?.status === 404) res.json({ email, error: 'No social profiles found' });
+    else { console.error('Clearbit error:', err.message); res.status(500).json({ error: 'Social enrichment failed' }); }
   }
 });
 
@@ -760,39 +711,154 @@ app.post('/api/contact', async (req, res) => {
   }
 });
 
-// ----- Static pages -----
-app.get('/success', (req, res) => {
-  res.send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Payment Successful – BaKangombe</title>
-  <style>
-    body { background: #0a0c10; color: #eef2ff; font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; text-align: center; }
-    .card { background: rgba(255,255,255,0.03); border-radius: 1.5rem; padding: 2rem; border: 1px solid rgba(255,255,255,0.08); max-width: 500px; }
-    h1 { color: #10b981; } a { color: #a0c4ff; text-decoration: none; } a:hover { text-decoration: underline; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>✓ Payment Successful!</h1>
-    <p>Thank you for subscribing to BaKangombe Premium.</p>
-    <p>Your premium API key will be sent to your email shortly.</p>
-    <p><a href="/">← Back to BaKangombe</a></p>
-  </div>
-</body>
-</html>`);
+// ---------- NEW PROFITABLE FEATURES (premium) ----------
+
+// 11. Website builder
+app.post('/api/website/generate', async (req, res) => {
+  const { template = 'landing', title = 'My Site', content = 'Welcome!' } = req.body;
+  if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
+  let html;
+  if (template === 'landing') {
+    html = `<!DOCTYPE html><html><head><title>${title}</title><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:system-ui;background:#0a0c10;color:#eef2ff;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;text-align:center}.card{background:rgba(255,255,255,0.05);border-radius:1rem;padding:2rem;max-width:500px}button{background:#4f46e5;border:none;padding:0.5rem 1rem;border-radius:2rem;color:white;cursor:pointer}</style></head><body><div class="card"><h1>${title}</h1><p>${content}</p><button onclick="alert('Hello!')">Click me</button></div></body></html>`;
+  } else if (template === 'blog') {
+    html = `<!DOCTYPE html><html><head><title>${title}</title><style>body{background:#0a0c10;color:#eef2ff;font-family:system-ui;padding:2rem}article{max-width:800px;margin:auto}</style></head><body><article><h1>${title}</h1><p>${content}</p></article></body></html>`;
+  } else {
+    return res.status(400).json({ error: 'Invalid template. Use "landing" or "blog".' });
+  }
+  res.json({ html, template, title });
 });
 
-app.get('/favicon.ico', (req, res) => res.status(204).end());
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
-app.get('/docs', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/docs.html'));
+// 12. Coding coach (code review)
+app.post('/api/coach/review', async (req, res) => {
+  const { code, language = 'javascript' } = req.body;
+  if (!code) return res.status(400).json({ error: 'code required' });
+  if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
+  let suggestions = [];
+  if (language === 'javascript') {
+    if (code.includes('var ')) suggestions.push('Avoid using "var". Use "let" or "const".');
+    if (code.includes('== ') || code.includes(' ==')) suggestions.push('Use strict equality "===".');
+    if (code.split('\n').length > 50) suggestions.push('Function/script is long. Consider splitting.');
+    if (!code.includes(';')) suggestions.push('Missing semicolons.');
+  } else if (language === 'python') {
+    if (code.includes('print')) suggestions.push('Avoid print statements for production. Use logging.');
+    if (code.length > 1000) suggestions.push('Code is long. Consider modularisation.');
+  } else {
+    suggestions.push('General advice: use meaningful variable names, keep functions small, add comments.');
+  }
+  let aiAdvice = null;
+  if (process.env.OPENAI_API_KEY) {
+    try {
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: `Review this ${language} code and give 2 concise improvement tips:\n\n${code.slice(0, 1500)}` }],
+        max_tokens: 150,
+      });
+      aiAdvice = completion.choices[0].message.content;
+    } catch (e) { console.error('AI coach error:', e.message); }
+  }
+  res.json({ suggestions, aiAdvice: aiAdvice || null });
+});
+
+// 13. Code testing (JavaScript lint & test simulation)
+app.post('/api/code/test', async (req, res) => {
+  const { code, testInput = '5,10' } = req.body;
+  if (!code) return res.status(400).json({ error: 'code required' });
+  if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
+  let result = { passed: false, output: null, error: null };
+  try {
+    const func = new Function('input', code + '; return main;');
+    const main = func(testInput);
+    if (typeof main !== 'function') throw new Error('No "main" function exported');
+    const output = main(testInput);
+    result.output = output;
+    result.passed = true;
+  } catch (err) {
+    result.error = err.message;
+  }
+  res.json(result);
+});
+
+// 14. App builder (boilerplate generator)
+app.post('/api/app/generate', async (req, res) => {
+  const { type = 'react', name = 'my-app' } = req.body;
+  if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
+  let boilerplate = '';
+  if (type === 'react') {
+    boilerplate = `import React from 'react';\nfunction App() { return <div><h1>Welcome to ${name}</h1><p>Your React app is ready!</p></div>; }\nexport default App;`;
+  } else if (type === 'express') {
+    boilerplate = `const express = require('express');\nconst app = express();\napp.get('/', (req, res) => res.send('Hello from ${name}'));\napp.listen(3000, () => console.log('Server running on port 3000'));`;
+  } else {
+    return res.status(400).json({ error: 'Invalid app type. Use "react" or "express".' });
+  }
+  res.json({ type, name, boilerplate });
+});
+
+// 15. AI analytics tracking & stats
+app.post('/api/analytics/track', async (req, res) => {
+  const { event, data: eventData = {} } = req.body;
+  if (!event) return res.status(400).json({ error: 'event required' });
+  if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
+  if (!pool) return res.status(500).json({ error: 'Database not configured' });
+  const apiKey = req.headers['x-api-key'];
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  await pool.query('INSERT INTO analytics_events (api_key, event_name, event_data, ip) VALUES ($1, $2, $3, $4)', [apiKey, event, JSON.stringify(eventData), ip]);
+  res.json({ success: true });
+});
+
+app.get('/api/analytics/stats', async (req, res) => {
+  if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
+  if (!pool) return res.status(500).json({ error: 'Database not configured' });
+  const apiKey = req.headers['x-api-key'];
+  const result = await pool.query('SELECT event_name, COUNT(*) as count FROM analytics_events WHERE api_key = $1 GROUP BY event_name', [apiKey]);
+  res.json({ stats: result.rows });
+});
+
+app.get('/api/analytics/demo', (req, res) => res.json({ demo: true, message: 'This is a demo of analytics capabilities. Subscribe to get real tracking.' }));
+
+// 16. Feedback button (free)
+app.post('/api/feedback', async (req, res) => {
+  const { name, email, message } = req.body;
+  if (!name || !email || !message) return res.status(400).json({ error: 'name, email, message required' });
+  if (!pool) return res.status(500).json({ error: 'Database not configured' });
+  const userAgent = req.headers['user-agent'];
+  await pool.query('INSERT INTO feedback (name, email, message, user_agent) VALUES ($1, $2, $3, $4)', [name, email, message, userAgent]);
+  if (BREVO_API_KEY) {
+    try {
+      await axios.post('https://api.brevo.com/v3/smtp/email', {
+        sender: { name: 'BaKangombe', email: 'bornfacek135@gmail.com' },
+        to: [{ email: 'bornfacek135@gmail.com', name: 'Support' }],
+        subject: `New feedback from ${name}`,
+        htmlContent: `<p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${email}</p><p><strong>Message:</strong><br/>${message}</p>`
+      }, {
+        headers: { 'api-key': BREVO_API_KEY, 'Content-Type': 'application/json' }
+      });
+    } catch (e) { console.error('Feedback email failed:', e.message); }
+  }
+  res.json({ success: true });
+});
+
+// 17. Custom chatbot (OpenAI)
+app.post('/api/chatbot', async (req, res) => {
+  const { message } = req.body;
+  if (!message) return res.status(400).json({ error: 'message required' });
+  if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
+  if (!process.env.OPENAI_API_KEY) return res.status(500).json({ error: 'OpenAI API key missing' });
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [{ role: 'user', content: `You are a helpful assistant. Answer concisely: ${message}` }],
+      max_tokens: 200,
+    });
+    res.json({ reply: completion.choices[0].message.content });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Chatbot failed' });
+  }
 });
 
 // ---------- AI ENDPOINTS (OpenAI) ----------
-const OpenAI = require('openai');
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 app.post('/api/ai/summarize', async (req, res) => {
@@ -829,7 +895,7 @@ app.post('/api/ai/sentiment', async (req, res) => {
       const jsonMatch = result.match(/\{.*\}/s);
       if (jsonMatch) result = JSON.parse(jsonMatch[0]);
       else result = { sentiment: 'unknown', confidence: 0, explanation: result };
-    } catch (e) { /* keep as string */ }
+    } catch (e) {}
     res.json(result);
   } catch (err) {
     console.error(err);
@@ -837,10 +903,7 @@ app.post('/api/ai/sentiment', async (req, res) => {
   }
 });
 
-// ---------- DOMAIN / DNS TOOLS (premium) ----------
-const whois = require('whois-json');
-
-// WHOIS lookup
+// ---------- DOMAIN / DNS TOOLS ----------
 app.post('/api/whois', async (req, res) => {
   const { domain } = req.body;
   if (!domain) return res.status(400).json({ error: 'domain required' });
@@ -854,7 +917,6 @@ app.post('/api/whois', async (req, res) => {
   }
 });
 
-// SSL certificate checker
 app.post('/api/ssl-check', async (req, res) => {
   const { domain } = req.body;
   if (!domain) return res.status(400).json({ error: 'domain required' });
@@ -882,7 +944,6 @@ app.post('/api/ssl-check', async (req, res) => {
   reqHttps.end();
 });
 
-// DNS lookup (A, MX, TXT, CNAME, NS)
 app.post('/api/dns', async (req, res) => {
   const { domain, type = 'A' } = req.body;
   if (!domain) return res.status(400).json({ error: 'domain required' });
@@ -890,30 +951,33 @@ app.post('/api/dns', async (req, res) => {
   try {
     let records;
     switch (type.toUpperCase()) {
-      case 'A':
-        records = await dns.resolve4(domain);
-        break;
-      case 'MX':
-        records = await dns.resolveMx(domain);
-        break;
-      case 'TXT':
-        const txt = await dns.resolveTxt(domain);
-        records = txt.flat();
-        break;
-      case 'CNAME':
-        records = await dns.resolveCname(domain);
-        break;
-      case 'NS':
-        records = await dns.resolveNs(domain);
-        break;
-      default:
-        return res.status(400).json({ error: 'Unsupported DNS type. Use A, MX, TXT, CNAME, or NS' });
+      case 'A': records = await dns.resolve4(domain); break;
+      case 'MX': records = await dns.resolveMx(domain); break;
+      case 'TXT': const txt = await dns.resolveTxt(domain); records = txt.flat(); break;
+      case 'CNAME': records = await dns.resolveCname(domain); break;
+      case 'NS': records = await dns.resolveNs(domain); break;
+      default: return res.status(400).json({ error: 'Unsupported DNS type. Use A, MX, TXT, CNAME, or NS' });
     }
     res.json({ domain, type: type.toUpperCase(), records });
   } catch (err) {
     res.status(500).json({ error: 'DNS lookup failed', message: err.message });
   }
 });
+
+// ----- Static pages -----
+app.get('/success', (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Payment Successful – BaKangombe</title>
+<style>body{background:#0a0c10;color:#eef2ff;font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;text-align:center;}.card{background:rgba(255,255,255,0.03);border-radius:1.5rem;padding:2rem;border:1px solid rgba(255,255,255,0.08);max-width:500px;}h1{color:#10b981;}a{color:#a0c4ff;text-decoration:none;}a:hover{text-decoration:underline;}</style>
+</head>
+<body><div class="card"><h1>✓ Payment Successful!</h1><p>Thank you for subscribing to BaKangombe Premium.</p><p>Your premium API key will be sent to your email shortly.</p><p><a href="/">← Back to BaKangombe</a></p></div></body>
+</html>`);
+});
+
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/docs', (req, res) => res.sendFile(path.join(__dirname, '../public/docs.html')));
 
 // ---------- CATCH-ALL (must be the very last route) ----------
 app.get('*', (req, res) => {
