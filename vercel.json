@@ -10,6 +10,10 @@
       "destination": "/api/index.js"
     },
     {
+      "source": "/admin",
+      "destination": "/public/admin.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/public/$1"
     }
