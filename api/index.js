@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit');
 const { faker } = require('@faker-js/faker');
 const axios = require('axios');
 const { Resend } = require('resend');
+const dns = require('dns').promises; // for email validation
 
 const app = express();
 app.use(cors());
@@ -58,7 +59,7 @@ const getCount = (req, defaultCount = 5) => {
   return Math.min(Math.max(count, 1), 100);
 };
 
-// ---------- MOCK ENDPOINTS ----------
+// ---------- MOCK ENDPOINTS (free tier) ----------
 app.get('/api/users/:count?', (req, res) => {
   const count = getCount(req, 5);
   const users = Array.from({ length: count }, () => ({
@@ -137,7 +138,7 @@ app.get('/api/transactions/:count?', (req, res) => {
   res.json({ count, data: transactions, premium: req.isPremium });
 });
 
-// ---------- LEMON SQUEEZY CHECKOUT ----------
+// ---------- LEMON SQUEEZY CHECKOUT (unchanged) ----------
 app.post('/api/create-ls-checkout', async (req, res) => {
   const { email } = req.body;
   if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
@@ -179,6 +180,73 @@ app.post('/api/create-ls-checkout', async (req, res) => {
   }
 });
 
+// ---------- PROFITABLE FEATURE: EMAIL VALIDATION & ENRICHMENT ----------
+const disposableDomains = new Set([
+  'mailinator.com', 'guerrillamail.com', '10minutemail.com', 'tempmail.com',
+  'throwawaymail.com', 'yopmail.com', 'mailnator.com', 'spamgourmet.com',
+  'trashmail.com', 'fakeinbox.com', 'getnada.com', 'maildrop.cc'
+  // Add more from https://github.com/disposable-email-domains/disposable-email-domains
+]);
+
+// Helper: validate email (free tier only: syntax, domain existence, MX, disposable)
+async function validateEmail(email) {
+  const [localPart, domain] = email.split('@');
+  if (!domain) return { valid: false, reason: 'missing domain' };
+
+  // Syntax check
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) return { valid: false, reason: 'invalid syntax' };
+
+  // Domain existence (MX or A record)
+  let hasMx = false, hasA = false;
+  try {
+    const mxRecords = await dns.resolveMx(domain);
+    hasMx = mxRecords && mxRecords.length > 0;
+  } catch (err) { /* no MX */ }
+  if (!hasMx) {
+    try {
+      const aRecords = await dns.resolve4(domain);
+      hasA = aRecords && aRecords.length > 0;
+    } catch (err) { /* no A */ }
+  }
+  if (!hasMx && !hasA) return { valid: false, reason: 'domain does not exist' };
+
+  const isDisposable = disposableDomains.has(domain.toLowerCase());
+  const freeProviders = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com', 'protonmail.com'];
+  const isFreeProvider = freeProviders.includes(domain.toLowerCase());
+
+  let score = 100;
+  if (isDisposable) score -= 60;
+  if (isFreeProvider) score -= 10;
+  if (!hasMx && hasA) score -= 20;
+  if (score < 0) score = 0;
+
+  return {
+    valid: true,
+    has_mx: hasMx,
+    has_a: hasA,
+    is_disposable: isDisposable,
+    is_free_provider: isFreeProvider,
+    score
+  };
+}
+
+// POST /api/validate – main validation endpoint
+app.post('/api/validate', async (req, res) => {
+  const { email } = req.body;
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Valid email address required' });
+  }
+
+  const result = await validateEmail(email);
+  // Add enrichment only for premium users (optional – you can expand)
+  if (req.isPremium) {
+    // Example: enrich with clearbit or hunter.io – implement as needed
+    result.enriched = false; // placeholder, you can add later
+  }
+  res.json({ email, ...result });
+});
+
 // ---------- WAITLIST (Brevo) ----------
 async function sendWelcomeEmail(email) {
   const htmlContent = `<html><body>
@@ -213,7 +281,7 @@ app.post('/api/waitlist', async (req, res) => {
   res.json({ message: sent ? 'Added to waitlist and welcome email sent!' : 'Added to waitlist (but email could not be sent).' });
 });
 
-// ----- Success page (inline HTML, serves as fallback if static file missing) -----
+// ----- Success page (inline HTML) -----
 app.get('/success', (req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="en">
@@ -239,11 +307,9 @@ app.get('/success', (req, res) => {
 });
 
 app.get('/favicon.ico', (req, res) => res.status(204).end());
-
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// ---------- CATCH‑ALL (must be the very last route) ----------
-// Serves index.html for any non‑API request that didn't match a static file or specific route
+// ---------- CATCH-ALL (serves index.html for client-side routing) ----------
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
