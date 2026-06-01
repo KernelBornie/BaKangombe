@@ -11,7 +11,7 @@
     },
     {
       "source": "/success",
-      "destination": "/api/success"
+      "destination": "/api/index.js"
     }
   ]
 }
