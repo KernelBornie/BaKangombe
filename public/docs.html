@@ -1,9 +1,97 @@
-<!DOCTYPE html> 
-<html lang="en"> 
-<head> 
-  <meta charset="UTF-8"> 
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
-    body { background: #0a0c10; color: #eef2ff; font-family: system-ui; padding: 2rem; max-width: 800px; margin: 0 auto; } 
-    h1, h2 { color: #a0c4ff; } 
-    pre { background: #0f1117; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; } 
-    a { color: #a0c4ff; } 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BaKangombe API Documentation</title>
+  <style>
+    body { background: #0a0c10; color: #eef2ff; font-family: system-ui; padding: 2rem; max-width: 1000px; margin: 0 auto; }
+    h1, h2, h3 { color: #a0c4ff; }
+    pre { background: #0f1117; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; }
+    .endpoint { background: rgba(255,255,255,0.03); border-radius: 1rem; padding: 1rem; margin-bottom: 1rem; }
+    .method { background: #4f46e5; display: inline-block; padding: 0.2rem 0.8rem; border-radius: 2rem; font-size: 0.75rem; margin-right: 1rem; }
+    .copy-btn { background: #1e293b; border: none; padding: 0.2rem 0.8rem; border-radius: 2rem; color: #a0c4ff; cursor: pointer; }
+    a { color: #a0c4ff; }
+  </style>
+</head>
+<body>
+  <h1>BaKangombe API Documentation</h1>
+  <p>Base URL: <code>https://ba-kangombe.vercel.app</code></p>
+
+  <h2>Authentication</h2>
+  <p>Free tier: no API key required.<br>Premium tier: include <code>X-API-Key: YOUR_KEY</code> header.</p>
+
+  <h2>Endpoints</h2>
+
+  <div class="endpoint">
+    <h3><span class="method">POST</span> /api/validate</h3>
+    <p>Free – validate email syntax, MX, disposable status.</p>
+    <pre><code>curl -X POST https://ba-kangombe.vercel.app/api/validate -H "Content-Type: application/json" -d '{"email":"user@example.com"}'</code></pre>
+    <button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/validate -H \"Content-Type: application/json\" -d \'{\"email\":\"user@example.com\"}\'')">Copy</button>
+  </div>
+
+  <div class="endpoint">
+    <h3><span class="method">POST</span> /api/enrich</h3>
+    <p>Premium – enrichment via Hunter.io.</p>
+    <pre><code>curl -X POST https://ba-kangombe.vercel.app/api/enrich -H "Content-Type: application/json" -H "X-API-Key: YOUR_KEY" -d '{"email":"bill.gates@microsoft.com"}'</code></pre>
+    <button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/enrich -H \"Content-Type: application/json\" -H \"X-API-Key: YOUR_KEY\" -d \'{\"email\":\"bill.gates@microsoft.com\"}\'')">Copy</button>
+  </div>
+
+  <div class="endpoint">
+    <h3><span class="method">POST</span> /api/validate/batch</h3>
+    <p>Premium – batch CSV validation.</p>
+    <pre><code>curl -X POST https://ba-kangombe.vercel.app/api/validate/batch -H "X-API-Key: YOUR_KEY" -F "file=@emails.csv"</code></pre>
+    <button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/validate/batch -H \"X-API-Key: YOUR_KEY\" -F \"file=@emails.csv\"')">Copy</button>
+  </div>
+
+  <div class="endpoint">
+    <h3><span class="method">POST</span> /api/domain/score</h3>
+    <p>Premium – domain security score (SPF/DKIM/DMARC).</p>
+    <pre><code>curl -X POST https://ba-kangombe.vercel.app/api/domain/score -H "Content-Type: application/json" -H "X-API-Key: YOUR_KEY" -d '{"domain":"github.com"}'</code></pre>
+    <button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/domain/score -H \"Content-Type: application/json\" -H \"X-API-Key: YOUR_KEY\" -d \'{\"domain\":\"github.com\"}\'')">Copy</button>
+  </div>
+
+  <div class="endpoint">
+    <h3><span class="method">POST</span> /api/disposable</h3>
+    <p>Premium – check if email is from a disposable domain.</p>
+    <pre><code>curl -X POST https://ba-kangombe.vercel.app/api/disposable -H "Content-Type: application/json" -H "X-API-Key: YOUR_KEY" -d '{"email":"temp@mailinator.com"}'</code></pre>
+    <button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/disposable -H \"Content-Type: application/json\" -H \"X-API-Key: YOUR_KEY\" -d \'{\"email\":\"temp@mailinator.com\"}\'')">Copy</button>
+  </div>
+
+  <div class="endpoint">
+    <h3><span class="method">POST</span> /api/website/generate</h3>
+    <p>Premium – generate landing page HTML.</p>
+    <pre><code>curl -X POST https://ba-kangombe.vercel.app/api/website/generate -H "Content-Type: application/json" -H "X-API-Key: YOUR_KEY" -d '{"template":"landing","title":"My Site","content":"Hello"}'</code></pre>
+    <button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/website/generate -H \"Content-Type: application/json\" -H \"X-API-Key: YOUR_KEY\" -d \'{\"template\":\"landing\",\"title\":\"My Site\",\"content\":\"Hello\"}\'')">Copy</button>
+  </div>
+
+  <div class="endpoint">
+    <h3><span class="method">POST</span> /api/feedback</h3>
+    <p>Free – submit feedback (sends confirmation email).</p>
+    <pre><code>curl -X POST https://ba-kangombe.vercel.app/api/feedback -H "Content-Type: application/json" -d '{"name":"User","email":"user@example.com","message":"Great API!"}'</code></pre>
+    <button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/feedback -H \"Content-Type: application/json\" -d \'{\"name\":\"User\",\"email\":\"user@example.com\",\"message\":\"Great API!\"}\'')">Copy</button>
+  </div>
+
+  <h2>Get a premium API key</h2>
+  <p>Subscribe at <a href="/#pricing">/pricing</a> and then use <code>POST /api/generate-key</code>.</p>
+  <p><a href="/">← Back to homepage</a></p>
+
+  <script>
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text);
+      const toast = document.createElement('div');
+      toast.textContent = '✓ Copied!';
+      toast.style.position = 'fixed';
+      toast.style.bottom = '20px';
+      toast.style.right = '20px';
+      toast.style.background = '#10b981';
+      toast.style.color = 'white';
+      toast.style.padding = '0.5rem 1rem';
+      toast.style.borderRadius = '2rem';
+      toast.style.zIndex = '1000';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
+    }
+  </script>
+</body>
+</html>
