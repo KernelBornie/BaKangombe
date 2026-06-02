@@ -617,75 +617,76 @@ app.get('/docs', (req, res) => {
       <section id="base-url"><h2>Base URL</h2><pre><code>https://ba-kangombe.vercel.app</code></pre></section>
       <section id="authentication"><h2>Authentication</h2><p><span class="badge free">Free</span> No API key required for <code>/api/validate</code> and <code>/api/feedback</code>.</p><p><span class="badge premium">Premium</span> All other endpoints require an API key. Include it in the <code>X-API-Key</code> header.</p><pre><code>curl -H "X-API-Key: YOUR_PREMIUM_KEY" https://ba-kangombe.vercel.app/api/enrich -d '{"email":"user@example.com"}'</code></pre><p>Obtain a premium key by subscribing at <a href="/#pricing" style="color:#a0c4ff;">/pricing</a> and then call <code>POST /api/generate-key</code>.</p></section>
       <section id="rate-limits"><h2>Rate Limits</h2>
-      <tr><thead><tr><th>Plan</th><th>Requests per minute</th><th>Monthly cap</th></tr></thead>
+      <table><thead><tr><th>Plan</th><th>Requests per minute</th><th>Monthly cap</th></tr></thead>
         <tbody><tr><td>Free</td><td>100</td><td>Unlimited (per minute)</td></tr>
-        <tr><td>Premium</td><td>10,000</td><td>300,000 (10k/day)</td></tr></tbody>
-      </table>
-      </section>
-      <section id="endpoints"><h2>Endpoints</h2>
-        <div id="validate" class="endpoint-card"><h3><span class="method">POST</span> <span class="path">/api/validate</span> <span class="badge free">Free</span></h3><p>Validates a single email address. Checks syntax, MX records, disposable status, and free provider. Returns a quality score (0–100).</p><pre><code>{ "email": "user@example.com" }</code></pre><pre><code>{\n  "email": "user@example.com",\n  "valid": true,\n  "has_mx": true,\n  "is_disposable": false,\n  "is_free_provider": false,\n  "score": 100\n}</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/validate -H \"Content-Type: application/json\" -d \'{\"email\":\"user@example.com\"}\'')">Copy cURL</button></div>
-        <div id="enrich" class="endpoint-card"><h3><span class="method">POST</span> <span class="path">/api/enrich</span> <span class="badge premium">Premium</span></h3><p>Enriches an email with person and company data via Hunter.io. Requires premium API key.</p><pre><code>{ "email": "bill.gates@microsoft.com" }</code></pre><pre><code>{\n  "email": "bill.gates@microsoft.com",\n  "verified": true,\n  "accept_all": false,\n  "disposable": false,\n  "webmail": false,\n  "mx_records": true,\n  "score": 95,\n  "name": "Bill Gates",\n  "company": "Microsoft"\n}</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/enrich -H \"Content-Type: application/json\" -H \"X-API-Key: YOUR_KEY\" -d \'{\"email\":\"bill.gates@microsoft.com\"}\'')">Copy cURL</button></div>
-        <div id="batch" class="endpoint-card"><h3><span class="method">POST</span> <span class="path">/api/validate/batch</span> <span class="badge premium">Premium</span></h3><p>Upload a CSV file (first column contains emails) and get validation results for all emails. Returns count and array of results.</p><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/validate/batch -H "X-API-Key: YOUR_KEY" -F "file=@emails.csv"</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/validate/batch -H \"X-API-Key: YOUR_KEY\" -F \"file=@emails.csv\"')">Copy cURL</button></div>
-        <div id="domain-score" class="endpoint-card"><h3><span class="method">POST</span> <span class="path">/api/domain/score</span> <span class="badge premium">Premium</span></h3><p>Checks SPF, DKIM, and DMARC records for a domain. Returns a security score (0–100) and recommendation.</p><pre><code>{ "domain": "github.com" }</code></pre><pre><code>{\n  "domain": "github.com",\n  "spf": true,\n  "dkim": true,\n  "dmarc": true,\n  "score": 100,\n  "recommendation": "Excellent"\n}</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/domain/score -H \"Content-Type: application/json\" -H \"X-API-Key: YOUR_KEY\" -d \'{\"domain\":\"github.com\"}\'')">Copy cURL</button></div>
-        <div id="disposable" class="endpoint-card"><h3><span class="method">POST</span> <span class="path">/api/disposable</span> <span class="badge premium">Premium</span></h3><p>Checks if an email address belongs to a known disposable/temporary domain (e.g., Mailinator, 10minutemail).</p><pre><code>{ "email": "temp@mailinator.com" }</code></pre><pre><code>{ "email": "temp@mailinator.com", "isDisposable": true }</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/disposable -H \"Content-Type: application/json\" -H \"X-API-Key: YOUR_KEY\" -d \'{\"email\":\"temp@mailinator.com\"}\'')">Copy cURL</button></div>
-        <div id="website" class="endpoint-card"><h3><span class="method">POST</span> <span class="path">/api/website/generate</span> <span class="badge premium">Premium</span></h3><p>Generates a simple landing page or blog HTML from a template. Useful for quick prototypes or previews.</p><pre><code>{ "template": "landing", "title": "My Startup", "content": "We build awesome tools." }</code></pre><pre><code>{ "html": "<!DOCTYPE html...>", "template": "landing", "title": "My Startup" }</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/website/generate -H \"Content-Type: application/json\" -H \"X-API-Key: YOUR_KEY\" -d \'{\"template\":\"landing\",\"title\":\"My Site\",\"content\":\"Hello\"}\'')">Copy cURL</button></div>
-        <div id="feedback" class="endpoint-card"><h3><span class="method">POST</span> <span class="path">/api/feedback</span> <span class="badge free">Free</span></h3><p>Submits user feedback. A confirmation email is sent to the provided address. Data is stored in Vercel Postgres.</p><pre><code>{ "name": "Alice", "email": "alice@example.com", "message": "Great API!" }</code></pre><pre><code>{ "success": true, "message": "Thank you! A confirmation email has been sent." }</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/feedback -H \"Content-Type: application/json\" -d \'{\"name\":\"User\",\"email\":\"user@example.com\",\"message\":\"Great API!\"}\'')">Copy cURL</button></div>
-      </section>
-      <section id="errors"><h2>Error Codes</h2>
-      <table>
-        <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
-        <tbody><tr><td>400</td><td>Bad request – missing email/domain or invalid JSON</td></tr>
-        <tr><td>402</td><td>Payment required – premium endpoint called without valid API key</td></tr>
-        <tr><td>429</td><td>Rate limit exceeded – slow down or upgrade</td></tr>
-        <tr><td>500</td><td>Internal server error – our issue, please retry</td></tr>
-        </tbody>
-      </table>
-      </section>
-      <section id="examples"><h2>Code Examples</h2>
-        <h3>JavaScript (Node.js)</h3><pre><code>const response = await fetch('https://ba-kangombe.vercel.app/api/validate', {
+        <tr><td>Premium</td><td>10,000</td><td>300,000 (10k/day)</td></tr>
+      </tbody>
+    </table>
+    </section>
+    <section id="endpoints"><h2>Endpoints</h2>
+      <div id="validate" class="endpoint-card"><h3><span class="method">POST</span> <span class="path">/api/validate</span> <span class="badge free">Free</span></h3><p>Validates a single email address. Checks syntax, MX records, disposable status, and free provider. Returns a quality score (0–100).</p><pre><code>{ "email": "user@example.com" }</code></pre><pre><code>{\n  "email": "user@example.com",\n  "valid": true,\n  "has_mx": true,\n  "is_disposable": false,\n  "is_free_provider": false,\n  "score": 100\n}</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/validate -H \"Content-Type: application/json\" -d \'{\"email\":\"user@example.com\"}\'')">Copy cURL</button></div>
+      <div id="enrich" class="endpoint-card"><h3><span class="method">POST</span> <span class="path">/api/enrich</span> <span class="badge premium">Premium</span></h3><p>Enriches an email with person and company data via Hunter.io. Requires premium API key.</p><pre><code>{ "email": "bill.gates@microsoft.com" }</code></pre><pre><code>{\n  "email": "bill.gates@microsoft.com",\n  "verified": true,\n  "accept_all": false,\n  "disposable": false,\n  "webmail": false,\n  "mx_records": true,\n  "score": 95,\n  "name": "Bill Gates",\n  "company": "Microsoft"\n}</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/enrich -H \"Content-Type: application/json\" -H \"X-API-Key: YOUR_KEY\" -d \'{\"email\":\"bill.gates@microsoft.com\"}\'')">Copy cURL</button></div>
+      <div id="batch" class="endpoint-card"><h3><span class="method">POST</span> <span class="path">/api/validate/batch</span> <span class="badge premium">Premium</span></h3><p>Upload a CSV file (first column contains emails) and get validation results for all emails. Returns count and array of results.</p><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/validate/batch -H "X-API-Key: YOUR_KEY" -F "file=@emails.csv"</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/validate/batch -H \"X-API-Key: YOUR_KEY\" -F \"file=@emails.csv\"')">Copy cURL</button></div>
+      <div id="domain-score" class="endpoint-card"><h3><span class="method">POST</span> <span class="path">/api/domain/score</span> <span class="badge premium">Premium</span></h3><p>Checks SPF, DKIM, and DMARC records for a domain. Returns a security score (0–100) and recommendation.</p><pre><code>{ "domain": "github.com" }</code></pre><pre><code>{\n  "domain": "github.com",\n  "spf": true,\n  "dkim": true,\n  "dmarc": true,\n  "score": 100,\n  "recommendation": "Excellent"\n}</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/domain/score -H \"Content-Type: application/json\" -H \"X-API-Key: YOUR_KEY\" -d \'{\"domain\":\"github.com\"}\'')">Copy cURL</button></div>
+      <div id="disposable" class="endpoint-card"><h3><span class="method">POST</span> <span class="path">/api/disposable</span> <span class="badge premium">Premium</span></h3><p>Checks if an email address belongs to a known disposable/temporary domain (e.g., Mailinator, 10minutemail).</p><pre><code>{ "email": "temp@mailinator.com" }</code></pre><pre><code>{ "email": "temp@mailinator.com", "isDisposable": true }</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/disposable -H \"Content-Type: application/json\" -H \"X-API-Key: YOUR_KEY\" -d \'{\"email\":\"temp@mailinator.com\"}\'')">Copy cURL</button></div>
+      <div id="website" class="endpoint-card"><h3><span class="method">POST</span> <span class="path">/api/website/generate</span> <span class="badge premium">Premium</span></h3><p>Generates a simple landing page or blog HTML from a template. Useful for quick prototypes or previews.</p><pre><code>{ "template": "landing", "title": "My Startup", "content": "We build awesome tools." }</code></pre><pre><code>{ "html": "<!DOCTYPE html...>", "template": "landing", "title": "My Startup" }</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/website/generate -H \"Content-Type: application/json\" -H \"X-API-Key: YOUR_KEY\" -d \'{\"template\":\"landing\",\"title\":\"My Site\",\"content\":\"Hello\"}\'')">Copy cURL</button></div>
+      <div id="feedback" class="endpoint-card"><h3><span class="method">POST</span> <span class="path">/api/feedback</span> <span class="badge free">Free</span></h3><p>Submits user feedback. A confirmation email is sent to the provided address. Data is stored in Vercel Postgres.</p><pre><code>{ "name": "Alice", "email": "alice@example.com", "message": "Great API!" }</code></pre><pre><code>{ "success": true, "message": "Thank you! A confirmation email has been sent." }</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/feedback -H \"Content-Type: application/json\" -d \'{\"name\":\"User\",\"email\":\"user@example.com\",\"message\":\"Great API!\"}\'')">Copy cURL</button></div>
+    </section>
+    <section id="errors"><h2>Error Codes</h2>
+    <table>
+      <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+      <tbody><tr><td>400</td><td>Bad request – missing email/domain or invalid JSON</td></tr>
+      <tr><td>402</td><td>Payment required – premium endpoint called without valid API key</td></tr>
+      <tr><td>429</td><td>Rate limit exceeded – slow down or upgrade</td></tr>
+      <tr><td>500</td><td>Internal server error – our issue, please retry</td></tr>
+      </tbody>
+    </table>
+    </section>
+    <section id="examples"><h2>Code Examples</h2>
+      <h3>JavaScript (Node.js)</h3><pre><code>const response = await fetch('https://ba-kangombe.vercel.app/api/validate', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ email: 'test@example.com' })
 });
 const data = await response.json();
 console.log(data);</code></pre><button class="copy-btn" onclick="copyToClipboard('const response = await fetch(\'https://ba-kangombe.vercel.app/api/validate\', {\n  method: \'POST\',\n  headers: { \'Content-Type\': \'application/json\' },\n  body: JSON.stringify({ email: \'test@example.com\' })\n});\nconst data = await response.json();\nconsole.log(data);')">Copy JS</button>
-        <h3>Python</h3><pre><code>import requests
+      <h3>Python</h3><pre><code>import requests
 res = requests.post('https://ba-kangombe.vercel.app/api/validate',
                     json={'email': 'test@example.com'})
 print(res.json())</code></pre><button class="copy-btn" onclick="copyToClipboard('import requests\nres = requests.post(\'https://ba-kangombe.vercel.app/api/validate\',\n                    json={\'email\': \'test@example.com\'})\nprint(res.json())')">Copy Python</button>
-      </section>
-      <section id="pricing"><h2>Pricing</h2>
-      <table>
-        <thead><tr><th>Plan</th><th>Price</th><th>Features</th></tr></thead>
-        <tbody><tr><td>Free</td><td>$0</td><td>100 req/min, validation only</td></tr>
-        <tr><td>Pro</td><td>$9/month</td><td>10,000 req/min, batch, enrichment, domain score, disposable, website generator</td></tr>
-        </tbody>
-      </table>
-      <p>Subscribe at <a href="/#pricing" style="color:#a0c4ff;">https://ba-kangombe.vercel.app/#pricing</a></p>
-      </section>
-      <p style="margin-top: 3rem; font-size: 0.85rem; text-align: center; color: #6c7a91;">Built by Bornface Kangombe. Need help? <a href="mailto:bornface.kangombe@cs.unza.zm" style="color:#a0c4ff;">Contact support</a></p>
-    </main>
-  </div>
+    </section>
+    <section id="pricing"><h2>Pricing</h2>
+    <table>
+      <thead><tr><th>Plan</th><th>Price</th><th>Features</th></tr></thead>
+      <tbody><tr><td>Free</td><td>$0</td><td>100 req/min, validation only</td></tr>
+      <tr><td>Pro</td><td>$9/month</td><td>10,000 req/min, batch, enrichment, domain score, disposable, website generator</td></tr>
+      </tbody>
+    </table>
+    <p>Subscribe at <a href="/#pricing" style="color:#a0c4ff;">https://ba-kangombe.vercel.app/#pricing</a></p>
+    </section>
+    <p style="margin-top: 3rem; font-size: 0.85rem; text-align: center; color: #6c7a91;">Built by Bornface Kangombe. Need help? <a href="mailto:bornface.kangombe@cs.unza.zm" style="color:#a0c4ff;">Contact support</a></p>
+  </main>
+</div>
 </div>
 <div id="toast" class="toast">✓ Copied to clipboard</div>
 <script>
-  function copyToClipboard(text) {
-    navigator.clipboard.writeText(text);
-    const toast = document.getElementById('toast');
-    toast.style.opacity = '1';
-    setTimeout(() => toast.style.opacity = '0', 2000);
-  }
-  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function(e) {
-      const href = this.getAttribute('href');
-      if (href === '#') return;
-      const target = document.querySelector(href);
-      if (target) {
-        e.preventDefault();
-        target.scrollIntoView({ behavior: 'smooth' });
-      }
-    });
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text);
+  const toast = document.getElementById('toast');
+  toast.style.opacity = '1';
+  setTimeout(() => toast.style.opacity = '0', 2000);
+}
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+  anchor.addEventListener('click', function(e) {
+    const href = this.getAttribute('href');
+    if (href === '#') return;
+    const target = document.querySelector(href);
+    if (target) {
+      e.preventDefault();
+      target.scrollIntoView({ behavior: 'smooth' });
+    }
   });
+});
 </script>
 </body>
 </html>`);
@@ -722,6 +723,38 @@ app.get('/api/setup/create-tables', async (req, res) => {
     await sql`CREATE TABLE IF NOT EXISTS ecommerce_orders ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), product_id INTEGER, quantity INTEGER, customer VARCHAR(255), status VARCHAR(20) )`;
     await sql`CREATE TABLE IF NOT EXISTS tutor_curriculum ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), grade INTEGER, subject VARCHAR(100), topic VARCHAR(255), content TEXT )`;
     await sql`CREATE TABLE IF NOT EXISTS businesses_list ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), name VARCHAR(255), category VARCHAR(100), location VARCHAR(255), whatsapp VARCHAR(20) )`;
+    await sql`CREATE TABLE IF NOT EXISTS discovery_reviews (
+      id SERIAL PRIMARY KEY,
+      business_list_id INTEGER REFERENCES businesses_list(id) ON DELETE CASCADE,
+      reviewer_business_id INTEGER REFERENCES businesses(id),
+      rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+      comment TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    await sql`CREATE TABLE IF NOT EXISTS subscriptions (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      plan VARCHAR(100),
+      status VARCHAR(30),
+      expires_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    await sql`CREATE TABLE IF NOT EXISTS business_services (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      service_key VARCHAR(100),
+      service_name VARCHAR(255),
+      modules TEXT[],
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    await sql`CREATE TABLE IF NOT EXISTS generated_systems (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      system_name VARCHAR(255),
+      system_type VARCHAR(100),
+      dashboard_url TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
     res.json({ message: "All tables created/updated" });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -741,6 +774,36 @@ async function requireBusiness(req, res, next) {
     res.status(500).json({ error: err.message });
   }
 }
+
+// Middleware to check if business has a specific module enabled
+function requireModule(moduleKey) {
+  return (req, res, next) => {
+    if (!req.business.modules.includes(moduleKey)) {
+      return res.status(403).json({ error: `Module '${moduleKey}' not enabled for this business. Please subscribe to a plan that includes it.` });
+    }
+    next();
+  };
+}
+
+// ========== SUBSCRIPTION & SYSTEM CREATION ==========
+const SERVICE_CATALOG = {
+  business_management: { name: "Business Management Suite", modules: ["sme", "invoice", "inventory"] },
+  mobile_money: { name: "Mobile Money Platform", modules: ["momo"] },
+  ecommerce: { name: "E-Commerce Store", modules: ["ecommerce", "inventory", "invoice"] },
+  ai_chatbot: { name: "AI Support Chatbot", modules: ["ai"] },
+  clinic: { name: "Clinic Management", modules: ["clinic", "invoice"] },
+  agritech: { name: "Agritech Platform", modules: ["agritech"] },
+  freelance: { name: "Freelance Marketplace", modules: ["freelance"] },
+  discovery: { name: "Business Directory", modules: ["discovery"] }
+};
+
+const SYSTEM_BUNDLES = {
+  startup: ["business_management", "mobile_money"],
+  clinic_business: ["clinic", "mobile_money", "ai_chatbot", "invoice"],
+  ecommerce_business: ["ecommerce", "inventory", "invoice", "mobile_money"],
+  agritech_business: ["agritech", "mobile_money", "invoice"]
+};
+
 app.post('/api/business/register', async (req, res) => {
   const { name, email, modules = [] } = req.body;
   if (!name || !email) return res.status(400).json({ error: 'Name and email required' });
@@ -753,11 +816,80 @@ app.post('/api/business/register', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 app.get('/api/business/me', requireBusiness, (req, res) => { res.json({ business: req.business }); });
 
-// ---------- MULTI‑TENANT FEATURES (16 modules, each with requireBusiness) ----------
-// 1. Mobile Money
-app.post('/api/momo/transfer', requireBusiness, async (req, res) => {
+// Activate a subscription plan (monthly)
+app.post('/api/subscription/activate', requireBusiness, async (req, res) => {
+  const { plan } = req.body; // e.g., "Pro", "Business"
+  const expiresAt = new Date();
+  expiresAt.setMonth(expiresAt.getMonth() + 1);
+  await sql`
+    INSERT INTO subscriptions (business_id, plan, status, expires_at)
+    VALUES (${req.business.id}, ${plan}, 'active', ${expiresAt})
+  `;
+  // Optionally, you could add module access based on plan here.
+  res.json({ success: true, plan, expiresAt });
+});
+
+// Create a system (service) for the business
+app.post('/api/system/create', requireBusiness, async (req, res) => {
+  const { service } = req.body; // key from SERVICE_CATALOG
+  const selected = SERVICE_CATALOG[service];
+  if (!selected) return res.status(400).json({ error: 'Unknown service' });
+
+  const dashboardUrl = `/dashboard/${req.business.id}/${service}`;
+
+  // Insert into business_services
+  await sql`
+    INSERT INTO business_services (business_id, service_key, service_name, modules)
+    VALUES (${req.business.id}, ${service}, ${selected.name}, ${selected.modules})
+  `;
+  // Insert into generated_systems
+  await sql`
+    INSERT INTO generated_systems (business_id, system_name, system_type, dashboard_url)
+    VALUES (${req.business.id}, ${selected.name}, ${service}, ${dashboardUrl})
+  `;
+
+  // Add the modules to the business's modules array if not already present
+  let newModules = [...req.business.modules];
+  for (const mod of selected.modules) {
+    if (!newModules.includes(mod)) newModules.push(mod);
+  }
+  await sql`
+    UPDATE businesses SET modules = ${newModules} WHERE id = ${req.business.id}
+  `;
+  req.business.modules = newModules; // update local object
+
+  res.json({
+    success: true,
+    system: selected.name,
+    modules: selected.modules,
+    dashboardUrl
+  });
+});
+
+// List all generated systems for the business
+app.get('/api/system/list', requireBusiness, async (req, res) => {
+  const systems = await sql`
+    SELECT * FROM generated_systems
+    WHERE business_id = ${req.business.id}
+    ORDER BY created_at DESC
+  `;
+  res.json({ systems: systems.rows });
+});
+
+// Get services for a bundle (no DB change, just returns the list)
+app.post('/api/system/bundle', requireBusiness, (req, res) => {
+  const { bundle } = req.body;
+  const services = SYSTEM_BUNDLES[bundle];
+  if (!services) return res.status(400).json({ error: 'Invalid bundle' });
+  res.json({ success: true, bundle, services });
+});
+
+// ---------- MULTI‑TENANT FEATURES (16 modules, each with requireModule) ----------
+// 1. Mobile Money (module: momo)
+app.post('/api/momo/transfer', requireBusiness, requireModule('momo'), async (req, res) => {
   const { amount, phone, provider } = req.body;
   if (!amount || !phone) return res.status(400).json({ error: 'Amount and phone required' });
   const result = await sql`INSERT INTO momo_transactions (business_id, amount, phone, provider, status, type) VALUES (${req.business.id}, ${amount}, ${phone}, ${provider}, 'pending', 'send') RETURNING id`;
@@ -765,32 +897,32 @@ app.post('/api/momo/transfer', requireBusiness, async (req, res) => {
   setTimeout(async () => { await sql`UPDATE momo_transactions SET status = 'completed' WHERE id = ${id}`; }, 2000);
   res.json({ success: true, transactionId: id, status: 'processing' });
 });
-app.post('/api/momo/request', requireBusiness, async (req, res) => {
+app.post('/api/momo/request', requireBusiness, requireModule('momo'), async (req, res) => {
   const { amount, phone, provider } = req.body;
   const result = await sql`INSERT INTO momo_transactions (business_id, amount, phone, provider, status, type) VALUES (${req.business.id}, ${amount}, ${phone}, ${provider}, 'pending', 'request') RETURNING id`;
   res.json({ success: true, transactionId: result.rows[0].id });
 });
-app.get('/api/momo/transactions', requireBusiness, async (req, res) => {
+app.get('/api/momo/transactions', requireBusiness, requireModule('momo'), async (req, res) => {
   const txs = await sql`SELECT * FROM momo_transactions WHERE business_id = ${req.business.id} ORDER BY created_at DESC`;
   res.json({ transactions: txs.rows });
 });
 
-// 2. Invoice
-app.post('/api/invoice/create', requireBusiness, async (req, res) => {
+// 2. Invoice (module: invoice)
+app.post('/api/invoice/create', requireBusiness, requireModule('invoice'), async (req, res) => {
   const { customer, amount, items } = req.body;
   const result = await sql`INSERT INTO invoices (business_id, customer, amount, items, status) VALUES (${req.business.id}, ${customer}, ${amount}, ${items}, 'unpaid') RETURNING id, created_at`;
   res.json({ id: result.rows[0].id, customer, amount, items, status: 'unpaid', createdAt: result.rows[0].created_at, paidAt: null });
 });
-app.get('/api/invoice/:id', requireBusiness, async (req, res) => {
+app.get('/api/invoice/:id', requireBusiness, requireModule('invoice'), async (req, res) => {
   const inv = await sql`SELECT * FROM invoices WHERE id = ${req.params.id} AND business_id = ${req.business.id}`;
   if (inv.rowCount === 0) return res.status(404).json({ error: 'Not found' });
   res.json(inv.rows[0]);
 });
-app.put('/api/invoice/:id/pay', requireBusiness, async (req, res) => {
+app.put('/api/invoice/:id/pay', requireBusiness, requireModule('invoice'), async (req, res) => {
   await sql`UPDATE invoices SET status = 'paid', paid_at = NOW() WHERE id = ${req.params.id} AND business_id = ${req.business.id}`;
   res.json({ success: true });
 });
-app.get('/api/invoice/export/csv', requireBusiness, async (req, res) => {
+app.get('/api/invoice/export/csv', requireBusiness, requireModule('invoice'), async (req, res) => {
   const invs = await sql`SELECT * FROM invoices WHERE business_id = ${req.business.id}`;
   let csv = 'id,customer,amount,status,createdAt,paidAt\n';
   invs.rows.forEach(i => { csv += `${i.id},${i.customer},${i.amount},${i.status},${i.created_at},${i.paid_at || ''}\n`; });
@@ -798,65 +930,65 @@ app.get('/api/invoice/export/csv', requireBusiness, async (req, res) => {
   res.send(csv);
 });
 
-// 3. WhatsApp
-app.post('/api/whatsapp/product', requireBusiness, async (req, res) => {
+// 3. WhatsApp (module: whatsapp)
+app.post('/api/whatsapp/product', requireBusiness, requireModule('whatsapp'), async (req, res) => {
   const { name, price, description } = req.body;
   const result = await sql`INSERT INTO whatsapp_products (business_id, name, price, description) VALUES (${req.business.id}, ${name}, ${price}, ${description}) RETURNING id`;
   res.json({ id: result.rows[0].id, name, price, description });
 });
-app.get('/api/whatsapp/products', requireBusiness, async (req, res) => {
+app.get('/api/whatsapp/products', requireBusiness, requireModule('whatsapp'), async (req, res) => {
   const products = await sql`SELECT * FROM whatsapp_products WHERE business_id = ${req.business.id}`;
   res.json({ products: products.rows });
 });
-app.post('/api/whatsapp/order', requireBusiness, async (req, res) => {
+app.post('/api/whatsapp/order', requireBusiness, requireModule('whatsapp'), async (req, res) => {
   const { productId, customerPhone } = req.body;
   const result = await sql`INSERT INTO whatsapp_orders (business_id, product_id, customer_phone, status) VALUES (${req.business.id}, ${productId}, ${customerPhone}, 'pending') RETURNING id, created_at`;
   res.json({ id: result.rows[0].id, productId, customerPhone, status: 'pending', createdAt: result.rows[0].created_at });
 });
-app.get('/api/whatsapp/order/:id/checkout', requireBusiness, async (req, res) => {
+app.get('/api/whatsapp/order/:id/checkout', requireBusiness, requireModule('whatsapp'), async (req, res) => {
   const order = await sql`SELECT * FROM whatsapp_orders WHERE id = ${req.params.id} AND business_id = ${req.business.id}`;
   if (order.rowCount === 0) return res.status(404).json({ error: 'Not found' });
   res.json({ checkoutLink: `https://wa.me/${order.rows[0].customer_phone}?text=I%20want%20to%20pay%20for%20order%20${req.params.id}` });
 });
 
-// 4. Logistics (simplified mock)
-app.post('/api/logistics/route', requireBusiness, (req, res) => { res.json({ routeId: Date.now(), stops: req.body.stops }); });
-app.post('/api/logistics/driver/assign', requireBusiness, (req, res) => { res.json({ success: true }); });
-app.get('/api/logistics/driver/:id/track', requireBusiness, (req, res) => { res.json({ location: { lat: -15.3875, lng: 28.3228 } }); });
+// 4. Logistics (module: logistics) – mock
+app.post('/api/logistics/route', requireBusiness, requireModule('logistics'), (req, res) => { res.json({ routeId: Date.now(), stops: req.body.stops }); });
+app.post('/api/logistics/driver/assign', requireBusiness, requireModule('logistics'), (req, res) => { res.json({ success: true }); });
+app.get('/api/logistics/driver/:id/track', requireBusiness, requireModule('logistics'), (req, res) => { res.json({ location: { lat: -15.3875, lng: 28.3228 } }); });
 
-// 5. Agritech
-app.post('/api/agritech/farmer', requireBusiness, async (req, res) => {
+// 5. Agritech (module: agritech)
+app.post('/api/agritech/farmer', requireBusiness, requireModule('agritech'), async (req, res) => {
   const { name, crop, price, location } = req.body;
   const result = await sql`INSERT INTO agritech_farmers (business_id, name, crop, price, location) VALUES (${req.business.id}, ${name}, ${crop}, ${price}, ${location}) RETURNING id`;
   res.json({ id: result.rows[0].id, name, crop, price, location });
 });
-app.get('/api/agritech/farmers', requireBusiness, async (req, res) => {
+app.get('/api/agritech/farmers', requireBusiness, requireModule('agritech'), async (req, res) => {
   const farmers = await sql`SELECT * FROM agritech_farmers WHERE business_id = ${req.business.id}`;
   res.json({ farmers: farmers.rows });
 });
-app.post('/api/agritech/buyer/match', requireBusiness, async (req, res) => {
+app.post('/api/agritech/buyer/match', requireBusiness, requireModule('agritech'), async (req, res) => {
   const { crop, maxPrice } = req.body;
   const matches = await sql`SELECT * FROM agritech_farmers WHERE business_id = ${req.business.id} AND crop = ${crop} AND price <= ${maxPrice}`;
   res.json({ matches: matches.rows });
 });
-app.get('/api/agritech/price/intelligence', requireBusiness, (req, res) => { res.json({ prices: { maize: 120, soy: 250, groundnuts: 300 } }); });
+app.get('/api/agritech/price/intelligence', requireBusiness, requireModule('agritech'), (req, res) => { res.json({ prices: { maize: 120, soy: 250, groundnuts: 300 } }); });
 
-// 6. AI Support
-app.post('/api/ai/chat', requireBusiness, async (req, res) => {
+// 6. AI Support (module: ai)
+app.post('/api/ai/chat', requireBusiness, requireModule('ai'), async (req, res) => {
   const { query } = req.body;
   const faq = await sql`SELECT answer FROM faqs WHERE business_id = ${req.business.id} AND question ILIKE ${'%' + query + '%'} LIMIT 1`;
   let answer = "I'm still learning. Please ask your business owner.";
   if (faq.rowCount > 0) answer = faq.rows[0].answer;
   res.json({ response: answer });
 });
-app.post('/api/ai/train', requireBusiness, async (req, res) => {
+app.post('/api/ai/train', requireBusiness, requireModule('ai'), async (req, res) => {
   const { question, answer } = req.body;
   await sql`INSERT INTO faqs (business_id, question, answer) VALUES (${req.business.id}, ${question}, ${answer})`;
   res.json({ success: true });
 });
 
-// 7. Lending
-app.post('/api/lending/score', requireBusiness, async (req, res) => {
+// 7. Lending (module: lending)
+app.post('/api/lending/score', requireBusiness, requireModule('lending'), async (req, res) => {
   const { income, debt, history } = req.body;
   let score = 500;
   if (income > 5000) score += 100;
@@ -865,24 +997,24 @@ app.post('/api/lending/score', requireBusiness, async (req, res) => {
   await sql`INSERT INTO lending_scores (business_id, income, debt, history, score) VALUES (${req.business.id}, ${income}, ${debt}, ${history}, ${score})`;
   res.json({ score, risk: score > 600 ? 'low' : 'high' });
 });
-app.post('/api/lending/eligibility', requireBusiness, (req, res) => {
+app.post('/api/lending/eligibility', requireBusiness, requireModule('lending'), (req, res) => {
   const { score, requestedAmount } = req.body;
   const eligible = score > 650 && requestedAmount <= 5000;
   res.json({ eligible, maxAmount: eligible ? 5000 : 0 });
 });
 
-// 8. SME
-app.post('/api/sme/sale', requireBusiness, async (req, res) => {
+// 8. SME (module: sme)
+app.post('/api/sme/sale', requireBusiness, requireModule('sme'), async (req, res) => {
   const { amount, customerId } = req.body;
   const result = await sql`INSERT INTO sme_sales (business_id, amount, customer_id, date) VALUES (${req.business.id}, ${amount}, ${customerId}, NOW()) RETURNING id`;
   res.json({ id: result.rows[0].id });
 });
-app.post('/api/sme/expense', requireBusiness, async (req, res) => {
+app.post('/api/sme/expense', requireBusiness, requireModule('sme'), async (req, res) => {
   const { amount, category } = req.body;
   const result = await sql`INSERT INTO sme_expenses (business_id, amount, category, date) VALUES (${req.business.id}, ${amount}, ${category}, NOW()) RETURNING id`;
   res.json({ id: result.rows[0].id });
 });
-app.get('/api/sme/profit', requireBusiness, async (req, res) => {
+app.get('/api/sme/profit', requireBusiness, requireModule('sme'), async (req, res) => {
   const sales = await sql`SELECT SUM(amount) as total FROM sme_sales WHERE business_id = ${req.business.id}`;
   const expenses = await sql`SELECT SUM(amount) as total FROM sme_expenses WHERE business_id = ${req.business.id}`;
   const totalSales = sales.rows[0].total || 0;
@@ -890,22 +1022,22 @@ app.get('/api/sme/profit', requireBusiness, async (req, res) => {
   res.json({ profit: totalSales - totalExpenses, revenue: totalSales, costs: totalExpenses });
 });
 
-// 9. Inventory/POS
-app.post('/api/inventory/product', requireBusiness, async (req, res) => {
+// 9. Inventory/POS (modules: inventory)
+app.post('/api/inventory/product', requireBusiness, requireModule('inventory'), async (req, res) => {
   const { name, price, stock } = req.body;
   const result = await sql`INSERT INTO inventory_products (business_id, name, price, stock) VALUES (${req.business.id}, ${name}, ${price}, ${stock}) RETURNING id`;
   res.json({ id: result.rows[0].id, name, price, stock });
 });
-app.put('/api/inventory/stock', requireBusiness, async (req, res) => {
+app.put('/api/inventory/stock', requireBusiness, requireModule('inventory'), async (req, res) => {
   const { productId, quantity } = req.body;
   await sql`UPDATE inventory_products SET stock = stock + ${quantity} WHERE id = ${productId} AND business_id = ${req.business.id}`;
   res.json({ success: true });
 });
-app.get('/api/inventory/alerts', requireBusiness, async (req, res) => {
+app.get('/api/inventory/alerts', requireBusiness, requireModule('inventory'), async (req, res) => {
   const lowStock = await sql`SELECT * FROM inventory_products WHERE business_id = ${req.business.id} AND stock < 5`;
   res.json({ lowStock: lowStock.rows });
 });
-app.post('/api/pos/sale', requireBusiness, async (req, res) => {
+app.post('/api/pos/sale', requireBusiness, requireModule('inventory'), async (req, res) => {
   const { productId, quantity, paymentMethod } = req.body;
   const product = await sql`SELECT price, stock FROM inventory_products WHERE id = ${productId} AND business_id = ${req.business.id}`;
   if (product.rowCount === 0) return res.status(404).json({ error: 'Product not found' });
@@ -914,99 +1046,99 @@ app.post('/api/pos/sale', requireBusiness, async (req, res) => {
   res.json({ success: true, total: product.rows[0].price * quantity, paymentMethod });
 });
 
-// 10. Social Ads
-app.post('/api/social/ad/create', requireBusiness, async (req, res) => {
+// 10. Social Ads (module: social_ads)
+app.post('/api/social/ad/create', requireBusiness, requireModule('social_ads'), async (req, res) => {
   const { name, budget, target } = req.body;
   const result = await sql`INSERT INTO social_ads (business_id, name, budget, target, status, leads) VALUES (${req.business.id}, ${name}, ${budget}, ${target}, 'active', 0) RETURNING id`;
   res.json({ id: result.rows[0].id, name, budget, target, status: 'active', leads: 0 });
 });
-app.post('/api/social/ad/budget', requireBusiness, async (req, res) => {
+app.post('/api/social/ad/budget', requireBusiness, requireModule('social_ads'), async (req, res) => {
   const { adId, newBudget } = req.body;
   await sql`UPDATE social_ads SET budget = ${newBudget} WHERE id = ${adId} AND business_id = ${req.business.id}`;
   res.json({ success: true });
 });
-app.get('/api/social/leads', requireBusiness, async (req, res) => {
+app.get('/api/social/leads', requireBusiness, requireModule('social_ads'), async (req, res) => {
   const leads = await sql`SELECT SUM(leads) as total FROM social_ads WHERE business_id = ${req.business.id}`;
   res.json({ leads: leads.rows[0].total || 0 });
 });
 
-// 11. Freelance
-app.post('/api/freelance/service', requireBusiness, async (req, res) => {
+// 11. Freelance (module: freelance)
+app.post('/api/freelance/service', requireBusiness, requireModule('freelance'), async (req, res) => {
   const { title, price, seller } = req.body;
   const result = await sql`INSERT INTO freelance_services (business_id, title, price, seller) VALUES (${req.business.id}, ${title}, ${price}, ${seller}) RETURNING id`;
   res.json({ id: result.rows[0].id, title, price, seller });
 });
-app.get('/api/freelance/services', requireBusiness, async (req, res) => {
+app.get('/api/freelance/services', requireBusiness, requireModule('freelance'), async (req, res) => {
   const services = await sql`SELECT * FROM freelance_services WHERE business_id = ${req.business.id}`;
   res.json({ services: services.rows });
 });
-app.post('/api/freelance/order', requireBusiness, async (req, res) => {
+app.post('/api/freelance/order', requireBusiness, requireModule('freelance'), async (req, res) => {
   const { serviceId, buyer } = req.body;
   const result = await sql`INSERT INTO freelance_orders (business_id, service_id, buyer, status) VALUES (${req.business.id}, ${serviceId}, ${buyer}, 'escrow') RETURNING id, created_at`;
   res.json({ id: result.rows[0].id, serviceId, buyer, status: 'escrow', createdAt: result.rows[0].created_at });
 });
-app.post('/api/freelance/escrow', requireBusiness, async (req, res) => {
+app.post('/api/freelance/escrow', requireBusiness, requireModule('freelance'), async (req, res) => {
   const { orderId } = req.body;
   await sql`UPDATE freelance_orders SET status = 'released' WHERE id = ${orderId} AND business_id = ${req.business.id}`;
   res.json({ success: true });
 });
 
-// 12. Clinic
-app.post('/api/clinic/patient', requireBusiness, async (req, res) => {
+// 12. Clinic (module: clinic)
+app.post('/api/clinic/patient', requireBusiness, requireModule('clinic'), async (req, res) => {
   const { name, phone, address } = req.body;
   const result = await sql`INSERT INTO clinic_patients (business_id, name, phone, address) VALUES (${req.business.id}, ${name}, ${phone}, ${address}) RETURNING id`;
   res.json({ id: result.rows[0].id, name, phone, address });
 });
-app.post('/api/clinic/appointment', requireBusiness, async (req, res) => {
+app.post('/api/clinic/appointment', requireBusiness, requireModule('clinic'), async (req, res) => {
   const { patientId, date, reason } = req.body;
   const result = await sql`INSERT INTO clinic_appointments (business_id, patient_id, date, reason) VALUES (${req.business.id}, ${patientId}, ${date}, ${reason}) RETURNING id`;
   res.json({ id: result.rows[0].id, patientId, date, reason });
 });
-app.get('/api/clinic/patient/:id/bill', requireBusiness, async (req, res) => {
+app.get('/api/clinic/patient/:id/bill', requireBusiness, requireModule('clinic'), async (req, res) => {
   const patient = await sql`SELECT * FROM clinic_patients WHERE id = ${req.params.id} AND business_id = ${req.business.id}`;
   if (patient.rowCount === 0) return res.status(404).json({ error: 'Patient not found' });
   res.json({ patient: patient.rows[0], bill: Math.floor(Math.random() * 500) });
 });
 
-// 13. KYC (mock)
-app.post('/api/kyc/id', requireBusiness, (req, res) => {
+// 13. KYC (module: kyc)
+app.post('/api/kyc/id', requireBusiness, requireModule('kyc'), (req, res) => {
   const { idNumber, name } = req.body;
   res.json({ verified: idNumber && idNumber.length >= 5, message: idNumber && idNumber.length >= 5 ? 'ID verified' : 'Invalid ID' });
 });
-app.post('/api/kyc/phone', requireBusiness, (req, res) => {
+app.post('/api/kyc/phone', requireBusiness, requireModule('kyc'), (req, res) => {
   const { phone } = req.body;
   res.json({ verified: phone && phone.length === 10, message: phone && phone.length === 10 ? 'Phone verified' : 'Invalid phone' });
 });
 
-// 14. E‑commerce BaaS
-app.post('/api/ecommerce/product', requireBusiness, async (req, res) => {
+// 14. E‑commerce BaaS (module: ecommerce)
+app.post('/api/ecommerce/product', requireBusiness, requireModule('ecommerce'), async (req, res) => {
   const { name, price } = req.body;
   const result = await sql`INSERT INTO ecommerce_products (business_id, name, price) VALUES (${req.business.id}, ${name}, ${price}) RETURNING id`;
   res.json({ id: result.rows[0].id, name, price });
 });
-app.get('/api/ecommerce/products', requireBusiness, async (req, res) => {
+app.get('/api/ecommerce/products', requireBusiness, requireModule('ecommerce'), async (req, res) => {
   const products = await sql`SELECT * FROM ecommerce_products WHERE business_id = ${req.business.id}`;
   res.json({ products: products.rows });
 });
-app.post('/api/ecommerce/order', requireBusiness, async (req, res) => {
+app.post('/api/ecommerce/order', requireBusiness, requireModule('ecommerce'), async (req, res) => {
   const { productId, quantity, customer } = req.body;
   const result = await sql`INSERT INTO ecommerce_orders (business_id, product_id, quantity, customer, status) VALUES (${req.business.id}, ${productId}, ${quantity}, ${customer}, 'pending') RETURNING id`;
   res.json({ id: result.rows[0].id, productId, quantity, customer, status: 'pending' });
 });
-app.post('/api/ecommerce/payment', requireBusiness, async (req, res) => {
+app.post('/api/ecommerce/payment', requireBusiness, requireModule('ecommerce'), async (req, res) => {
   const { orderId, method } = req.body;
   await sql`UPDATE ecommerce_orders SET status = 'paid' WHERE id = ${orderId} AND business_id = ${req.business.id}`;
   res.json({ success: true, paymentMethod: method });
 });
 
-// 15. AI Tutoring
-app.post('/api/tutor/chat', requireBusiness, (req, res) => {
+// 15. AI Tutoring (module: tutor)
+app.post('/api/tutor/chat', requireBusiness, requireModule('tutor'), (req, res) => {
   const { question, grade } = req.body;
   let answer = "I'm here to help with your studies.";
   if (question.includes('algebra')) answer = "Algebra is about solving equations. Example: x + 2 = 5 → x = 3.";
   res.json({ answer });
 });
-app.get('/api/tutor/curriculum', requireBusiness, (req, res) => {
+app.get('/api/tutor/curriculum', requireBusiness, requireModule('tutor'), (req, res) => {
   const { grade } = req.query;
   const curriculum = [
     { grade: 10, subject: 'Math', topic: 'Algebra', content: 'Solving linear equations' },
@@ -1016,21 +1148,32 @@ app.get('/api/tutor/curriculum', requireBusiness, (req, res) => {
   res.json({ curriculum: filtered });
 });
 
-// 16. Local Business Discovery
-app.post('/api/discovery/business', requireBusiness, async (req, res) => {
+// 16. Local Business Discovery (module: discovery)
+app.post('/api/discovery/business', requireBusiness, requireModule('discovery'), async (req, res) => {
   const { name, category, location, whatsapp } = req.body;
   const result = await sql`INSERT INTO businesses_list (business_id, name, category, location, whatsapp) VALUES (${req.business.id}, ${name}, ${category}, ${location}, ${whatsapp}) RETURNING id`;
   res.json({ id: result.rows[0].id, name, category, location, whatsapp });
 });
-app.get('/api/discovery/businesses', requireBusiness, async (req, res) => {
+app.get('/api/discovery/businesses', requireBusiness, requireModule('discovery'), async (req, res) => {
   const { category } = req.query;
   let query = sql`SELECT * FROM businesses_list WHERE business_id = ${req.business.id}`;
   if (category) query = sql`SELECT * FROM businesses_list WHERE business_id = ${req.business.id} AND category = ${category}`;
   const businesses = await query;
   res.json({ businesses: businesses.rows });
 });
-app.post('/api/discovery/review', requireBusiness, async (req, res) => { res.json({ success: true, reviewId: Date.now() }); });
-app.get('/api/discovery/business/:id/whatsapp', requireBusiness, async (req, res) => {
+app.post('/api/discovery/review', requireBusiness, requireModule('discovery'), async (req, res) => {
+  const { businessId, rating, comment } = req.body;
+  if (!businessId || !rating) return res.status(400).json({ error: 'Business ID and rating required' });
+  const listed = await sql`SELECT id FROM businesses_list WHERE id = ${businessId} AND business_id = ${req.business.id}`;
+  if (listed.rowCount === 0) return res.status(404).json({ error: 'Listed business not found' });
+  const result = await sql`
+    INSERT INTO discovery_reviews (business_list_id, reviewer_business_id, rating, comment)
+    VALUES (${businessId}, ${req.business.id}, ${rating}, ${comment})
+    RETURNING *
+  `;
+  res.json({ review: result.rows[0] });
+});
+app.get('/api/discovery/business/:id/whatsapp', requireBusiness, requireModule('discovery'), async (req, res) => {
   const business = await sql`SELECT whatsapp FROM businesses_list WHERE id = ${req.params.id} AND business_id = ${req.business.id}`;
   if (business.rowCount === 0) return res.status(404).json({ error: 'Business not found' });
   res.json({ whatsappLink: `https://wa.me/${business.rows[0].whatsapp}` });
@@ -1048,7 +1191,7 @@ if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`🚀 BaKangombe local server running on http://localhost:${PORT}`);
     console.log(`📖 Test endpoints: http://localhost:${PORT}/api/validate`);
-    console.log(`💰 Multi‑tenant features: /api/momo/transfer, etc. (require API key)`);
+    console.log(`💰 Multi‑tenant features: /api/momo/transfer, etc. (require API key and module permissions)`);
   });
 }
 module.exports = app;

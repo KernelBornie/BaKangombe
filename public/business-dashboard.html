@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head><title>Business Dashboard</title></head>
+<body>
+  <h2>Business Dashboard</h2>
+  <label>API Key:</label>
+  <input type="text" id="apiKey" style="width:400px">
+  <button onclick="login()">Set Key</button>
+  <hr>
+  <div id="content" style="display:none">
+    <h3>Clinic Module</h3>
+    <input id="patientName" placeholder="Name">
+    <input id="patientPhone" placeholder="Phone">
+    <input id="patientAddress" placeholder="Address">
+    <button onclick="addPatient()">Add Patient</button>
+    <button onclick="listPatients()">List Patients</button>
+    <pre id="result"></pre>
+  </div>
+  <script>
+    function login() {
+      const key = document.getElementById('apiKey').value;
+      localStorage.setItem('businessApiKey', key);
+      document.getElementById('content').style.display = 'block';
+    }
+    async function callApi(endpoint, method, body) {
+      const key = localStorage.getItem('businessApiKey');
+      const res = await fetch(endpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': key },
+        body: body ? JSON.stringify(body) : undefined
+      });
+      return await res.json();
+    }
+    async function addPatient() {
+      const name = document.getElementById('patientName').value;
+      const phone = document.getElementById('patientPhone').value;
+      const address = document.getElementById('patientAddress').value;
+      const data = await callApi('/api/clinic/patient', 'POST', { name, phone, address });
+      document.getElementById('result').innerText = JSON.stringify(data, null, 2);
+    }
+    async function listPatients() {
+      const data = await callApi('/api/clinic/patients', 'GET');
+      document.getElementById('result').innerText = JSON.stringify(data, null, 2);
+    }
+    const savedKey = localStorage.getItem('businessApiKey');
+    if (savedKey) {
+      document.getElementById('apiKey').value = savedKey;
+      login();
+    }
+  </script>
+</body>
+</html>
