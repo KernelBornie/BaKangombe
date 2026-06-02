@@ -9,7 +9,7 @@
     h1, h2, h3 { color: #a0c4ff; }
     .feature { background: rgba(255,255,255,0.03); border-radius: 1rem; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid rgba(255,255,255,0.08); }
     input, select, textarea, button { background: #0f1117; border: 1px solid rgba(255,255,255,0.1); color: white; padding: 0.5rem; border-radius: 0.5rem; margin: 0.5rem 0; width: 100%; max-width: 400px; display: block; }
-    button { background: #4f46e5; cursor: pointer; width: auto; }
+    button { background: #4f46e5; width: auto; cursor: pointer; }
     pre { background: #0f1117; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin-top: 1rem; }
     hr { border-color: rgba(255,255,255,0.1); }
     .nav { background: #0f1117; padding: 1rem; border-radius: 1rem; margin-bottom: 2rem; display: flex; gap: 1rem; flex-wrap: wrap; }
@@ -249,7 +249,7 @@
   </div>
 
   <script>
-    // Helper to fetch and display
+    // Helper
     async function apiCall(url, method = 'GET', body = null) {
       const opts = { method, headers: { 'Content-Type': 'application/json' } };
       if (body) opts.body = JSON.stringify(body);
@@ -259,258 +259,258 @@
 
     // 1. Mobile Money
     async function testMomoTransfer() {
-      const data = { amount: document.getElementById('momoAmount').value, phone: document.getElementById('momoPhone').value, provider: document.getElementById('momoProvider').value };
+      const data = { amount: momoAmount.value, phone: momoPhone.value, provider: momoProvider.value };
       const result = await apiCall('/api/momo/transfer', 'POST', data);
-      document.getElementById('momoResult').innerText = JSON.stringify(result, null, 2);
+      momoResult.innerText = JSON.stringify(result, null, 2);
     }
     async function testMomoRequest() {
-      const data = { amount: document.getElementById('momoAmount').value, phone: document.getElementById('momoPhone').value, provider: document.getElementById('momoProvider').value };
+      const data = { amount: momoAmount.value, phone: momoPhone.value, provider: momoProvider.value };
       const result = await apiCall('/api/momo/request', 'POST', data);
-      document.getElementById('momoResult').innerText = JSON.stringify(result, null, 2);
+      momoResult.innerText = JSON.stringify(result, null, 2);
     }
     async function getMomoTransactions() {
       const result = await apiCall('/api/momo/transactions');
-      document.getElementById('momoResult').innerText = JSON.stringify(result, null, 2);
+      momoResult.innerText = JSON.stringify(result, null, 2);
     }
 
     // 2. Invoices
     async function createInvoice() {
-      const items = document.getElementById('invItems').value.split(',');
-      const data = { customer: document.getElementById('invCustomer').value, amount: parseFloat(document.getElementById('invAmount').value), items };
+      const items = invItems.value.split(',');
+      const data = { customer: invCustomer.value, amount: parseFloat(invAmount.value), items };
       const result = await apiCall('/api/invoice/create', 'POST', data);
-      document.getElementById('invoiceResult').innerText = JSON.stringify(result, null, 2);
+      invoiceResult.innerText = JSON.stringify(result, null, 2);
     }
     async function payInvoice() {
-      const id = document.getElementById('payInvoiceId').value;
+      const id = payInvoiceId.value;
       const result = await apiCall(`/api/invoice/${id}/pay`, 'PUT');
-      document.getElementById('invoiceResult').innerText = JSON.stringify(result, null, 2);
+      invoiceResult.innerText = JSON.stringify(result, null, 2);
     }
 
     // 3. WhatsApp
     async function addWhatsappProduct() {
-      const data = { name: document.getElementById('waName').value, price: parseFloat(document.getElementById('waPrice').value), description: document.getElementById('waDesc').value };
+      const data = { name: waName.value, price: parseFloat(waPrice.value), description: waDesc.value };
       const result = await apiCall('/api/whatsapp/product', 'POST', data);
-      document.getElementById('waResult').innerText = JSON.stringify(result, null, 2);
+      waResult.innerText = JSON.stringify(result, null, 2);
     }
     async function listWhatsappProducts() {
       const result = await apiCall('/api/whatsapp/products');
-      document.getElementById('waResult').innerText = JSON.stringify(result, null, 2);
+      waResult.innerText = JSON.stringify(result, null, 2);
     }
     async function createWhatsappOrder() {
-      const data = { productId: parseInt(document.getElementById('waProductId').value), customerPhone: document.getElementById('waPhone').value };
+      const data = { productId: parseInt(waProductId.value), customerPhone: waPhone.value };
       const result = await apiCall('/api/whatsapp/order', 'POST', data);
-      document.getElementById('waResult').innerText = JSON.stringify(result, null, 2);
+      waResult.innerText = JSON.stringify(result, null, 2);
     }
 
     // 4. Logistics
     async function optimizeRoute() {
-      const stops = JSON.parse(document.getElementById('stops').value);
+      const stops = JSON.parse(stops.value);
       const result = await apiCall('/api/logistics/route', 'POST', { stops });
-      document.getElementById('logisticsResult').innerText = JSON.stringify(result, null, 2);
+      logisticsResult.innerText = JSON.stringify(result, null, 2);
     }
     async function assignDriver() {
-      const data = { routeId: parseInt(document.getElementById('routeId').value), driverId: parseInt(document.getElementById('driverId').value) };
+      const data = { routeId: parseInt(routeId.value), driverId: parseInt(driverId.value) };
       const result = await apiCall('/api/logistics/driver/assign', 'POST', data);
-      document.getElementById('logisticsResult').innerText = JSON.stringify(result, null, 2);
+      logisticsResult.innerText = JSON.stringify(result, null, 2);
     }
     async function trackDriver() {
-      const id = document.getElementById('driverId').value;
+      const id = driverId.value;
       const result = await apiCall(`/api/logistics/driver/${id}/track`);
-      document.getElementById('logisticsResult').innerText = JSON.stringify(result, null, 2);
+      logisticsResult.innerText = JSON.stringify(result, null, 2);
     }
 
     // 5. Agritech
     async function addFarmer() {
-      const data = { name: document.getElementById('farmerName').value, crop: document.getElementById('crop').value, price: parseFloat(document.getElementById('price').value), location: document.getElementById('location').value };
+      const data = { name: farmerName.value, crop: crop.value, price: parseFloat(price.value), location: location.value };
       const result = await apiCall('/api/agritech/farmer', 'POST', data);
-      document.getElementById('agritechResult').innerText = JSON.stringify(result, null, 2);
+      agritechResult.innerText = JSON.stringify(result, null, 2);
     }
     async function matchBuyer() {
-      const data = { crop: document.getElementById('matchCrop').value, maxPrice: parseFloat(document.getElementById('maxPrice').value) };
+      const data = { crop: matchCrop.value, maxPrice: parseFloat(maxPrice.value) };
       const result = await apiCall('/api/agritech/buyer/match', 'POST', data);
-      document.getElementById('agritechResult').innerText = JSON.stringify(result, null, 2);
+      agritechResult.innerText = JSON.stringify(result, null, 2);
     }
 
     // 6. AI
     async function askAI() {
-      const data = { query: document.getElementById('aiQuery').value };
+      const data = { query: aiQuery.value };
       const result = await apiCall('/api/ai/chat', 'POST', data);
-      document.getElementById('aiResult').innerText = JSON.stringify(result, null, 2);
+      aiResult.innerText = JSON.stringify(result, null, 2);
     }
     async function trainAI() {
-      const data = { question: document.getElementById('trainQ').value, answer: document.getElementById('trainA').value };
+      const data = { question: trainQ.value, answer: trainA.value };
       const result = await apiCall('/api/ai/train', 'POST', data);
-      document.getElementById('aiResult').innerText = JSON.stringify(result, null, 2);
+      aiResult.innerText = JSON.stringify(result, null, 2);
     }
 
     // 7. Lending
     async function getCreditScore() {
-      const data = { income: parseFloat(document.getElementById('income').value), debt: parseFloat(document.getElementById('debt').value), history: document.getElementById('history').value };
+      const data = { income: parseFloat(income.value), debt: parseFloat(debt.value), history: history.value };
       const result = await apiCall('/api/lending/score', 'POST', data);
-      document.getElementById('lendingResult').innerText = JSON.stringify(result, null, 2);
+      lendingResult.innerText = JSON.stringify(result, null, 2);
     }
     async function checkEligibility() {
-      const data = { score: parseFloat(document.getElementById('scoreVal').value), requestedAmount: parseFloat(document.getElementById('reqAmount').value) };
+      const data = { score: parseFloat(scoreVal.value), requestedAmount: parseFloat(reqAmount.value) };
       const result = await apiCall('/api/lending/eligibility', 'POST', data);
-      document.getElementById('lendingResult').innerText = JSON.stringify(result, null, 2);
+      lendingResult.innerText = JSON.stringify(result, null, 2);
     }
 
     // 8. SME
     async function recordSale() {
-      const data = { amount: parseFloat(document.getElementById('saleAmount').value), customerId: parseInt(document.getElementById('customerId').value) };
+      const data = { amount: parseFloat(saleAmount.value), customerId: parseInt(customerId.value) };
       const result = await apiCall('/api/sme/sale', 'POST', data);
-      document.getElementById('smeResult').innerText = JSON.stringify(result, null, 2);
+      smeResult.innerText = JSON.stringify(result, null, 2);
     }
     async function recordExpense() {
-      const data = { amount: parseFloat(document.getElementById('expenseAmount').value), category: document.getElementById('expenseCat').value };
+      const data = { amount: parseFloat(expenseAmount.value), category: expenseCat.value };
       const result = await apiCall('/api/sme/expense', 'POST', data);
-      document.getElementById('smeResult').innerText = JSON.stringify(result, null, 2);
+      smeResult.innerText = JSON.stringify(result, null, 2);
     }
     async function getProfit() {
       const result = await apiCall('/api/sme/profit');
-      document.getElementById('smeResult').innerText = JSON.stringify(result, null, 2);
+      smeResult.innerText = JSON.stringify(result, null, 2);
     }
 
     // 9. Inventory/POS
     async function addProduct() {
-      const data = { name: document.getElementById('prodName').value, price: parseFloat(document.getElementById('prodPrice').value), stock: parseInt(document.getElementById('prodStock').value) };
+      const data = { name: prodName.value, price: parseFloat(prodPrice.value), stock: parseInt(prodStock.value) };
       const result = await apiCall('/api/inventory/product', 'POST', data);
-      document.getElementById('inventoryResult').innerText = JSON.stringify(result, null, 2);
+      inventoryResult.innerText = JSON.stringify(result, null, 2);
     }
     async function updateStock() {
-      const data = { productId: parseInt(document.getElementById('updateProdId').value), quantity: parseInt(document.getElementById('updateQty').value) };
+      const data = { productId: parseInt(updateProdId.value), quantity: parseInt(updateQty.value) };
       const result = await apiCall('/api/inventory/stock', 'PUT', data);
-      document.getElementById('inventoryResult').innerText = JSON.stringify(result, null, 2);
+      inventoryResult.innerText = JSON.stringify(result, null, 2);
     }
     async function getLowStockAlerts() {
       const result = await apiCall('/api/inventory/alerts');
-      document.getElementById('inventoryResult').innerText = JSON.stringify(result, null, 2);
+      inventoryResult.innerText = JSON.stringify(result, null, 2);
     }
     async function posSale() {
-      const data = { productId: parseInt(document.getElementById('posProdId').value), quantity: parseInt(document.getElementById('posQty').value), paymentMethod: document.getElementById('payMethod').value };
+      const data = { productId: parseInt(posProdId.value), quantity: parseInt(posQty.value), paymentMethod: payMethod.value };
       const result = await apiCall('/api/pos/sale', 'POST', data);
-      document.getElementById('inventoryResult').innerText = JSON.stringify(result, null, 2);
+      inventoryResult.innerText = JSON.stringify(result, null, 2);
     }
 
     // 10. Social Ads
     async function createAd() {
-      const data = { name: document.getElementById('adName').value, budget: parseFloat(document.getElementById('adBudget').value), target: document.getElementById('adTarget').value };
+      const data = { name: adName.value, budget: parseFloat(adBudget.value), target: adTarget.value };
       const result = await apiCall('/api/social/ad/create', 'POST', data);
-      document.getElementById('socialResult').innerText = JSON.stringify(result, null, 2);
+      socialResult.innerText = JSON.stringify(result, null, 2);
     }
     async function updateAdBudget() {
-      const data = { adId: parseInt(document.getElementById('adId').value), newBudget: parseFloat(document.getElementById('newBudget').value) };
+      const data = { adId: parseInt(adId.value), newBudget: parseFloat(newBudget.value) };
       const result = await apiCall('/api/social/ad/budget', 'POST', data);
-      document.getElementById('socialResult').innerText = JSON.stringify(result, null, 2);
+      socialResult.innerText = JSON.stringify(result, null, 2);
     }
     async function getLeads() {
       const result = await apiCall('/api/social/leads');
-      document.getElementById('socialResult').innerText = JSON.stringify(result, null, 2);
+      socialResult.innerText = JSON.stringify(result, null, 2);
     }
 
     // 11. Freelance
     async function postService() {
-      const data = { title: document.getElementById('serviceTitle').value, price: parseFloat(document.getElementById('servicePrice').value), seller: document.getElementById('seller').value };
+      const data = { title: serviceTitle.value, price: parseFloat(servicePrice.value), seller: seller.value };
       const result = await apiCall('/api/freelance/service', 'POST', data);
-      document.getElementById('freelanceResult').innerText = JSON.stringify(result, null, 2);
+      freelanceResult.innerText = JSON.stringify(result, null, 2);
     }
     async function listServices() {
       const result = await apiCall('/api/freelance/services');
-      document.getElementById('freelanceResult').innerText = JSON.stringify(result, null, 2);
+      freelanceResult.innerText = JSON.stringify(result, null, 2);
     }
     async function createFreelanceOrder() {
-      const data = { serviceId: parseInt(document.getElementById('serviceIdOrder').value), buyer: document.getElementById('buyer').value };
+      const data = { serviceId: parseInt(serviceIdOrder.value), buyer: buyer.value };
       const result = await apiCall('/api/freelance/order', 'POST', data);
-      document.getElementById('freelanceResult').innerText = JSON.stringify(result, null, 2);
+      freelanceResult.innerText = JSON.stringify(result, null, 2);
     }
     async function releaseEscrow() {
-      const data = { orderId: parseInt(document.getElementById('orderId').value) };
+      const data = { orderId: parseInt(orderId.value) };
       const result = await apiCall('/api/freelance/escrow', 'POST', data);
-      document.getElementById('freelanceResult').innerText = JSON.stringify(result, null, 2);
+      freelanceResult.innerText = JSON.stringify(result, null, 2);
     }
 
     // 12. Clinic
     async function addPatient() {
-      const data = { name: document.getElementById('patientName').value, phone: document.getElementById('patientPhone').value, address: document.getElementById('patientAddr').value };
+      const data = { name: patientName.value, phone: patientPhone.value, address: patientAddr.value };
       const result = await apiCall('/api/clinic/patient', 'POST', data);
-      document.getElementById('clinicResult').innerText = JSON.stringify(result, null, 2);
+      clinicResult.innerText = JSON.stringify(result, null, 2);
     }
     async function scheduleAppointment() {
-      const data = { patientId: parseInt(document.getElementById('patientIdApp').value), date: document.getElementById('appDate').value, reason: document.getElementById('appReason').value };
+      const data = { patientId: parseInt(patientIdApp.value), date: appDate.value, reason: appReason.value };
       const result = await apiCall('/api/clinic/appointment', 'POST', data);
-      document.getElementById('clinicResult').innerText = JSON.stringify(result, null, 2);
+      clinicResult.innerText = JSON.stringify(result, null, 2);
     }
     async function getPatientBill() {
-      const id = document.getElementById('billPatientId').value;
+      const id = billPatientId.value;
       const result = await apiCall(`/api/clinic/patient/${id}/bill`);
-      document.getElementById('clinicResult').innerText = JSON.stringify(result, null, 2);
+      clinicResult.innerText = JSON.stringify(result, null, 2);
     }
 
     // 13. KYC
     async function verifyID() {
-      const data = { idNumber: document.getElementById('idNumber').value, name: document.getElementById('idName').value };
+      const data = { idNumber: idNumber.value, name: idName.value };
       const result = await apiCall('/api/kyc/id', 'POST', data);
-      document.getElementById('kycResult').innerText = JSON.stringify(result, null, 2);
+      kycResult.innerText = JSON.stringify(result, null, 2);
     }
     async function verifyPhone() {
-      const data = { phone: document.getElementById('phoneKyc').value };
+      const data = { phone: phoneKyc.value };
       const result = await apiCall('/api/kyc/phone', 'POST', data);
-      document.getElementById('kycResult').innerText = JSON.stringify(result, null, 2);
+      kycResult.innerText = JSON.stringify(result, null, 2);
     }
 
     // 14. Ecommerce BaaS
     async function addEcommerceProduct() {
-      const data = { name: document.getElementById('ecName').value, price: parseFloat(document.getElementById('ecPrice').value) };
+      const data = { name: ecName.value, price: parseFloat(ecPrice.value) };
       const result = await apiCall('/api/ecommerce/product', 'POST', data);
-      document.getElementById('ecommerceResult').innerText = JSON.stringify(result, null, 2);
+      ecommerceResult.innerText = JSON.stringify(result, null, 2);
     }
     async function listEcommerceProducts() {
       const result = await apiCall('/api/ecommerce/products');
-      document.getElementById('ecommerceResult').innerText = JSON.stringify(result, null, 2);
+      ecommerceResult.innerText = JSON.stringify(result, null, 2);
     }
     async function createEcommerceOrder() {
-      const data = { productId: parseInt(document.getElementById('ecProdId').value), quantity: parseInt(document.getElementById('ecQty').value), customer: document.getElementById('ecCustomer').value };
+      const data = { productId: parseInt(ecProdId.value), quantity: parseInt(ecQty.value), customer: ecCustomer.value };
       const result = await apiCall('/api/ecommerce/order', 'POST', data);
-      document.getElementById('ecommerceResult').innerText = JSON.stringify(result, null, 2);
+      ecommerceResult.innerText = JSON.stringify(result, null, 2);
     }
     async function processEcommercePayment() {
-      const data = { orderId: parseInt(document.getElementById('ecOrderId').value), method: document.getElementById('ecMethod').value };
+      const data = { orderId: parseInt(ecOrderId.value), method: ecMethod.value };
       const result = await apiCall('/api/ecommerce/payment', 'POST', data);
-      document.getElementById('ecommerceResult').innerText = JSON.stringify(result, null, 2);
+      ecommerceResult.innerText = JSON.stringify(result, null, 2);
     }
 
     // 15. AI Tutoring
     async function askTutor() {
-      const data = { question: document.getElementById('tutorQuestion').value, grade: parseInt(document.getElementById('tutorGrade').value) };
+      const data = { question: tutorQuestion.value, grade: parseInt(tutorGrade.value) };
       const result = await apiCall('/api/tutor/chat', 'POST', data);
-      document.getElementById('tutorResult').innerText = JSON.stringify(result, null, 2);
+      tutorResult.innerText = JSON.stringify(result, null, 2);
     }
     async function getCurriculum() {
-      const grade = document.getElementById('tutorGrade').value;
+      const grade = tutorGrade.value;
       const result = await apiCall(`/api/tutor/curriculum?grade=${grade}`);
-      document.getElementById('tutorResult').innerText = JSON.stringify(result, null, 2);
+      tutorResult.innerText = JSON.stringify(result, null, 2);
     }
 
     // 16. Business Discovery
     async function addBusiness() {
-      const data = { name: document.getElementById('bizName').value, category: document.getElementById('bizCategory').value, location: document.getElementById('bizLocation').value, whatsapp: document.getElementById('bizWhatsapp').value };
+      const data = { name: bizName.value, category: bizCategory.value, location: bizLocation.value, whatsapp: bizWhatsapp.value };
       const result = await apiCall('/api/discovery/business', 'POST', data);
-      document.getElementById('discoveryResult').innerText = JSON.stringify(result, null, 2);
+      discoveryResult.innerText = JSON.stringify(result, null, 2);
     }
     async function searchBusinesses() {
-      const cat = document.getElementById('searchCategory').value;
+      const cat = searchCategory.value;
       const result = await apiCall(`/api/discovery/businesses?category=${cat}`);
-      document.getElementById('discoveryResult').innerText = JSON.stringify(result, null, 2);
+      discoveryResult.innerText = JSON.stringify(result, null, 2);
     }
     async function addReview() {
-      const data = { businessId: parseInt(document.getElementById('bizIdReview').value), rating: parseInt(document.getElementById('rating').value), comment: document.getElementById('reviewComment').value };
+      const data = { businessId: parseInt(bizIdReview.value), rating: parseInt(rating.value), comment: reviewComment.value };
       const result = await apiCall('/api/discovery/review', 'POST', data);
-      document.getElementById('discoveryResult').innerText = JSON.stringify(result, null, 2);
+      discoveryResult.innerText = JSON.stringify(result, null, 2);
     }
     async function getBusinessWhatsapp() {
-      const id = document.getElementById('bizIdWhatsapp').value;
+      const id = bizIdWhatsapp.value;
       const result = await apiCall(`/api/discovery/business/${id}/whatsapp`);
-      document.getElementById('discoveryResult').innerText = JSON.stringify(result, null, 2);
+      discoveryResult.innerText = JSON.stringify(result, null, 2);
     }
   </script>
 </body>

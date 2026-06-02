@@ -1094,6 +1094,10 @@ app.get('/api/discovery/business/:id/whatsapp', (req, res) => {
   if (!business) return res.status(404).json({ error: 'Business not found' });
   res.json({ whatsappLink: `https://wa.me/${business.whatsapp}` });
 });
+// ---------- Serve new features tester page ----------
+app.get('/new-features', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/new-features.html'));
+});
 
 // ---------- CATCH-ALL (must be last) ----------
 app.get('*', (req, res) => {
