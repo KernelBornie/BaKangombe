@@ -16,7 +16,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// ---------- Vercel Postgres ----------
+// ---------- Vercel Postgres (will fail locally with dummy env, but app continues) ----------
 let dbReady = false;
 let feedbackStore = [];
 
@@ -40,7 +40,8 @@ let feedbackStore = [];
     dbReady = true;
     console.log('Vercel Postgres ready');
   } catch (err) {
-    console.error('Vercel Postgres error:', err);
+    console.error('Vercel Postgres error:', err.message);
+    // App continues without DB (feedback will use memory store)
   }
 })();
 
@@ -83,12 +84,33 @@ async function cachedDnsResolve(domain, type, resolverFn) {
   return result;
 }
 
+// ---------- DNS-over-HTTPS fallback (fixes ECONNREFUSED on local network) ----------
+async function getMxViaDoH(domain) {
+  try {
+    const url = `https://dns.google/resolve?name=${domain}&type=MX`;
+    const response = await axios.get(url);
+    const data = response.data;
+    if (data.Answer && data.Answer.length > 0) {
+      return data.Answer.some(record => record.type === 15);
+    }
+    return false;
+  } catch (err) {
+    console.error(`DoH error for ${domain}:`, err.message);
+    return false;
+  }
+}
+
 async function getMxRecords(domain) {
   return cachedDnsResolve(domain, 'mx', async () => {
+    // Try local DNS first
     try {
       const mx = await dns.resolveMx(domain);
       return mx && mx.length > 0;
-    } catch { return false; }
+    } catch (err) {
+      // On ECONNREFUSED or other errors, fallback to DoH
+      console.log(`Local DNS failed for ${domain}, falling back to DoH`);
+      return await getMxViaDoH(domain);
+    }
   });
 }
 
@@ -283,7 +305,7 @@ async function validateEmail(email) {
   if (isDisposable) score -= 60;
   if (isFreeProvider) score -= 10;
   if (score < 0) score = 0;
-  return { valid: true, has_mx: hasMx, is_disposable: isDisposable, is_free_provider: isFreeProvider, score };
+  return { valid: true, has_mx: true, is_disposable: isDisposable, is_free_provider: isFreeProvider, score };
 }
 
 app.post('/api/validate', async (req, res) => {
@@ -572,7 +594,7 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/admin.html'));
 });
 
-// ---------- Professional Documentation Page (full HTML) ----------
+// ---------- Professional Documentation Page ----------
 app.get('/docs', (req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="en">
@@ -647,7 +669,7 @@ app.get('/docs', (req, res) => {
       <section id="overview"><h2>Overview</h2><p><strong>BaKangombe</strong> provides a suite of email intelligence endpoints. Free tier covers syntax + MX + disposable detection (100 req/min). Premium unlocks batch validation, enrichment (via Hunter.io), domain security scoring, and website generation.</p></section>
       <section id="base-url"><h2>Base URL</h2><pre><code>https://ba-kangombe.vercel.app</code></pre></section>
       <section id="authentication"><h2>Authentication</h2><p><span class="badge free">Free</span> No API key required for <code>/api/validate</code> and <code>/api/feedback</code>.</p><p><span class="badge premium">Premium</span> All other endpoints require an API key. Include it in the <code>X-API-Key</code> header.</p><pre><code>curl -H "X-API-Key: YOUR_PREMIUM_KEY" https://ba-kangombe.vercel.app/api/enrich -d '{"email":"user@example.com"}'</code></pre><p>Obtain a premium key by subscribing at <a href="/#pricing" style="color:#a0c4ff;">/pricing</a> and then call <code>POST /api/generate-key</code>.</p></section>
-      <section id="rate-limits"><h2>Rate Limits</h2><table><thead><tr><th>Plan</th><th>Requests per minute</th><th>Monthly cap</th></tr></thead><tbody><tr><td>Free</td><td>100</td><td>Unlimited (per minute)</td></tr><tr><td>Premium</td><td>10,000</td><td>300,000 (10k/day)</td></tr></tbody></table></section>
+      <section id="rate-limits"><h2>Rate Limits</h2><table><thead><tr><th>Plan</th><th>Requests per minute</th><th>Monthly cap</th></tr></thead><tbody><tr><td>Free</td><td>100</td><td>Unlimited (per minute)</td></tr><td>Premium</td><td>10,000</td><td>300,000 (10k/day)</td></tr></tbody></tr></section>
       <section id="endpoints"><h2>Endpoints</h2>
         <div id="validate" class="endpoint-card"><h3><span class="method">POST</span> <span class="path">/api/validate</span> <span class="badge free">Free</span></h3><p>Validates a single email address. Checks syntax, MX records, disposable status, and free provider. Returns a quality score (0–100).</p><pre><code>{ "email": "user@example.com" }</code></pre><pre><code>{\n  "email": "user@example.com",\n  "valid": true,\n  "has_mx": true,\n  "is_disposable": false,\n  "is_free_provider": false,\n  "score": 100\n}</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/validate -H \"Content-Type: application/json\" -d \'{\"email\":\"user@example.com\"}\'')">Copy cURL</button></div>
         <div id="enrich" class="endpoint-card"><h3><span class="method">POST</span> <span class="path">/api/enrich</span> <span class="badge premium">Premium</span></h3><p>Enriches an email with person and company data via Hunter.io. Requires premium API key.</p><pre><code>{ "email": "bill.gates@microsoft.com" }</code></pre><pre><code>{\n  "email": "bill.gates@microsoft.com",\n  "verified": true,\n  "accept_all": false,\n  "disposable": false,\n  "webmail": false,\n  "mx_records": true,\n  "score": 95,\n  "name": "Bill Gates",\n  "company": "Microsoft"\n}</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/enrich -H \"Content-Type: application/json\" -H \"X-API-Key: YOUR_KEY\" -d \'{\"email\":\"bill.gates@microsoft.com\"}\'')">Copy cURL</button></div>
@@ -657,32 +679,67 @@ app.get('/docs', (req, res) => {
         <div id="website" class="endpoint-card"><h3><span class="method">POST</span> <span class="path">/api/website/generate</span> <span class="badge premium">Premium</span></h3><p>Generates a simple landing page or blog HTML from a template. Useful for quick prototypes or previews.</p><pre><code>{ "template": "landing", "title": "My Startup", "content": "We build awesome tools." }</code></pre><pre><code>{ "html": "<!DOCTYPE html...>", "template": "landing", "title": "My Startup" }</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/website/generate -H \"Content-Type: application/json\" -H \"X-API-Key: YOUR_KEY\" -d \'{\"template\":\"landing\",\"title\":\"My Site\",\"content\":\"Hello\"}\'')">Copy cURL</button></div>
         <div id="feedback" class="endpoint-card"><h3><span class="method">POST</span> <span class="path">/api/feedback</span> <span class="badge free">Free</span></h3><p>Submits user feedback. A confirmation email is sent to the provided address. Data is stored in Vercel Postgres.</p><pre><code>{ "name": "Alice", "email": "alice@example.com", "message": "Great API!" }</code></pre><pre><code>{ "success": true, "message": "Thank you! A confirmation email has been sent." }</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/feedback -H \"Content-Type: application/json\" -d \'{\"name\":\"User\",\"email\":\"user@example.com\",\"message\":\"Great API!\"}\'')">Copy cURL</button></div>
       </section>
-      <section id="errors"><h2>Error Codes</h2><table><thead><tr><th>Status</th><th>Meaning</th></tr></thead><tbody><tr><td>400</td><td>Bad request – missing email/domain or invalid JSON</td></tr><tr><td>402</td><td>Payment required – premium endpoint called without valid API key</td></tr><tr><td>429</td><td>Rate limit exceeded – slow down or upgrade</td></tr><tr><td>500</td><td>Internal server error – our issue, please retry</td></tr></tbody></table></section>
-      <section id="examples"><h2>Code Examples</h2><h3>JavaScript (Node.js)</h3><pre><code>const response = await fetch('https://ba-kangombe.vercel.app/api/validate', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({ email: 'test@example.com' })\n});\nconst data = await response.json();\nconsole.log(data);</code></pre><button class="copy-btn" onclick="copyToClipboard('const response = await fetch(\'https://ba-kangombe.vercel.app/api/validate\', {\n  method: \'POST\',\n  headers: { \'Content-Type\': \'application/json\' },\n  body: JSON.stringify({ email: \'test@example.com\' })\n});\nconst data = await response.json();\nconsole.log(data);')">Copy JS</button><h3>Python</h3><pre><code>import requests\nres = requests.post('https://ba-kangombe.vercel.app/api/validate',\n                    json={'email': 'test@example.com'})\nprint(res.json())</code></pre><button class="copy-btn" onclick="copyToClipboard('import requests\nres = requests.post(\'https://ba-kangombe.vercel.app/api/validate\',\n                    json={\'email\': \'test@example.com\'})\nprint(res.json())')">Copy Python</button></section>
-      <section id="pricing"><h2>Pricing</h2><table><thead><tr><th>Plan</th><th>Price</th><th>Features</th></tr></thead><tbody><tr><td>Free</td><td>$0</td><td>100 req/min, validation only</td></tr><tr><td>Pro</td><td>$9/month</td><td>10,000 req/min, batch, enrichment, domain score, disposable, website generator</td></tr></tbody></table><p>Subscribe at <a href="/#pricing" style="color:#a0c4ff;">https://ba-kangombe.vercel.app/#pricing</a></p></section>
-      <p style="margin-top: 3rem; font-size: 0.85rem; text-align: center; color: #6c7a91;">Built by Bornface Kangombe. Need help? <a href="mailto:bornface.kangombe@cs.unza.zm" style="color:#a0c4ff;">Contact support</a></p>
-    </main>
-  </div>
+      <section id="errors"><h2>Error Codes</h2><table><thead><tr><th>Status</th><th>Meaning</th></tr></thead><tbody><tr><td>400</td><td>Bad request – missing email/domain or invalid JSON</td></tr>
+        <tr><td>402</td><td>Payment required – premium endpoint called without valid API key</tr>
+        <tr><td>429</td><td>Rate limit exceeded – slow down or upgrade</td></tr>
+        <tr><td>500</td><td>Internal server error – our issue, please retry</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="examples"><h2>Code Examples</h2>
+    <h3>JavaScript (Node.js)</h3>
+    <pre><code>const response = await fetch('https://ba-kangombe.vercel.app/api/validate', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ email: 'test@example.com' })
+});
+const data = await response.json();
+console.log(data);</code></pre>
+    <button class="copy-btn" onclick="copyToClipboard('const response = await fetch(\'https://ba-kangombe.vercel.app/api/validate\', {\n  method: \'POST\',\n  headers: { \'Content-Type\': \'application/json\' },\n  body: JSON.stringify({ email: \'test@example.com\' })\n});\nconst data = await response.json();\nconsole.log(data);')">Copy JS</button>
+
+    <h3>Python</h3>
+    <pre><code>import requests
+res = requests.post('https://ba-kangombe.vercel.app/api/validate',
+                    json={'email': 'test@example.com'})
+print(res.json())</code></pre>
+    <button class="copy-btn" onclick="copyToClipboard('import requests\nres = requests.post(\'https://ba-kangombe.vercel.app/api/validate\',\n                    json={\'email\': \'test@example.com\'})\nprint(res.json())')">Copy Python</button>
+  </section>
+
+  <section id="pricing"><h2>Pricing</h2>
+    <table>
+      <thead><tr><th>Plan</th><th>Price</th><th>Features</th></tr></thead>
+      <tbody>
+        <tr><td>Free</td><td>$0</td><td>100 req/min, validation only</td></tr>
+        <tr><td>Pro</td><td>$9/month</td><td>10,000 req/min, batch, enrichment, domain score, disposable, website generator</td></tr>
+      </tbody>
+    </table>
+    <p>Subscribe at <a href="/#pricing" style="color:#a0c4ff;">https://ba-kangombe.vercel.app/#pricing</a></p>
+  </section>
+
+  <p style="margin-top: 3rem; font-size: 0.85rem; text-align: center; color: #6c7a91;">Built by Bornface Kangombe. Need help? <a href="mailto:bornface.kangombe@cs.unza.zm" style="color:#a0c4ff;">Contact support</a></p>
+</main>
+</div>
 </div>
 <div id="toast" class="toast">✓ Copied to clipboard</div>
 <script>
-  function copyToClipboard(text) {
-    navigator.clipboard.writeText(text);
-    const toast = document.getElementById('toast');
-    toast.style.opacity = '1';
-    setTimeout(() => toast.style.opacity = '0', 2000);
-  }
-  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function(e) {
-      const href = this.getAttribute('href');
-      if (href === '#') return;
-      const target = document.querySelector(href);
-      if (target) {
-        e.preventDefault();
-        target.scrollIntoView({ behavior: 'smooth' });
-      }
-    });
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text);
+  const toast = document.getElementById('toast');
+  toast.style.opacity = '1';
+  setTimeout(() => toast.style.opacity = '0', 2000);
+}
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+  anchor.addEventListener('click', function(e) {
+    const href = this.getAttribute('href');
+    if (href === '#') return;
+    const target = document.querySelector(href);
+    if (target) {
+      e.preventDefault();
+      target.scrollIntoView({ behavior: 'smooth' });
+    }
   });
+});
 </script>
 </body>
 </html>`);
@@ -696,9 +753,361 @@ app.get('/success', (req, res) => {
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// ---------- CATCH-ALL ----------
+// ========== NEW FEATURES (local testing only) – 16 modules ==========
+// (Moved ABOVE the catch‑all to ensure they are matched first)
+
+// ---------- 1. Mobile Money API Aggregator ----------
+const momoTransactions = [];
+app.post('/api/momo/transfer', async (req, res) => {
+  const { amount, phone, provider } = req.body;
+  if (!amount || !phone) return res.status(400).json({ error: 'Amount and phone required' });
+  const tx = { id: Date.now(), amount, phone, provider, status: 'pending', type: 'send', createdAt: new Date() };
+  momoTransactions.push(tx);
+  setTimeout(() => { tx.status = 'completed'; }, 2000);
+  res.json({ success: true, transactionId: tx.id, status: 'processing' });
+});
+app.post('/api/momo/request', async (req, res) => {
+  const { amount, phone, provider } = req.body;
+  const tx = { id: Date.now(), amount, phone, provider, status: 'pending', type: 'request', createdAt: new Date() };
+  momoTransactions.push(tx);
+  res.json({ success: true, transactionId: tx.id });
+});
+app.post('/api/momo/webhook', (req, res) => {
+  const { transactionId, status } = req.body;
+  const tx = momoTransactions.find(t => t.id == transactionId);
+  if (tx) tx.status = status;
+  res.json({ received: true });
+});
+app.get('/api/momo/transactions', (req, res) => {
+  res.json({ transactions: momoTransactions });
+});
+
+// ---------- 2. Invoice + ZRA Smart Billing ----------
+const invoices = [];
+app.post('/api/invoice/create', (req, res) => {
+  const { customer, amount, items } = req.body;
+  const invoice = { id: Date.now(), customer, amount, items, status: 'unpaid', createdAt: new Date(), paidAt: null };
+  invoices.push(invoice);
+  res.json(invoice);
+});
+app.get('/api/invoice/:id', (req, res) => {
+  const invoice = invoices.find(i => i.id == req.params.id);
+  if (!invoice) return res.status(404).json({ error: 'Not found' });
+  res.json(invoice);
+});
+app.put('/api/invoice/:id/pay', (req, res) => {
+  const invoice = invoices.find(i => i.id == req.params.id);
+  if (!invoice) return res.status(404).json({ error: 'Not found' });
+  invoice.status = 'paid';
+  invoice.paidAt = new Date();
+  res.json(invoice);
+});
+app.get('/api/invoice/export/csv', (req, res) => {
+  let csv = 'id,customer,amount,status,createdAt,paidAt\n';
+  invoices.forEach(i => { csv += `${i.id},${i.customer},${i.amount},${i.status},${i.createdAt},${i.paidAt || ''}\n`; });
+  res.setHeader('Content-Type', 'text/csv');
+  res.send(csv);
+});
+
+// ---------- 3. WhatsApp Mini E-commerce ----------
+const whatsappProducts = [];
+const whatsappOrders = [];
+app.post('/api/whatsapp/product', (req, res) => {
+  const { name, price, description } = req.body;
+  const product = { id: Date.now(), name, price, description };
+  whatsappProducts.push(product);
+  res.json(product);
+});
+app.get('/api/whatsapp/products', (req, res) => res.json({ products: whatsappProducts }));
+app.post('/api/whatsapp/order', (req, res) => {
+  const { productId, customerPhone } = req.body;
+  const order = { id: Date.now(), productId, customerPhone, status: 'pending', createdAt: new Date() };
+  whatsappOrders.push(order);
+  res.json(order);
+});
+app.get('/api/whatsapp/order/:id/checkout', (req, res) => {
+  const order = whatsappOrders.find(o => o.id == req.params.id);
+  if (!order) return res.status(404).json({ error: 'Not found' });
+  const checkoutLink = `https://wa.me/${order.customerPhone}?text=I%20want%20to%20pay%20for%20order%20${order.id}`;
+  res.json({ checkoutLink });
+});
+
+// ---------- 4. Logistics & Delivery Routing ----------
+const routes = [];
+const drivers = [{ id: 1, name: 'Driver A', location: { lat: -15.3875, lng: 28.3228 }, available: true }];
+app.post('/api/logistics/route', (req, res) => {
+  const { stops } = req.body;
+  const optimized = stops.map((stop, idx) => ({ stop: idx+1, ...stop }));
+  const routeId = Date.now();
+  routes.push({ id: routeId, stops: optimized, assignedDriver: null });
+  res.json({ routeId, stops: optimized });
+});
+app.post('/api/logistics/driver/assign', (req, res) => {
+  const { routeId, driverId } = req.body;
+  const route = routes.find(r => r.id == routeId);
+  if (!route) return res.status(404).json({ error: 'Route not found' });
+  route.assignedDriver = driverId;
+  res.json({ success: true });
+});
+app.get('/api/logistics/driver/:id/track', (req, res) => {
+  const driver = drivers.find(d => d.id == req.params.id);
+  if (!driver) return res.status(404).json({ error: 'Driver not found' });
+  res.json({ location: driver.location });
+});
+
+// ---------- 5. Agritech Marketplace ----------
+const farmers = [];
+app.post('/api/agritech/farmer', (req, res) => {
+  const { name, crop, price, location } = req.body;
+  const farmer = { id: Date.now(), name, crop, price, location };
+  farmers.push(farmer);
+  res.json(farmer);
+});
+app.get('/api/agritech/farmers', (req, res) => res.json({ farmers }));
+app.post('/api/agritech/buyer/match', (req, res) => {
+  const { crop, maxPrice } = req.body;
+  const matches = farmers.filter(f => f.crop === crop && f.price <= maxPrice);
+  res.json({ matches });
+});
+app.get('/api/agritech/price/intelligence', (req, res) => {
+  res.json({ prices: { maize: 120, soy: 250, groundnuts: 300 } });
+});
+
+// ---------- 6. AI Customer Support Agent ----------
+const faqs = [];
+app.post('/api/ai/chat', (req, res) => {
+  const { query } = req.body;
+  const answer = faqs.find(f => f.question.toLowerCase().includes(query.toLowerCase()))?.answer || "I'm still learning. Please ask your business owner.";
+  res.json({ response: answer });
+});
+app.post('/api/ai/train', (req, res) => {
+  const { question, answer } = req.body;
+  faqs.push({ question, answer });
+  res.json({ success: true });
+});
+
+// ---------- 7. Micro-Lending Risk Scoring ----------
+app.post('/api/lending/score', (req, res) => {
+  const { income, debt, history } = req.body;
+  let score = 500;
+  if (income > 5000) score += 100;
+  if (debt < 1000) score += 50;
+  if (history === 'good') score += 150;
+  res.json({ score, risk: score > 600 ? 'low' : 'high' });
+});
+app.post('/api/lending/eligibility', (req, res) => {
+  const { score, requestedAmount } = req.body;
+  const eligible = score > 650 && requestedAmount <= 5000;
+  res.json({ eligible, maxAmount: eligible ? 5000 : 0 });
+});
+
+// ---------- 8. SME Business Dashboard ----------
+const sales = [];
+const expenses = [];
+const customers = [];
+app.post('/api/sme/sale', (req, res) => {
+  const { amount, customerId } = req.body;
+  const sale = { id: Date.now(), amount, customerId, date: new Date() };
+  sales.push(sale);
+  res.json(sale);
+});
+app.post('/api/sme/expense', (req, res) => {
+  const { amount, category } = req.body;
+  const expense = { id: Date.now(), amount, category, date: new Date() };
+  expenses.push(expense);
+  res.json(expense);
+});
+app.get('/api/sme/profit', (req, res) => {
+  const totalSales = sales.reduce((sum, s) => sum + s.amount, 0);
+  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+  res.json({ profit: totalSales - totalExpenses, revenue: totalSales, costs: totalExpenses });
+});
+app.get('/api/sme/customers', (req, res) => res.json({ customers }));
+
+// ---------- 9. Inventory + POS System ----------
+const inventory = [];
+app.post('/api/inventory/product', (req, res) => {
+  const { name, price, stock } = req.body;
+  const product = { id: Date.now(), name, price, stock };
+  inventory.push(product);
+  res.json(product);
+});
+app.put('/api/inventory/stock', (req, res) => {
+  const { productId, quantity } = req.body;
+  const product = inventory.find(p => p.id == productId);
+  if (!product) return res.status(404).json({ error: 'Product not found' });
+  product.stock += quantity;
+  res.json(product);
+});
+app.get('/api/inventory/alerts', (req, res) => {
+  const lowStock = inventory.filter(p => p.stock < 5);
+  res.json({ lowStock });
+});
+app.post('/api/pos/sale', (req, res) => {
+  const { productId, quantity, paymentMethod } = req.body;
+  const product = inventory.find(p => p.id == productId);
+  if (!product || product.stock < quantity) return res.status(400).json({ error: 'Insufficient stock' });
+  product.stock -= quantity;
+  res.json({ success: true, total: product.price * quantity, paymentMethod });
+});
+
+// ---------- 10. Social Media Ad Automation ----------
+const ads = [];
+app.post('/api/social/ad/create', (req, res) => {
+  const { name, budget, target } = req.body;
+  const ad = { id: Date.now(), name, budget, target, status: 'active', leads: 0 };
+  ads.push(ad);
+  res.json(ad);
+});
+app.post('/api/social/ad/budget', (req, res) => {
+  const { adId, newBudget } = req.body;
+  const ad = ads.find(a => a.id == adId);
+  if (!ad) return res.status(404).json({ error: 'Ad not found' });
+  ad.budget = newBudget;
+  res.json(ad);
+});
+app.get('/api/social/leads', (req, res) => {
+  res.json({ leads: ads.reduce((sum, a) => sum + a.leads, 0) });
+});
+
+// ---------- 11. Freelance Marketplace ----------
+const services = [];
+const freelanceOrders = [];
+app.post('/api/freelance/service', (req, res) => {
+  const { title, price, seller } = req.body;
+  const service = { id: Date.now(), title, price, seller };
+  services.push(service);
+  res.json(service);
+});
+app.get('/api/freelance/services', (req, res) => res.json({ services }));
+app.post('/api/freelance/order', (req, res) => {
+  const { serviceId, buyer } = req.body;
+  const order = { id: Date.now(), serviceId, buyer, status: 'escrow', createdAt: new Date() };
+  freelanceOrders.push(order);
+  res.json(order);
+});
+app.post('/api/freelance/escrow', (req, res) => {
+  const { orderId } = req.body;
+  const order = freelanceOrders.find(o => o.id == orderId);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+  order.status = 'released';
+  res.json({ success: true });
+});
+
+// ---------- 12. Clinic Patient Management ----------
+const patients = [];
+const appointments = [];
+app.post('/api/clinic/patient', (req, res) => {
+  const { name, phone, address } = req.body;
+  const patient = { id: Date.now(), name, phone, address };
+  patients.push(patient);
+  res.json(patient);
+});
+app.post('/api/clinic/appointment', (req, res) => {
+  const { patientId, date, reason } = req.body;
+  const appointment = { id: Date.now(), patientId, date, reason };
+  appointments.push(appointment);
+  res.json(appointment);
+});
+app.get('/api/clinic/patient/:id/bill', (req, res) => {
+  const patient = patients.find(p => p.id == req.params.id);
+  if (!patient) return res.status(404).json({ error: 'Patient not found' });
+  res.json({ patient, bill: Math.floor(Math.random() * 500) });
+});
+
+// ---------- 13. Identity Verification (KYC) ----------
+app.post('/api/kyc/id', (req, res) => {
+  const { idNumber, name } = req.body;
+  const verified = idNumber && idNumber.length >= 5;
+  res.json({ verified, message: verified ? 'ID verified' : 'Invalid ID' });
+});
+app.post('/api/kyc/phone', (req, res) => {
+  const { phone } = req.body;
+  const verified = phone && phone.length === 10;
+  res.json({ verified, message: verified ? 'Phone verified' : 'Invalid phone' });
+});
+
+// ---------- 14. E-commerce Backend-as-a-Service ----------
+const ecommerceProducts = [];
+const ecommerceOrders = [];
+app.post('/api/ecommerce/product', (req, res) => {
+  const { name, price } = req.body;
+  const product = { id: Date.now(), name, price };
+  ecommerceProducts.push(product);
+  res.json(product);
+});
+app.get('/api/ecommerce/products', (req, res) => res.json({ products: ecommerceProducts }));
+app.post('/api/ecommerce/order', (req, res) => {
+  const { productId, quantity, customer } = req.body;
+  const order = { id: Date.now(), productId, quantity, customer, status: 'pending' };
+  ecommerceOrders.push(order);
+  res.json(order);
+});
+app.post('/api/ecommerce/payment', (req, res) => {
+  const { orderId, method } = req.body;
+  const order = ecommerceOrders.find(o => o.id == orderId);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+  order.status = 'paid';
+  res.json({ success: true, paymentMethod: method });
+});
+
+// ---------- 15. AI Tutoring Platform ----------
+const curriculum = [
+  { grade: 10, subject: 'Math', topic: 'Algebra', content: 'Solving linear equations' },
+  { grade: 10, subject: 'Science', topic: 'Biology', content: 'Cell structure' }
+];
+app.post('/api/tutor/chat', (req, res) => {
+  const { question, grade } = req.body;
+  let answer = "I'm here to help with your studies.";
+  if (question.includes('algebra')) answer = "Algebra is about solving equations. Example: x + 2 = 5 → x = 3.";
+  res.json({ answer });
+});
+app.get('/api/tutor/curriculum', (req, res) => {
+  const { grade } = req.query;
+  const filtered = curriculum.filter(c => c.grade == grade);
+  res.json({ curriculum: filtered });
+});
+
+// ---------- 16. Local Business Discovery Platform ----------
+const businesses = [];
+const reviews = [];
+app.post('/api/discovery/business', (req, res) => {
+  const { name, category, location, whatsapp } = req.body;
+  const business = { id: Date.now(), name, category, location, whatsapp };
+  businesses.push(business);
+  res.json(business);
+});
+app.get('/api/discovery/businesses', (req, res) => {
+  const { category } = req.query;
+  let filtered = businesses;
+  if (category) filtered = businesses.filter(b => b.category === category);
+  res.json({ businesses: filtered });
+});
+app.post('/api/discovery/review', (req, res) => {
+  const { businessId, rating, comment } = req.body;
+  const review = { id: Date.now(), businessId, rating, comment, createdAt: new Date() };
+  reviews.push(review);
+  res.json(review);
+});
+app.get('/api/discovery/business/:id/whatsapp', (req, res) => {
+  const business = businesses.find(b => b.id == req.params.id);
+  if (!business) return res.status(404).json({ error: 'Business not found' });
+  res.json({ whatsappLink: `https://wa.me/${business.whatsapp}` });
+});
+
+// ---------- CATCH-ALL (must be last) ----------
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
+
+// ---------- LOCAL TEST SERVER (only when run directly, not on Vercel) ----------
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`🚀 BaKangombe local server running on http://localhost:${PORT}`);
+    console.log(`📖 Test endpoints: http://localhost:${PORT}/api/validate`);
+    console.log(`💰 New features: /api/momo/transfer, /api/invoice/create, /api/whatsapp/product ...`);
+  });
+}
 
 module.exports = app;

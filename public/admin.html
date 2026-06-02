@@ -27,6 +27,7 @@
   </div>
   <div id="adminContent" style="display:none;">
     <hr>
+    <button id="logoutBtn" style="background:#dc2626; margin-bottom:1rem;">🚪 Logout</button>
     <h2>Feedback Management</h2>
     <button onclick="loadFeedback()">Refresh Feedback</button>
     <div id="feedbackList"></div>
@@ -117,7 +118,6 @@
         `;
         container.appendChild(div);
       }
-      // Pagination controls
       const totalPages = Math.ceil(allFeedback.length / pageSize);
       const pagDiv = document.getElementById('pagination');
       pagDiv.innerHTML = `
@@ -150,9 +150,15 @@
         document.getElementById('replyUserEmail').value = '';
         document.getElementById('replyUserName').value = '';
         document.getElementById('replyMessage').value = '';
-        loadFeedback(); // refresh list
+        loadFeedback();
       }
     }
+
+    // Logout button
+    document.getElementById('logoutBtn')?.addEventListener('click', () => {
+      localStorage.removeItem('adminToken');
+      location.reload();
+    });
   </script>
 </body>
 </html>
