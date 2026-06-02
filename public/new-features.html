@@ -11,8 +11,11 @@
     input, select, textarea, button { background: #0f1117; border: 1px solid rgba(255,255,255,0.1); color: white; padding: 0.5rem; border-radius: 0.5rem; margin: 0.5rem 0; width: 100%; max-width: 400px; display: block; }
     button { background: #4f46e5; width: auto; cursor: pointer; }
     pre { background: #0f1117; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin-top: 1rem; }
-    .nav { background: #0f1117; padding: 1rem; border-radius: 1rem; margin-bottom: 2rem; display: flex; gap: 1rem; flex-wrap: wrap; }
+    .nav { background: #0f1117; padding: 1rem; border-radius: 1rem; margin-bottom: 2rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
     .nav a { color: #a0c4ff; text-decoration: none; }
+    .api-key-section { background: rgba(79,70,229,0.2); padding: 1rem; border-radius: 1rem; margin-bottom: 2rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+    .api-key-section input { flex: 2; margin: 0; }
+    .api-key-section button { width: auto; margin: 0; }
   </style>
 </head>
 <body>
@@ -22,12 +25,19 @@
     <a href="/admin">Admin</a>
     <a href="/new-features">New Features</a>
   </div>
+  <div class="api-key-section">
+    <input type="text" id="apiKeyInput" placeholder="Enter your Business API Key (required for all features)" style="flex:2">
+    <button id="saveApiKeyBtn">Save Key</button>
+    <button id="registerBusinessBtn" style="background:#10b981;">Register New Business</button>
+  </div>
   <h1>🚀 New BaKangombe Features (Demo)</h1>
-  <p>All endpoints are live and can be called via API. Use these testers to try them out.</p>
+  <p>All endpoints are live and require a valid API key. Use the tester below after saving your key.</p>
 
+  <!-- All feature sections – exactly as before but with API key header added in JavaScript -->
+  <!-- I will keep the same structure but modify the JS to read the saved key -->
+  
   <!-- 1. Mobile Money -->
-  <div class="feature">
-    <h3>📱 1. Mobile Money API</h3>
+  <div class="feature"><h3>📱 1. Mobile Money API</h3>
     <input type="number" id="momoAmount" placeholder="Amount">
     <input type="text" id="momoPhone" placeholder="Phone (e.g., 0977123456)">
     <select id="momoProvider"><option>mtn</option><option>airtel</option></select>
@@ -36,10 +46,8 @@
     <button onclick="getMomoTransactions()">List Transactions</button>
     <pre id="momoResult"></pre>
   </div>
-
   <!-- 2. Invoice -->
-  <div class="feature">
-    <h3>🧾 2. Invoice & ZRA Billing</h3>
+  <div class="feature"><h3>🧾 2. Invoice & ZRA Billing</h3>
     <input type="text" id="invCustomer" placeholder="Customer name">
     <input type="number" id="invAmount" placeholder="Amount">
     <input type="text" id="invItems" placeholder="Items (comma separated)">
@@ -48,10 +56,8 @@
     <button onclick="payInvoice()">Pay Invoice</button>
     <pre id="invoiceResult"></pre>
   </div>
-
   <!-- 3. WhatsApp -->
-  <div class="feature">
-    <h3>💬 3. WhatsApp Mini E-commerce</h3>
+  <div class="feature"><h3>💬 3. WhatsApp Mini E-commerce</h3>
     <input type="text" id="waName" placeholder="Product name">
     <input type="number" id="waPrice" placeholder="Price">
     <input type="text" id="waDesc" placeholder="Description">
@@ -62,10 +68,8 @@
     <button onclick="createWhatsappOrder()">Create Order</button>
     <pre id="waResult"></pre>
   </div>
-
   <!-- 4. Logistics -->
-  <div class="feature">
-    <h3>🚚 4. Logistics & Delivery</h3>
+  <div class="feature"><h3>🚚 4. Logistics & Delivery</h3>
     <textarea id="stops" rows="3" placeholder='Stops as JSON array, e.g., [{"lat":-15.3875,"lng":28.3228},{"lat":-15.4,"lng":28.35}]'></textarea>
     <button onclick="optimizeRoute()">Optimize Route</button>
     <input type="number" id="routeId" placeholder="Route ID">
@@ -74,10 +78,8 @@
     <button onclick="trackDriver()">Track Driver</button>
     <pre id="logisticsResult"></pre>
   </div>
-
   <!-- 5. Agritech -->
-  <div class="feature">
-    <h3>🌾 5. Agritech Marketplace</h3>
+  <div class="feature"><h3>🌾 5. Agritech Marketplace</h3>
     <input type="text" id="farmerName" placeholder="Farmer name">
     <input type="text" id="crop" placeholder="Crop (e.g., maize)">
     <input type="number" id="price" placeholder="Price per unit">
@@ -88,10 +90,8 @@
     <button onclick="matchBuyer()">Match Buyer</button>
     <pre id="agritechResult"></pre>
   </div>
-
   <!-- 6. AI Support -->
-  <div class="feature">
-    <h3>🤖 6. AI Customer Support</h3>
+  <div class="feature"><h3>🤖 6. AI Customer Support</h3>
     <input type="text" id="aiQuery" placeholder="Ask something (e.g., pricing)">
     <button onclick="askAI()">Ask AI</button>
     <input type="text" id="trainQ" placeholder="Question">
@@ -99,10 +99,8 @@
     <button onclick="trainAI()">Train AI</button>
     <pre id="aiResult"></pre>
   </div>
-
   <!-- 7. Lending -->
-  <div class="feature">
-    <h3>💰 7. Micro-Lending</h3>
+  <div class="feature"><h3>💰 7. Micro-Lending</h3>
     <input type="number" id="income" placeholder="Monthly income">
     <input type="number" id="debt" placeholder="Debt amount">
     <select id="history"><option>good</option><option>bad</option></select>
@@ -112,10 +110,8 @@
     <button onclick="checkEligibility()">Check Eligibility</button>
     <pre id="lendingResult"></pre>
   </div>
-
-  <!-- 8. SME Dashboard -->
-  <div class="feature">
-    <h3>📊 8. SME Dashboard</h3>
+  <!-- 8. SME -->
+  <div class="feature"><h3>📊 8. SME Dashboard</h3>
     <input type="number" id="saleAmount" placeholder="Sale amount">
     <input type="number" id="customerId" placeholder="Customer ID (1)">
     <button onclick="recordSale()">Record Sale</button>
@@ -125,10 +121,8 @@
     <button onclick="getProfit()">Get Profit</button>
     <pre id="smeResult"></pre>
   </div>
-
   <!-- 9. Inventory/POS -->
-  <div class="feature">
-    <h3>🏪 9. Inventory & POS</h3>
+  <div class="feature"><h3>🏪 9. Inventory & POS</h3>
     <input type="text" id="prodName" placeholder="Product name">
     <input type="number" id="prodPrice" placeholder="Price">
     <input type="number" id="prodStock" placeholder="Initial stock">
@@ -143,10 +137,8 @@
     <button onclick="posSale()">Record POS Sale</button>
     <pre id="inventoryResult"></pre>
   </div>
-
   <!-- 10. Social Ads -->
-  <div class="feature">
-    <h3>📢 10. Social Ads</h3>
+  <div class="feature"><h3>📢 10. Social Ads</h3>
     <input type="text" id="adName" placeholder="Ad name">
     <input type="number" id="adBudget" placeholder="Budget">
     <input type="text" id="adTarget" placeholder="Target (e.g., Zambia)">
@@ -157,10 +149,8 @@
     <button onclick="getLeads()">Get Leads</button>
     <pre id="socialResult"></pre>
   </div>
-
   <!-- 11. Freelance -->
-  <div class="feature">
-    <h3>💼 11. Freelance Marketplace</h3>
+  <div class="feature"><h3>💼 11. Freelance Marketplace</h3>
     <input type="text" id="serviceTitle" placeholder="Service title">
     <input type="number" id="servicePrice" placeholder="Price">
     <input type="text" id="seller" placeholder="Seller name">
@@ -173,10 +163,8 @@
     <button onclick="releaseEscrow()">Release Escrow</button>
     <pre id="freelanceResult"></pre>
   </div>
-
   <!-- 12. Clinic -->
-  <div class="feature">
-    <h3>🏥 12. Clinic Management</h3>
+  <div class="feature"><h3>🏥 12. Clinic Management</h3>
     <input type="text" id="patientName" placeholder="Patient name">
     <input type="text" id="patientPhone" placeholder="Phone">
     <input type="text" id="patientAddr" placeholder="Address">
@@ -189,10 +177,8 @@
     <button onclick="getPatientBill()">Get Bill</button>
     <pre id="clinicResult"></pre>
   </div>
-
   <!-- 13. KYC -->
-  <div class="feature">
-    <h3>🪪 13. Identity Verification (KYC)</h3>
+  <div class="feature"><h3>🪪 13. Identity Verification (KYC)</h3>
     <input type="text" id="idNumber" placeholder="ID number (min 5 chars)">
     <input type="text" id="idName" placeholder="Name">
     <button onclick="verifyID()">Verify ID</button>
@@ -200,10 +186,8 @@
     <button onclick="verifyPhone()">Verify Phone</button>
     <pre id="kycResult"></pre>
   </div>
-
-  <!-- 14. E-commerce BaaS -->
-  <div class="feature">
-    <h3>🛒 14. E‑commerce BaaS</h3>
+  <!-- 14. E‑commerce BaaS -->
+  <div class="feature"><h3>🛒 14. E‑commerce BaaS</h3>
     <input type="text" id="ecName" placeholder="Product name">
     <input type="number" id="ecPrice" placeholder="Price">
     <button onclick="addEcommerceProduct()">Add Product</button>
@@ -217,20 +201,16 @@
     <button onclick="processEcommercePayment()">Process Payment</button>
     <pre id="ecommerceResult"></pre>
   </div>
-
   <!-- 15. AI Tutoring -->
-  <div class="feature">
-    <h3>📚 15. AI Tutoring</h3>
+  <div class="feature"><h3>📚 15. AI Tutoring</h3>
     <input type="text" id="tutorQuestion" placeholder="Ask a question (e.g., algebra)">
     <input type="number" id="tutorGrade" placeholder="Grade (e.g., 10)">
     <button onclick="askTutor()">Ask Tutor</button>
     <button onclick="getCurriculum()">Get Curriculum (grade 10)</button>
     <pre id="tutorResult"></pre>
   </div>
-
   <!-- 16. Business Discovery -->
-  <div class="feature">
-    <h3>📍 16. Local Business Discovery</h3>
+  <div class="feature"><h3>📍 16. Local Business Discovery</h3>
     <input type="text" id="bizName" placeholder="Business name">
     <input type="text" id="bizCategory" placeholder="Category (e.g., food)">
     <input type="text" id="bizLocation" placeholder="Location">
@@ -248,268 +228,113 @@
   </div>
 
   <script>
+    let currentApiKey = localStorage.getItem('bakangombeApiKey') || '';
+    document.getElementById('apiKeyInput').value = currentApiKey;
+    document.getElementById('saveApiKeyBtn').addEventListener('click', () => {
+      const key = document.getElementById('apiKeyInput').value.trim();
+      localStorage.setItem('bakangombeApiKey', key);
+      currentApiKey = key;
+      alert('API key saved.');
+    });
     async function apiCall(url, method = 'GET', body = null) {
       const opts = { method, headers: { 'Content-Type': 'application/json' } };
+      if (currentApiKey) opts.headers['X-API-Key'] = currentApiKey;
       if (body) opts.body = JSON.stringify(body);
       const res = await fetch(url, opts);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
       return await res.json();
     }
+    async function registerBusiness() {
+      const name = prompt("Business name:");
+      if (!name) return;
+      const email = prompt("Business email:");
+      if (!email) return;
+      try {
+        const res = await fetch('/api/business/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, modules: [] })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(`Business registered! Your API key: ${data.apiKey}\nSave it now.`);
+          document.getElementById('apiKeyInput').value = data.apiKey;
+          localStorage.setItem('bakangombeApiKey', data.apiKey);
+          currentApiKey = data.apiKey;
+        } else {
+          alert('Error: ' + data.error);
+        }
+      } catch (err) {
+        alert('Registration failed: ' + err.message);
+      }
+    }
+    document.getElementById('registerBusinessBtn').addEventListener('click', registerBusiness);
 
     // 1. Mobile Money
-    async function testMomoTransfer() {
-      const data = { amount: momoAmount.value, phone: momoPhone.value, provider: momoProvider.value };
-      const result = await apiCall('/api/momo/transfer', 'POST', data);
-      momoResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function testMomoRequest() {
-      const data = { amount: momoAmount.value, phone: momoPhone.value, provider: momoProvider.value };
-      const result = await apiCall('/api/momo/request', 'POST', data);
-      momoResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function getMomoTransactions() {
-      const result = await apiCall('/api/momo/transactions');
-      momoResult.innerText = JSON.stringify(result, null, 2);
-    }
-
-    // 2. Invoices
-    async function createInvoice() {
-      const items = invItems.value.split(',');
-      const data = { customer: invCustomer.value, amount: parseFloat(invAmount.value), items };
-      const result = await apiCall('/api/invoice/create', 'POST', data);
-      invoiceResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function payInvoice() {
-      const id = payInvoiceId.value;
-      const result = await apiCall(`/api/invoice/${id}/pay`, 'PUT');
-      invoiceResult.innerText = JSON.stringify(result, null, 2);
-    }
-
+    async function testMomoTransfer() { const data = { amount: momoAmount.value, phone: momoPhone.value, provider: momoProvider.value }; const result = await apiCall('/api/momo/transfer', 'POST', data); momoResult.innerText = JSON.stringify(result, null, 2); }
+    async function testMomoRequest() { const data = { amount: momoAmount.value, phone: momoPhone.value, provider: momoProvider.value }; const result = await apiCall('/api/momo/request', 'POST', data); momoResult.innerText = JSON.stringify(result, null, 2); }
+    async function getMomoTransactions() { const result = await apiCall('/api/momo/transactions'); momoResult.innerText = JSON.stringify(result, null, 2); }
+    // 2. Invoice
+    async function createInvoice() { const items = invItems.value.split(','); const data = { customer: invCustomer.value, amount: parseFloat(invAmount.value), items }; const result = await apiCall('/api/invoice/create', 'POST', data); invoiceResult.innerText = JSON.stringify(result, null, 2); }
+    async function payInvoice() { const id = payInvoiceId.value; const result = await apiCall(`/api/invoice/${id}/pay`, 'PUT'); invoiceResult.innerText = JSON.stringify(result, null, 2); }
     // 3. WhatsApp
-    async function addWhatsappProduct() {
-      const data = { name: waName.value, price: parseFloat(waPrice.value), description: waDesc.value };
-      const result = await apiCall('/api/whatsapp/product', 'POST', data);
-      waResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function listWhatsappProducts() {
-      const result = await apiCall('/api/whatsapp/products');
-      waResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function createWhatsappOrder() {
-      const data = { productId: parseInt(waProductId.value), customerPhone: waPhone.value };
-      const result = await apiCall('/api/whatsapp/order', 'POST', data);
-      waResult.innerText = JSON.stringify(result, null, 2);
-    }
-
+    async function addWhatsappProduct() { const data = { name: waName.value, price: parseFloat(waPrice.value), description: waDesc.value }; const result = await apiCall('/api/whatsapp/product', 'POST', data); waResult.innerText = JSON.stringify(result, null, 2); }
+    async function listWhatsappProducts() { const result = await apiCall('/api/whatsapp/products'); waResult.innerText = JSON.stringify(result, null, 2); }
+    async function createWhatsappOrder() { const data = { productId: parseInt(waProductId.value), customerPhone: waPhone.value }; const result = await apiCall('/api/whatsapp/order', 'POST', data); waResult.innerText = JSON.stringify(result, null, 2); }
     // 4. Logistics
-    async function optimizeRoute() {
-      const stops = JSON.parse(stops.value);
-      const result = await apiCall('/api/logistics/route', 'POST', { stops });
-      logisticsResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function assignDriver() {
-      const data = { routeId: parseInt(routeId.value), driverId: parseInt(driverId.value) };
-      const result = await apiCall('/api/logistics/driver/assign', 'POST', data);
-      logisticsResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function trackDriver() {
-      const id = driverId.value;
-      const result = await apiCall(`/api/logistics/driver/${id}/track`);
-      logisticsResult.innerText = JSON.stringify(result, null, 2);
-    }
-
+    async function optimizeRoute() { const stops = JSON.parse(stops.value); const result = await apiCall('/api/logistics/route', 'POST', { stops }); logisticsResult.innerText = JSON.stringify(result, null, 2); }
+    async function assignDriver() { const data = { routeId: parseInt(routeId.value), driverId: parseInt(driverId.value) }; const result = await apiCall('/api/logistics/driver/assign', 'POST', data); logisticsResult.innerText = JSON.stringify(result, null, 2); }
+    async function trackDriver() { const id = driverId.value; const result = await apiCall(`/api/logistics/driver/${id}/track`); logisticsResult.innerText = JSON.stringify(result, null, 2); }
     // 5. Agritech
-    async function addFarmer() {
-      const data = { name: farmerName.value, crop: crop.value, price: parseFloat(price.value), location: location.value };
-      const result = await apiCall('/api/agritech/farmer', 'POST', data);
-      agritechResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function matchBuyer() {
-      const data = { crop: matchCrop.value, maxPrice: parseFloat(maxPrice.value) };
-      const result = await apiCall('/api/agritech/buyer/match', 'POST', data);
-      agritechResult.innerText = JSON.stringify(result, null, 2);
-    }
-
+    async function addFarmer() { const data = { name: farmerName.value, crop: crop.value, price: parseFloat(price.value), location: location.value }; const result = await apiCall('/api/agritech/farmer', 'POST', data); agritechResult.innerText = JSON.stringify(result, null, 2); }
+    async function matchBuyer() { const data = { crop: matchCrop.value, maxPrice: parseFloat(maxPrice.value) }; const result = await apiCall('/api/agritech/buyer/match', 'POST', data); agritechResult.innerText = JSON.stringify(result, null, 2); }
     // 6. AI
-    async function askAI() {
-      const data = { query: aiQuery.value };
-      const result = await apiCall('/api/ai/chat', 'POST', data);
-      aiResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function trainAI() {
-      const data = { question: trainQ.value, answer: trainA.value };
-      const result = await apiCall('/api/ai/train', 'POST', data);
-      aiResult.innerText = JSON.stringify(result, null, 2);
-    }
-
+    async function askAI() { const data = { query: aiQuery.value }; const result = await apiCall('/api/ai/chat', 'POST', data); aiResult.innerText = JSON.stringify(result, null, 2); }
+    async function trainAI() { const data = { question: trainQ.value, answer: trainA.value }; const result = await apiCall('/api/ai/train', 'POST', data); aiResult.innerText = JSON.stringify(result, null, 2); }
     // 7. Lending
-    async function getCreditScore() {
-      const data = { income: parseFloat(income.value), debt: parseFloat(debt.value), history: history.value };
-      const result = await apiCall('/api/lending/score', 'POST', data);
-      lendingResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function checkEligibility() {
-      const data = { score: parseFloat(scoreVal.value), requestedAmount: parseFloat(reqAmount.value) };
-      const result = await apiCall('/api/lending/eligibility', 'POST', data);
-      lendingResult.innerText = JSON.stringify(result, null, 2);
-    }
-
+    async function getCreditScore() { const data = { income: parseFloat(income.value), debt: parseFloat(debt.value), history: history.value }; const result = await apiCall('/api/lending/score', 'POST', data); lendingResult.innerText = JSON.stringify(result, null, 2); }
+    async function checkEligibility() { const data = { score: parseFloat(scoreVal.value), requestedAmount: parseFloat(reqAmount.value) }; const result = await apiCall('/api/lending/eligibility', 'POST', data); lendingResult.innerText = JSON.stringify(result, null, 2); }
     // 8. SME
-    async function recordSale() {
-      const data = { amount: parseFloat(saleAmount.value), customerId: parseInt(customerId.value) };
-      const result = await apiCall('/api/sme/sale', 'POST', data);
-      smeResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function recordExpense() {
-      const data = { amount: parseFloat(expenseAmount.value), category: expenseCat.value };
-      const result = await apiCall('/api/sme/expense', 'POST', data);
-      smeResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function getProfit() {
-      const result = await apiCall('/api/sme/profit');
-      smeResult.innerText = JSON.stringify(result, null, 2);
-    }
-
+    async function recordSale() { const data = { amount: parseFloat(saleAmount.value), customerId: parseInt(customerId.value) }; const result = await apiCall('/api/sme/sale', 'POST', data); smeResult.innerText = JSON.stringify(result, null, 2); }
+    async function recordExpense() { const data = { amount: parseFloat(expenseAmount.value), category: expenseCat.value }; const result = await apiCall('/api/sme/expense', 'POST', data); smeResult.innerText = JSON.stringify(result, null, 2); }
+    async function getProfit() { const result = await apiCall('/api/sme/profit'); smeResult.innerText = JSON.stringify(result, null, 2); }
     // 9. Inventory/POS
-    async function addProduct() {
-      const data = { name: prodName.value, price: parseFloat(prodPrice.value), stock: parseInt(prodStock.value) };
-      const result = await apiCall('/api/inventory/product', 'POST', data);
-      inventoryResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function updateStock() {
-      const data = { productId: parseInt(updateProdId.value), quantity: parseInt(updateQty.value) };
-      const result = await apiCall('/api/inventory/stock', 'PUT', data);
-      inventoryResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function getLowStockAlerts() {
-      const result = await apiCall('/api/inventory/alerts');
-      inventoryResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function posSale() {
-      const data = { productId: parseInt(posProdId.value), quantity: parseInt(posQty.value), paymentMethod: payMethod.value };
-      const result = await apiCall('/api/pos/sale', 'POST', data);
-      inventoryResult.innerText = JSON.stringify(result, null, 2);
-    }
-
+    async function addProduct() { const data = { name: prodName.value, price: parseFloat(prodPrice.value), stock: parseInt(prodStock.value) }; const result = await apiCall('/api/inventory/product', 'POST', data); inventoryResult.innerText = JSON.stringify(result, null, 2); }
+    async function updateStock() { const data = { productId: parseInt(updateProdId.value), quantity: parseInt(updateQty.value) }; const result = await apiCall('/api/inventory/stock', 'PUT', data); inventoryResult.innerText = JSON.stringify(result, null, 2); }
+    async function getLowStockAlerts() { const result = await apiCall('/api/inventory/alerts'); inventoryResult.innerText = JSON.stringify(result, null, 2); }
+    async function posSale() { const data = { productId: parseInt(posProdId.value), quantity: parseInt(posQty.value), paymentMethod: payMethod.value }; const result = await apiCall('/api/pos/sale', 'POST', data); inventoryResult.innerText = JSON.stringify(result, null, 2); }
     // 10. Social Ads
-    async function createAd() {
-      const data = { name: adName.value, budget: parseFloat(adBudget.value), target: adTarget.value };
-      const result = await apiCall('/api/social/ad/create', 'POST', data);
-      socialResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function updateAdBudget() {
-      const data = { adId: parseInt(adId.value), newBudget: parseFloat(newBudget.value) };
-      const result = await apiCall('/api/social/ad/budget', 'POST', data);
-      socialResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function getLeads() {
-      const result = await apiCall('/api/social/leads');
-      socialResult.innerText = JSON.stringify(result, null, 2);
-    }
-
+    async function createAd() { const data = { name: adName.value, budget: parseFloat(adBudget.value), target: adTarget.value }; const result = await apiCall('/api/social/ad/create', 'POST', data); socialResult.innerText = JSON.stringify(result, null, 2); }
+    async function updateAdBudget() { const data = { adId: parseInt(adId.value), newBudget: parseFloat(newBudget.value) }; const result = await apiCall('/api/social/ad/budget', 'POST', data); socialResult.innerText = JSON.stringify(result, null, 2); }
+    async function getLeads() { const result = await apiCall('/api/social/leads'); socialResult.innerText = JSON.stringify(result, null, 2); }
     // 11. Freelance
-    async function postService() {
-      const data = { title: serviceTitle.value, price: parseFloat(servicePrice.value), seller: seller.value };
-      const result = await apiCall('/api/freelance/service', 'POST', data);
-      freelanceResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function listServices() {
-      const result = await apiCall('/api/freelance/services');
-      freelanceResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function createFreelanceOrder() {
-      const data = { serviceId: parseInt(serviceIdOrder.value), buyer: buyer.value };
-      const result = await apiCall('/api/freelance/order', 'POST', data);
-      freelanceResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function releaseEscrow() {
-      const data = { orderId: parseInt(orderId.value) };
-      const result = await apiCall('/api/freelance/escrow', 'POST', data);
-      freelanceResult.innerText = JSON.stringify(result, null, 2);
-    }
-
+    async function postService() { const data = { title: serviceTitle.value, price: parseFloat(servicePrice.value), seller: seller.value }; const result = await apiCall('/api/freelance/service', 'POST', data); freelanceResult.innerText = JSON.stringify(result, null, 2); }
+    async function listServices() { const result = await apiCall('/api/freelance/services'); freelanceResult.innerText = JSON.stringify(result, null, 2); }
+    async function createFreelanceOrder() { const data = { serviceId: parseInt(serviceIdOrder.value), buyer: buyer.value }; const result = await apiCall('/api/freelance/order', 'POST', data); freelanceResult.innerText = JSON.stringify(result, null, 2); }
+    async function releaseEscrow() { const data = { orderId: parseInt(orderId.value) }; const result = await apiCall('/api/freelance/escrow', 'POST', data); freelanceResult.innerText = JSON.stringify(result, null, 2); }
     // 12. Clinic
-    async function addPatient() {
-      const data = { name: patientName.value, phone: patientPhone.value, address: patientAddr.value };
-      const result = await apiCall('/api/clinic/patient', 'POST', data);
-      clinicResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function scheduleAppointment() {
-      const data = { patientId: parseInt(patientIdApp.value), date: appDate.value, reason: appReason.value };
-      const result = await apiCall('/api/clinic/appointment', 'POST', data);
-      clinicResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function getPatientBill() {
-      const id = billPatientId.value;
-      const result = await apiCall(`/api/clinic/patient/${id}/bill`);
-      clinicResult.innerText = JSON.stringify(result, null, 2);
-    }
-
+    async function addPatient() { const data = { name: patientName.value, phone: patientPhone.value, address: patientAddr.value }; const result = await apiCall('/api/clinic/patient', 'POST', data); clinicResult.innerText = JSON.stringify(result, null, 2); }
+    async function scheduleAppointment() { const data = { patientId: parseInt(patientIdApp.value), date: appDate.value, reason: appReason.value }; const result = await apiCall('/api/clinic/appointment', 'POST', data); clinicResult.innerText = JSON.stringify(result, null, 2); }
+    async function getPatientBill() { const id = billPatientId.value; const result = await apiCall(`/api/clinic/patient/${id}/bill`); clinicResult.innerText = JSON.stringify(result, null, 2); }
     // 13. KYC
-    async function verifyID() {
-      const data = { idNumber: idNumber.value, name: idName.value };
-      const result = await apiCall('/api/kyc/id', 'POST', data);
-      kycResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function verifyPhone() {
-      const data = { phone: phoneKyc.value };
-      const result = await apiCall('/api/kyc/phone', 'POST', data);
-      kycResult.innerText = JSON.stringify(result, null, 2);
-    }
-
-    // 14. Ecommerce BaaS
-    async function addEcommerceProduct() {
-      const data = { name: ecName.value, price: parseFloat(ecPrice.value) };
-      const result = await apiCall('/api/ecommerce/product', 'POST', data);
-      ecommerceResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function listEcommerceProducts() {
-      const result = await apiCall('/api/ecommerce/products');
-      ecommerceResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function createEcommerceOrder() {
-      const data = { productId: parseInt(ecProdId.value), quantity: parseInt(ecQty.value), customer: ecCustomer.value };
-      const result = await apiCall('/api/ecommerce/order', 'POST', data);
-      ecommerceResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function processEcommercePayment() {
-      const data = { orderId: parseInt(ecOrderId.value), method: ecMethod.value };
-      const result = await apiCall('/api/ecommerce/payment', 'POST', data);
-      ecommerceResult.innerText = JSON.stringify(result, null, 2);
-    }
-
+    async function verifyID() { const data = { idNumber: idNumber.value, name: idName.value }; const result = await apiCall('/api/kyc/id', 'POST', data); kycResult.innerText = JSON.stringify(result, null, 2); }
+    async function verifyPhone() { const data = { phone: phoneKyc.value }; const result = await apiCall('/api/kyc/phone', 'POST', data); kycResult.innerText = JSON.stringify(result, null, 2); }
+    // 14. E‑commerce
+    async function addEcommerceProduct() { const data = { name: ecName.value, price: parseFloat(ecPrice.value) }; const result = await apiCall('/api/ecommerce/product', 'POST', data); ecommerceResult.innerText = JSON.stringify(result, null, 2); }
+    async function listEcommerceProducts() { const result = await apiCall('/api/ecommerce/products'); ecommerceResult.innerText = JSON.stringify(result, null, 2); }
+    async function createEcommerceOrder() { const data = { productId: parseInt(ecProdId.value), quantity: parseInt(ecQty.value), customer: ecCustomer.value }; const result = await apiCall('/api/ecommerce/order', 'POST', data); ecommerceResult.innerText = JSON.stringify(result, null, 2); }
+    async function processEcommercePayment() { const data = { orderId: parseInt(ecOrderId.value), method: ecMethod.value }; const result = await apiCall('/api/ecommerce/payment', 'POST', data); ecommerceResult.innerText = JSON.stringify(result, null, 2); }
     // 15. AI Tutoring
-    async function askTutor() {
-      const data = { question: tutorQuestion.value, grade: parseInt(tutorGrade.value) };
-      const result = await apiCall('/api/tutor/chat', 'POST', data);
-      tutorResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function getCurriculum() {
-      const grade = tutorGrade.value;
-      const result = await apiCall(`/api/tutor/curriculum?grade=${grade}`);
-      tutorResult.innerText = JSON.stringify(result, null, 2);
-    }
-
+    async function askTutor() { const data = { question: tutorQuestion.value, grade: parseInt(tutorGrade.value) }; const result = await apiCall('/api/tutor/chat', 'POST', data); tutorResult.innerText = JSON.stringify(result, null, 2); }
+    async function getCurriculum() { const grade = tutorGrade.value; const result = await apiCall(`/api/tutor/curriculum?grade=${grade}`); tutorResult.innerText = JSON.stringify(result, null, 2); }
     // 16. Business Discovery
-    async function addBusiness() {
-      const data = { name: bizName.value, category: bizCategory.value, location: bizLocation.value, whatsapp: bizWhatsapp.value };
-      const result = await apiCall('/api/discovery/business', 'POST', data);
-      discoveryResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function searchBusinesses() {
-      const cat = searchCategory.value;
-      const result = await apiCall(`/api/discovery/businesses?category=${cat}`);
-      discoveryResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function addReview() {
-      const data = { businessId: parseInt(bizIdReview.value), rating: parseInt(rating.value), comment: reviewComment.value };
-      const result = await apiCall('/api/discovery/review', 'POST', data);
-      discoveryResult.innerText = JSON.stringify(result, null, 2);
-    }
-    async function getBusinessWhatsapp() {
-      const id = bizIdWhatsapp.value;
-      const result = await apiCall(`/api/discovery/business/${id}/whatsapp`);
-      discoveryResult.innerText = JSON.stringify(result, null, 2);
-    }
+    async function addBusiness() { const data = { name: bizName.value, category: bizCategory.value, location: bizLocation.value, whatsapp: bizWhatsapp.value }; const result = await apiCall('/api/discovery/business', 'POST', data); discoveryResult.innerText = JSON.stringify(result, null, 2); }
+    async function searchBusinesses() { const cat = searchCategory.value; const result = await apiCall(`/api/discovery/businesses?category=${cat}`); discoveryResult.innerText = JSON.stringify(result, null, 2); }
+    async function addReview() { const data = { businessId: parseInt(bizIdReview.value), rating: parseInt(rating.value), comment: reviewComment.value }; const result = await apiCall('/api/discovery/review', 'POST', data); discoveryResult.innerText = JSON.stringify(result, null, 2); }
+    async function getBusinessWhatsapp() { const id = bizIdWhatsapp.value; const result = await apiCall(`/api/discovery/business/${id}/whatsapp`); discoveryResult.innerText = JSON.stringify(result, null, 2); }
   </script>
 </body>
 </html>
