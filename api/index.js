@@ -371,15 +371,18 @@ app.post('/api/create-ls-checkout', async (req, res) => {
     res.status(500).json({ error: 'Checkout failed' });
   }
 });
-
-// ---------- ENRICHMENT (enhanced) ----------
+// ---------- ENRICHMENT (enhanced with better error handling) ----------
 const HUNTER_API_KEY = process.env.HUNTER_API_KEY;
 app.post('/api/enrich', async (req, res) => {
   const { email } = req.body;
-  if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
-  if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Valid email required' });
+  }
+  if (!req.isPremium) {
+    return res.status(402).json({ error: 'Premium API key required' });
+  }
   if (!HUNTER_API_KEY) {
-    return res.status(500).json({ error: 'Enrichment service not configured. Contact support.' });
+    return res.status(500).json({ error: 'Enrichment service not configured. Please contact support.' });
   }
   try {
     const url = `https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(email)}&api_key=${HUNTER_API_KEY}`;
@@ -388,25 +391,21 @@ app.post('/api/enrich', async (req, res) => {
     res.json({
       email,
       verified: data.status === 'valid',
-      accept_all: data.accept_all,
-      disposable: data.disposable,
-      webmail: data.webmail,
-      mx_records: data.mx_records,
-      score: data.score,
-      name: data.first_name && data.last_name ? `${data.first_name} ${data.last_name}` : null,
-      company: data.company
+      accept_all: data.accept_all || false,
+      disposable: data.disposable || false,
+      webmail: data.webmail || false,
+      mx_records: data.mx_records || false,
+      score: data.score || 0,
+      name: (data.first_name && data.last_name) ? `${data.first_name} ${data.last_name}` : null,
+      company: data.company || null
     });
   } catch (err) {
     console.error('Hunter API error:', err.response?.data || err.message);
-    if (err.response?.status === 401 || err.response?.status === 403) {
-      res.status(500).json({ error: 'Invalid Hunter API key. Please update configuration.' });
-    } else if (err.response?.status === 429) {
-      res.status(500).json({ error: 'Hunter API rate limit exceeded. Try again later.' });
-    } else if (err.code === 'ECONNABORTED') {
-      res.status(500).json({ error: 'Hunter API timeout. Please retry.' });
-    } else {
-      res.status(500).json({ error: 'Enrichment failed. Please try again later.' });
-    }
+    // Return a friendly error message
+    res.status(500).json({ 
+      error: 'Enrichment failed. Check Hunter API key or try again later.',
+      details: err.response?.data?.message || err.message 
+    });
   }
 });
 
