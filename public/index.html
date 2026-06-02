@@ -35,7 +35,7 @@
       backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100;
     }
     .logo { font-size: 1.6rem; font-weight: 800; background: linear-gradient(135deg, #d9a7c7, #fff0d4, #a0c4ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
-    .nav-links { display: flex; gap: 2rem; }
+    .nav-links { display: flex; gap: 2rem; flex-wrap: wrap; }
     .nav-links a { color: #cbd5e6; text-decoration: none; font-weight: 500; transition: color 0.2s; }
     .nav-links a:hover { color: #a0c4ff; }
     .hero { text-align: center; padding: 4rem 0 3rem; }
@@ -115,7 +115,7 @@
       h1 { font-size: 2.5rem; }
       .hero-sub { font-size: 1rem; }
       .navbar { flex-direction: column; }
-      .nav-links { gap: 1.5rem; }
+      .nav-links { justify-content: center; gap: 1rem; }
     }
   </style>
 </head>
@@ -129,6 +129,7 @@
       <a href="#pricing">Pricing</a>
       <a href="/docs">Docs</a>
       <a href="/admin">Admin</a>
+      <a href="/new-features">New Features</a>
       <a href="https://github.com/KernelBornie/BaKangombe" target="_blank">GitHub</a>
     </div>
   </nav>
