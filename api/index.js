@@ -349,19 +349,22 @@ app.post('/api/waitlist', async (req, res) => {
   res.json({ message: sent ? 'Added to waitlist and welcome email sent!' : 'Added to waitlist (but email could not be sent).' });
 });
 
-// ---------- LEMON SQUEEZY CHECKOUT ----------
+// ---------- LEMON SQUEEZY CHECKOUT (MISSING – ADDED NOW) ----------
 app.post('/api/create-ls-checkout', async (req, res) => {
   const { email } = req.body;
   if (!email || !email.includes('@')) {
     return res.status(400).json({ error: 'Valid email required' });
   }
+
   const LS_API_KEY = process.env.LEMONSQUEEZY_API_KEY;
   const LS_STORE_ID = process.env.LEMONSQUEEZY_STORE_ID;
   const LS_VARIANT_ID = process.env.LEMONSQUEEZY_VARIANT_ID;
+
   if (!LS_API_KEY || !LS_STORE_ID || !LS_VARIANT_ID) {
     console.error('Missing Lemon Squeezy environment variables');
     return res.status(500).json({ error: 'Payment service not configured. Contact support.' });
   }
+
   try {
     const response = await axios.post(
       'https://api.lemonsqueezy.com/v1/checkouts',
@@ -399,6 +402,7 @@ app.post('/api/create-ls-checkout', async (req, res) => {
         timeout: 10000
       }
     );
+
     const checkoutUrl = response.data.data.attributes.url;
     if (!checkoutUrl) throw new Error('No checkout URL returned');
     res.json({ url: checkoutUrl });
@@ -419,6 +423,7 @@ app.post('/api/lemonsqueezy/webhook', express.raw({ type: 'application/json' }),
   const event = JSON.parse(req.body);
   const eventName = event.meta.event_name;
   console.log('Webhook received:', eventName);
+
   if (eventName === 'order_created' || eventName === 'subscription_payment_success') {
     let userEmail, customData;
     if (eventName === 'order_created') {
@@ -772,39 +777,210 @@ app.get('/docs', (req, res) => {
   <title>BaKangombe · Complete API Documentation</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; scroll-behavior: smooth; }
-    body { background: #f5f2e8; color: #1e1a16; font-family: 'Georgia', 'Times New Roman', Times, serif; line-height: 1.7; }
-    .container { max-width: 1200px; margin: 0 auto; padding: 2rem; background: #fffef7; box-shadow: 0 0 30px rgba(0,0,0,0.05); }
-    .nav-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; padding-bottom: 1rem; margin-bottom: 2rem; border-bottom: 1px solid #e2dcd0; font-family: system-ui, -apple-system, sans-serif; }
-    .logo { font-size: 1.6rem; font-weight: 700; background: linear-gradient(135deg, #8b5a2b, #c49a6c); -webkit-background-clip: text; background-clip: text; color: transparent; }
-    .nav-links { display: flex; gap: 1.5rem; }
-    .nav-links a { text-decoration: none; color: #5a3e2b; font-weight: 500; transition: color 0.2s; }
-    .nav-links a:hover { color: #8b5a2b; }
-    .toc-container { position: sticky; top: 2rem; float: right; width: 280px; margin-left: 2rem; margin-bottom: 2rem; background: #faf8f3; border-left: 4px solid #c49a6c; padding: 1rem; font-family: system-ui, sans-serif; font-size: 0.9rem; border-radius: 0 8px 8px 0; }
-    .toc-container h2 { font-size: 1.2rem; margin-bottom: 0.5rem; font-weight: 600; }
-    .toc-container ul { list-style: none; max-height: 80vh; overflow-y: auto; }
-    .toc-container li { margin: 0.5rem 0; }
-    .toc-container a { text-decoration: none; color: #5a3e2b; display: block; padding: 0.2rem 0; transition: 0.2s; }
-    .toc-container a:hover { color: #8b5a2b; text-decoration: underline; }
-    .main-content { overflow: hidden; }
-    h1, h2, h3 { font-weight: normal; letter-spacing: -0.3px; margin-top: 2rem; }
-    h1 { font-size: 2.8rem; margin-top: 0; }
-    h2 { font-size: 1.8rem; border-bottom: 1px solid #e2dcd0; padding-bottom: 0.3rem; margin-top: 2rem; }
-    h3 { font-size: 1.4rem; margin: 1.5rem 0 0.5rem; color: #4a3724; }
-    .endpoint { margin: 1.5rem 0; padding: 1rem 1.5rem; background: #fefcf8; border-left: 3px solid #c49a6c; border-radius: 0 8px 8px 0; }
-    .method { display: inline-block; background: #2c5f2d; color: white; font-family: monospace; font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 20px; margin-right: 0.8rem; vertical-align: middle; }
+    body {
+      background: #f5f2e8;
+      color: #1e1a16;
+      font-family: 'Georgia', 'Times New Roman', Times, serif;
+      line-height: 1.7;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      background: #fffef7;
+      box-shadow: 0 0 30px rgba(0,0,0,0.05);
+    }
+    /* Navigation */
+    .nav-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding-bottom: 1rem;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid #e2dcd0;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .logo {
+      font-size: 1.6rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #8b5a2b, #c49a6c);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .nav-links {
+      display: flex;
+      gap: 1.5rem;
+    }
+    .nav-links a {
+      text-decoration: none;
+      color: #5a3e2b;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover {
+      color: #8b5a2b;
+    }
+    /* Table of Contents - Sticky */
+    .toc-container {
+      position: sticky;
+      top: 2rem;
+      float: right;
+      width: 280px;
+      margin-left: 2rem;
+      margin-bottom: 2rem;
+      background: #faf8f3;
+      border-left: 4px solid #c49a6c;
+      padding: 1rem;
+      font-family: system-ui, sans-serif;
+      font-size: 0.9rem;
+      border-radius: 0 8px 8px 0;
+    }
+    .toc-container h2 {
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    .toc-container ul {
+      list-style: none;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .toc-container li {
+      margin: 0.5rem 0;
+    }
+    .toc-container a {
+      text-decoration: none;
+      color: #5a3e2b;
+      display: block;
+      padding: 0.2rem 0;
+      transition: 0.2s;
+    }
+    .toc-container a:hover {
+      color: #8b5a2b;
+      text-decoration: underline;
+    }
+    /* Main content – clear float */
+    .main-content {
+      overflow: hidden;
+    }
+    h1, h2, h3 {
+      font-weight: normal;
+      letter-spacing: -0.3px;
+      margin-top: 2rem;
+    }
+    h1 {
+      font-size: 2.8rem;
+      margin-top: 0;
+    }
+    h2 {
+      font-size: 1.8rem;
+      border-bottom: 1px solid #e2dcd0;
+      padding-bottom: 0.3rem;
+      margin-top: 2rem;
+    }
+    h3 {
+      font-size: 1.4rem;
+      margin: 1.5rem 0 0.5rem;
+      color: #4a3724;
+    }
+    .endpoint {
+      margin: 1.5rem 0;
+      padding: 1rem 1.5rem;
+      background: #fefcf8;
+      border-left: 3px solid #c49a6c;
+      border-radius: 0 8px 8px 0;
+    }
+    .method {
+      display: inline-block;
+      background: #2c5f2d;
+      color: white;
+      font-family: monospace;
+      font-size: 0.7rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      margin-right: 0.8rem;
+      vertical-align: middle;
+    }
     .method.free { background: #2c5f2d; }
     .method.premium { background: #b76e2e; }
-    .path { font-family: monospace; font-size: 1rem; }
-    pre { background: #2d2a24; color: #f5e6d3; padding: 0.8rem; border-radius: 8px; overflow-x: auto; font-size: 0.85rem; margin: 0.8rem 0; }
-    code { font-family: monospace; background: #f0ede8; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.9rem; color: #3b2a1f; }
-    .copy-btn { background: #e2dcd0; border: none; padding: 0.2rem 0.7rem; border-radius: 20px; font-size: 0.7rem; cursor: pointer; margin-left: 0.5rem; }
-    .copy-btn:hover { background: #c49a6c; color: white; }
-    .diagram { background: #fef8ef; border: 1px dashed #c49a6c; padding: 1rem; margin: 1rem 0; font-family: monospace; white-space: pre; overflow-x: auto; font-size: 0.8rem; }
-    table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
-    th, td { border: 1px solid #e2dcd0; padding: 0.5rem; text-align: left; }
-    th { background: #faf8f3; font-weight: 600; }
-    footer { margin-top: 3rem; text-align: center; font-size: 0.8rem; color: #9b8a7a; border-top: 1px solid #e2dcd0; padding-top: 2rem; clear: both; }
-    @media (max-width: 900px) { .toc-container { float: none; width: 100%; margin: 0 0 2rem 0; position: static; } }
+    .path {
+      font-family: 'SF Mono', monospace;
+      font-size: 1rem;
+    }
+    pre {
+      background: #2d2a24;
+      color: #f5e6d3;
+      padding: 0.8rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      margin: 0.8rem 0;
+    }
+    code {
+      font-family: 'SF Mono', monospace;
+      background: #f0ede8;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      color: #3b2a1f;
+    }
+    .copy-btn {
+      background: #e2dcd0;
+      border: none;
+      padding: 0.2rem 0.7rem;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      cursor: pointer;
+      margin-left: 0.5rem;
+    }
+    .copy-btn:hover {
+      background: #c49a6c;
+      color: white;
+    }
+    .diagram {
+      background: #fef8ef;
+      border: 1px dashed #c49a6c;
+      padding: 1rem;
+      margin: 1rem 0;
+      font-family: monospace;
+      white-space: pre;
+      overflow-x: auto;
+      font-size: 0.8rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+    }
+    th, td {
+      border: 1px solid #e2dcd0;
+      padding: 0.5rem;
+      text-align: left;
+    }
+    th {
+      background: #faf8f3;
+      font-weight: 600;
+    }
+    footer {
+      margin-top: 3rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: #9b8a7a;
+      border-top: 1px solid #e2dcd0;
+      padding-top: 2rem;
+      clear: both;
+    }
+    @media (max-width: 900px) {
+      .toc-container {
+        float: none;
+        width: 100%;
+        margin: 0 0 2rem 0;
+        position: static;
+      }
+    }
   </style>
 </head>
 <body>
@@ -820,6 +996,7 @@ app.get('/docs', (req, res) => {
       <a href="https://github.com/KernelBornie/BaKangombe" target="_blank">GitHub</a>
     </div>
   </div>
+
   <div class="toc-container">
     <h2>📖 Contents</h2>
     <ul>
@@ -850,18 +1027,23 @@ app.get('/docs', (req, res) => {
       <li><a href="#errors">❌ Error Codes</a></li>
     </ul>
   </div>
+
   <div class="main-content">
     <h1>BaKangombe</h1>
     <p style="font-size:1.2rem">Complete API Reference · Email Validation & 16 Business Systems</p>
     <p>BaKangombe is a unified platform that provides email intelligence (validation, enrichment, disposable detection, domain scoring) and a full suite of 16 ready‑to‑use business modules. Whether you're a startup, an enterprise, or a developer, you can integrate any of these modules via a single API key and start building immediately.</p>
+
     <h2 id="auth">🔐 Authentication & Rate Limits</h2>
     <p>All endpoints except <code>/api/validate</code> and <code>/api/feedback</code> require a valid <code>X-API-Key</code> header containing your business API key. This ensures that your data is isolated and secure.</p>
     <pre><code>X-API-Key: your_business_api_key</code></pre>
     <p>To obtain a key, call <code>POST /api/business/register</code> or use the <a href="/new-features">interactive tester</a>. Each business owns its own data – no cross‑tenant access is possible.</p>
     <h3>Rate Limits</h3>
-    <table>
+    <tr>
       <thead><tr><th>Plan</th><th>Requests per minute</th><th>Monthly cap</th></tr></thead>
-      <tbody><tr><td>Free</td><td>100</td><td>Unlimited</td></tr><tr><td>Premium</td><td>10,000</td><td>300,000</td></tr></tbody>
+      <tbody>
+        <tr><td>Free</td><td>100</td><td>Unlimited</td></tr>
+        <tr><td>Premium</td><td>10,000</td><td>300,000</td></tr>
+      </tbody>
     </table>
     <p>When you exceed the limit, the API returns HTTP 429 with a <code>Retry-After</code> header. We recommend implementing exponential backoff in your clients.</p>
 
@@ -927,7 +1109,7 @@ app.get('/docs', (req, res) => {
       <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
       <tbody>
         <tr><td>400</td><td>Bad request – missing or invalid JSON</td></tr>
-        <tr><td>401</td><td>Unauthorized – API key missing or invalid</td></tr>
+        <tr><td>401</td><td>Unauthorized – API key missing/invalid</td></tr>
         <tr><td>402</td><td>Payment required – subscription needed for enrichment</td></tr>
         <tr><td>403</td><td>Forbidden – module not enabled for this business</td></tr>
         <tr><td>404</td><td>Not found – resource does not exist</td></tr>
@@ -964,6 +1146,420 @@ app.get('/docs', (req, res) => {
 </script>
 </body>
 </html>`);
+});
+
+// ---------- ONE‑TIME SETUP (run once) ----------
+app.get('/api/setup/create-tables', async (req, res) => {
+  try {
+    await sql`CREATE TABLE IF NOT EXISTS businesses (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255),
+      email VARCHAR(255) UNIQUE,
+      api_key VARCHAR(64) UNIQUE,
+      modules TEXT[] DEFAULT '{}',
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    await sql`CREATE TABLE IF NOT EXISTS momo_transactions ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), amount NUMERIC, phone VARCHAR(20), provider VARCHAR(10), status VARCHAR(20), type VARCHAR(10), created_at TIMESTAMP DEFAULT NOW() )`;
+    await sql`CREATE TABLE IF NOT EXISTS invoices ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), customer VARCHAR(255), amount NUMERIC, items TEXT[], status VARCHAR(20), created_at TIMESTAMP DEFAULT NOW(), paid_at TIMESTAMP )`;
+    await sql`CREATE TABLE IF NOT EXISTS whatsapp_products ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), name VARCHAR(255), price NUMERIC, description TEXT )`;
+    await sql`CREATE TABLE IF NOT EXISTS whatsapp_orders ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), product_id INTEGER, customer_phone VARCHAR(20), status VARCHAR(20), created_at TIMESTAMP )`;
+    await sql`CREATE TABLE IF NOT EXISTS logistics_routes ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), stops JSONB, assigned_driver INTEGER )`;
+    await sql`CREATE TABLE IF NOT EXISTS agritech_farmers ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), name VARCHAR(255), crop VARCHAR(100), price NUMERIC, location VARCHAR(255) )`;
+    await sql`CREATE TABLE IF NOT EXISTS faqs ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), question TEXT, answer TEXT )`;
+    await sql`CREATE TABLE IF NOT EXISTS lending_scores ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), income NUMERIC, debt NUMERIC, history VARCHAR(20), score INTEGER )`;
+    await sql`CREATE TABLE IF NOT EXISTS sme_sales ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), amount NUMERIC, customer_id INTEGER, date TIMESTAMP )`;
+    await sql`CREATE TABLE IF NOT EXISTS sme_expenses ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), amount NUMERIC, category VARCHAR(100), date TIMESTAMP )`;
+    await sql`CREATE TABLE IF NOT EXISTS inventory_products ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), name VARCHAR(255), price NUMERIC, stock INTEGER )`;
+    await sql`CREATE TABLE IF NOT EXISTS social_ads ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), name VARCHAR(255), budget NUMERIC, target VARCHAR(255), status VARCHAR(20), leads INTEGER )`;
+    await sql`CREATE TABLE IF NOT EXISTS freelance_services ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), title VARCHAR(255), price NUMERIC, seller VARCHAR(255) )`;
+    await sql`CREATE TABLE IF NOT EXISTS freelance_orders ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), service_id INTEGER, buyer VARCHAR(255), status VARCHAR(20), created_at TIMESTAMP )`;
+    await sql`CREATE TABLE IF NOT EXISTS clinic_patients ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), name VARCHAR(255), phone VARCHAR(20), address TEXT )`;
+    await sql`CREATE TABLE IF NOT EXISTS clinic_appointments ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), patient_id INTEGER, date DATE, reason TEXT )`;
+    await sql`CREATE TABLE IF NOT EXISTS ecommerce_products ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), name VARCHAR(255), price NUMERIC )`;
+    await sql`CREATE TABLE IF NOT EXISTS ecommerce_orders ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), product_id INTEGER, quantity INTEGER, customer VARCHAR(255), status VARCHAR(20) )`;
+    await sql`CREATE TABLE IF NOT EXISTS tutor_curriculum ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), grade INTEGER, subject VARCHAR(100), topic VARCHAR(255), content TEXT )`;
+    await sql`CREATE TABLE IF NOT EXISTS businesses_list ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), name VARCHAR(255), category VARCHAR(100), location VARCHAR(255), whatsapp VARCHAR(20) )`;
+    await sql`CREATE TABLE IF NOT EXISTS discovery_reviews (
+      id SERIAL PRIMARY KEY,
+      business_list_id INTEGER REFERENCES businesses_list(id) ON DELETE CASCADE,
+      reviewer_business_id INTEGER REFERENCES businesses(id),
+      rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+      comment TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    await sql`CREATE TABLE IF NOT EXISTS subscriptions (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      plan VARCHAR(100),
+      status VARCHAR(30),
+      expires_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    await sql`CREATE TABLE IF NOT EXISTS business_services (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      service_key VARCHAR(100),
+      service_name VARCHAR(255),
+      modules TEXT[],
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    await sql`CREATE TABLE IF NOT EXISTS generated_systems (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      system_name VARCHAR(255),
+      system_type VARCHAR(100),
+      dashboard_url TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    res.json({ message: "All tables created/updated" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ========== REMAINING MULTI‑TENANT FEATURES (requireModule, placed after tables are ready) ==========
+// 1. Mobile Money
+app.post('/api/momo/transfer', requireBusiness, requireModule('momo'), async (req, res) => {
+  const { amount, phone, provider } = req.body;
+  if (!amount || !phone) return res.status(400).json({ error: 'Amount and phone required' });
+  const result = await sql`INSERT INTO momo_transactions (business_id, amount, phone, provider, status, type) VALUES (${req.business.id}, ${amount}, ${phone}, ${provider}, 'pending', 'send') RETURNING id`;
+  const id = result.rows[0].id;
+  setTimeout(async () => { await sql`UPDATE momo_transactions SET status = 'completed' WHERE id = ${id}`; }, 2000);
+  res.json({ success: true, transactionId: id, status: 'processing' });
+});
+app.post('/api/momo/request', requireBusiness, requireModule('momo'), async (req, res) => {
+  const { amount, phone, provider } = req.body;
+  const result = await sql`INSERT INTO momo_transactions (business_id, amount, phone, provider, status, type) VALUES (${req.business.id}, ${amount}, ${phone}, ${provider}, 'pending', 'request') RETURNING id`;
+  res.json({ success: true, transactionId: result.rows[0].id });
+});
+app.get('/api/momo/transactions', requireBusiness, requireModule('momo'), async (req, res) => {
+  const txs = await sql`SELECT * FROM momo_transactions WHERE business_id = ${req.business.id} ORDER BY created_at DESC`;
+  res.json({ transactions: txs.rows });
+});
+
+// 2. Invoice
+app.post('/api/invoice/create', requireBusiness, requireModule('invoice'), async (req, res) => {
+  const { customer, amount, items } = req.body;
+  const result = await sql`INSERT INTO invoices (business_id, customer, amount, items, status) VALUES (${req.business.id}, ${customer}, ${amount}, ${items}, 'unpaid') RETURNING id, created_at`;
+  res.json({ id: result.rows[0].id, customer, amount, items, status: 'unpaid', createdAt: result.rows[0].created_at, paidAt: null });
+});
+app.get('/api/invoice/:id', requireBusiness, requireModule('invoice'), async (req, res) => {
+  const inv = await sql`SELECT * FROM invoices WHERE id = ${req.params.id} AND business_id = ${req.business.id}`;
+  if (inv.rowCount === 0) return res.status(404).json({ error: 'Not found' });
+  res.json(inv.rows[0]);
+});
+app.put('/api/invoice/:id/pay', requireBusiness, requireModule('invoice'), async (req, res) => {
+  await sql`UPDATE invoices SET status = 'paid', paid_at = NOW() WHERE id = ${req.params.id} AND business_id = ${req.business.id}`;
+  res.json({ success: true });
+});
+app.get('/api/invoice/export/csv', requireBusiness, requireModule('invoice'), async (req, res) => {
+  const invs = await sql`SELECT * FROM invoices WHERE business_id = ${req.business.id}`;
+  let csv = 'id,customer,amount,status,createdAt,paidAt\n';
+  invs.rows.forEach(i => { csv += `${i.id},${i.customer},${i.amount},${i.status},${i.created_at},${i.paid_at || ''}\n`; });
+  res.setHeader('Content-Type', 'text/csv');
+  res.send(csv);
+});
+
+// 3. WhatsApp
+app.post('/api/whatsapp/product', requireBusiness, requireModule('whatsapp'), async (req, res) => {
+  const { name, price, description } = req.body;
+  const result = await sql`INSERT INTO whatsapp_products (business_id, name, price, description) VALUES (${req.business.id}, ${name}, ${price}, ${description}) RETURNING id`;
+  res.json({ id: result.rows[0].id, name, price, description });
+});
+app.get('/api/whatsapp/products', requireBusiness, requireModule('whatsapp'), async (req, res) => {
+  const products = await sql`SELECT * FROM whatsapp_products WHERE business_id = ${req.business.id}`;
+  res.json({ products: products.rows });
+});
+app.post('/api/whatsapp/order', requireBusiness, requireModule('whatsapp'), async (req, res) => {
+  const { productId, customerPhone } = req.body;
+  const result = await sql`INSERT INTO whatsapp_orders (business_id, product_id, customer_phone, status) VALUES (${req.business.id}, ${productId}, ${customerPhone}, 'pending') RETURNING id, created_at`;
+  res.json({ id: result.rows[0].id, productId, customerPhone, status: 'pending', createdAt: result.rows[0].created_at });
+});
+app.get('/api/whatsapp/order/:id/checkout', requireBusiness, requireModule('whatsapp'), async (req, res) => {
+  const order = await sql`SELECT * FROM whatsapp_orders WHERE id = ${req.params.id} AND business_id = ${req.business.id}`;
+  if (order.rowCount === 0) return res.status(404).json({ error: 'Not found' });
+  res.json({ checkoutLink: `https://wa.me/${order.rows[0].customer_phone}?text=I%20want%20to%20pay%20for%20order%20${req.params.id}` });
+});
+
+// 4. Logistics
+app.post('/api/logistics/route', requireBusiness, requireModule('logistics'), (req, res) => { res.json({ routeId: Date.now(), stops: req.body.stops }); });
+app.post('/api/logistics/driver/assign', requireBusiness, requireModule('logistics'), (req, res) => { res.json({ success: true }); });
+app.get('/api/logistics/driver/:id/track', requireBusiness, requireModule('logistics'), (req, res) => { res.json({ location: { lat: -15.3875, lng: 28.3228 } }); });
+
+// 5. Agritech
+app.post('/api/agritech/farmer', requireBusiness, requireModule('agritech'), async (req, res) => {
+  const { name, crop, price, location } = req.body;
+  const result = await sql`INSERT INTO agritech_farmers (business_id, name, crop, price, location) VALUES (${req.business.id}, ${name}, ${crop}, ${price}, ${location}) RETURNING id`;
+  res.json({ id: result.rows[0].id, name, crop, price, location });
+});
+app.get('/api/agritech/farmers', requireBusiness, requireModule('agritech'), async (req, res) => {
+  const farmers = await sql`SELECT * FROM agritech_farmers WHERE business_id = ${req.business.id}`;
+  res.json({ farmers: farmers.rows });
+});
+app.post('/api/agritech/buyer/match', requireBusiness, requireModule('agritech'), async (req, res) => {
+  const { crop, maxPrice } = req.body;
+  const matches = await sql`SELECT * FROM agritech_farmers WHERE business_id = ${req.business.id} AND crop = ${crop} AND price <= ${maxPrice}`;
+  res.json({ matches: matches.rows });
+});
+app.get('/api/agritech/price/intelligence', requireBusiness, requireModule('agritech'), (req, res) => { res.json({ prices: { maize: 120, soy: 250, groundnuts: 300 } }); });
+
+// 6. AI Support
+app.post('/api/ai/chat', requireBusiness, requireModule('ai'), async (req, res) => {
+  const { query } = req.body;
+  const faq = await sql`SELECT answer FROM faqs WHERE business_id = ${req.business.id} AND question ILIKE ${'%' + query + '%'} LIMIT 1`;
+  let answer = "I'm still learning. Please ask your business owner.";
+  if (faq.rowCount > 0) answer = faq.rows[0].answer;
+  res.json({ response: answer });
+});
+app.post('/api/ai/train', requireBusiness, requireModule('ai'), async (req, res) => {
+  const { question, answer } = req.body;
+  await sql`INSERT INTO faqs (business_id, question, answer) VALUES (${req.business.id}, ${question}, ${answer})`;
+  res.json({ success: true });
+});
+
+// 7. Lending
+app.post('/api/lending/score', requireBusiness, requireModule('lending'), async (req, res) => {
+  const { income, debt, history } = req.body;
+  let score = 500;
+  if (income > 5000) score += 100;
+  if (debt < 1000) score += 50;
+  if (history === 'good') score += 150;
+  await sql`INSERT INTO lending_scores (business_id, income, debt, history, score) VALUES (${req.business.id}, ${income}, ${debt}, ${history}, ${score})`;
+  res.json({ score, risk: score > 600 ? 'low' : 'high' });
+});
+app.post('/api/lending/eligibility', requireBusiness, requireModule('lending'), (req, res) => {
+  const { score, requestedAmount } = req.body;
+  const eligible = score > 650 && requestedAmount <= 5000;
+  res.json({ eligible, maxAmount: eligible ? 5000 : 0 });
+});
+
+// 8. SME
+app.post('/api/sme/sale', requireBusiness, requireModule('sme'), async (req, res) => {
+  const { amount, customerId } = req.body;
+  const result = await sql`INSERT INTO sme_sales (business_id, amount, customer_id, date) VALUES (${req.business.id}, ${amount}, ${customerId}, NOW()) RETURNING id`;
+  res.json({ id: result.rows[0].id });
+});
+app.post('/api/sme/expense', requireBusiness, requireModule('sme'), async (req, res) => {
+  const { amount, category } = req.body;
+  const result = await sql`INSERT INTO sme_expenses (business_id, amount, category, date) VALUES (${req.business.id}, ${amount}, ${category}, NOW()) RETURNING id`;
+  res.json({ id: result.rows[0].id });
+});
+app.get('/api/sme/profit', requireBusiness, requireModule('sme'), async (req, res) => {
+  const sales = await sql`SELECT SUM(amount) as total FROM sme_sales WHERE business_id = ${req.business.id}`;
+  const expenses = await sql`SELECT SUM(amount) as total FROM sme_expenses WHERE business_id = ${req.business.id}`;
+  const totalSales = sales.rows[0].total || 0;
+  const totalExpenses = expenses.rows[0].total || 0;
+  res.json({ profit: totalSales - totalExpenses, revenue: totalSales, costs: totalExpenses });
+});
+
+// 9. Inventory/POS
+app.post('/api/inventory/product', requireBusiness, requireModule('inventory'), async (req, res) => {
+  const { name, price, stock } = req.body;
+  const result = await sql`INSERT INTO inventory_products (business_id, name, price, stock) VALUES (${req.business.id}, ${name}, ${price}, ${stock}) RETURNING id`;
+  res.json({ id: result.rows[0].id, name, price, stock });
+});
+app.put('/api/inventory/stock', requireBusiness, requireModule('inventory'), async (req, res) => {
+  const { productId, quantity } = req.body;
+  await sql`UPDATE inventory_products SET stock = stock + ${quantity} WHERE id = ${productId} AND business_id = ${req.business.id}`;
+  res.json({ success: true });
+});
+app.get('/api/inventory/alerts', requireBusiness, requireModule('inventory'), async (req, res) => {
+  const lowStock = await sql`SELECT * FROM inventory_products WHERE business_id = ${req.business.id} AND stock < 5`;
+  res.json({ lowStock: lowStock.rows });
+});
+app.get('/api/inventory/products', requireBusiness, requireModule('inventory'), async (req, res) => {
+  const products = await sql`SELECT * FROM inventory_products WHERE business_id = ${req.business.id}`;
+  res.json({ products: products.rows });
+});
+app.post('/api/pos/sale', requireBusiness, requireModule('inventory'), async (req, res) => {
+  const { productId, quantity, paymentMethod } = req.body;
+  const product = await sql`SELECT price, stock FROM inventory_products WHERE id = ${productId} AND business_id = ${req.business.id}`;
+  if (product.rowCount === 0) return res.status(404).json({ error: 'Product not found' });
+  if (product.rows[0].stock < quantity) return res.status(400).json({ error: 'Insufficient stock' });
+  await sql`UPDATE inventory_products SET stock = stock - ${quantity} WHERE id = ${productId}`;
+  res.json({ success: true, total: product.rows[0].price * quantity, paymentMethod });
+});
+
+// 10. Social Ads
+app.post('/api/social/ad/create', requireBusiness, requireModule('social_ads'), async (req, res) => {
+  const { name, budget, target } = req.body;
+  const result = await sql`INSERT INTO social_ads (business_id, name, budget, target, status, leads) VALUES (${req.business.id}, ${name}, ${budget}, ${target}, 'active', 0) RETURNING id`;
+  res.json({ id: result.rows[0].id, name, budget, target, status: 'active', leads: 0 });
+});
+app.post('/api/social/ad/budget', requireBusiness, requireModule('social_ads'), async (req, res) => {
+  const { adId, newBudget } = req.body;
+  await sql`UPDATE social_ads SET budget = ${newBudget} WHERE id = ${adId} AND business_id = ${req.business.id}`;
+  res.json({ success: true });
+});
+app.get('/api/social/leads', requireBusiness, requireModule('social_ads'), async (req, res) => {
+  const leads = await sql`SELECT SUM(leads) as total FROM social_ads WHERE business_id = ${req.business.id}`;
+  res.json({ leads: leads.rows[0].total || 0 });
+});
+app.get('/api/social/ads', requireBusiness, requireModule('social_ads'), async (req, res) => {
+  const ads = await sql`SELECT * FROM social_ads WHERE business_id = ${req.business.id}`;
+  res.json({ ads: ads.rows });
+});
+
+// 11. Freelance
+app.post('/api/freelance/service', requireBusiness, requireModule('freelance'), async (req, res) => {
+  const { title, price, seller } = req.body;
+  const result = await sql`INSERT INTO freelance_services (business_id, title, price, seller) VALUES (${req.business.id}, ${title}, ${price}, ${seller}) RETURNING id`;
+  res.json({ id: result.rows[0].id, title, price, seller });
+});
+app.get('/api/freelance/services', requireBusiness, requireModule('freelance'), async (req, res) => {
+  const services = await sql`SELECT * FROM freelance_services WHERE business_id = ${req.business.id}`;
+  res.json({ services: services.rows });
+});
+app.post('/api/freelance/order', requireBusiness, requireModule('freelance'), async (req, res) => {
+  const { serviceId, buyer } = req.body;
+  const result = await sql`INSERT INTO freelance_orders (business_id, service_id, buyer, status) VALUES (${req.business.id}, ${serviceId}, ${buyer}, 'escrow') RETURNING id, created_at`;
+  res.json({ id: result.rows[0].id, serviceId, buyer, status: 'escrow', createdAt: result.rows[0].created_at });
+});
+app.post('/api/freelance/escrow', requireBusiness, requireModule('freelance'), async (req, res) => {
+  const { orderId } = req.body;
+  await sql`UPDATE freelance_orders SET status = 'released' WHERE id = ${orderId} AND business_id = ${req.business.id}`;
+  res.json({ success: true });
+});
+app.get('/api/freelance/orders', requireBusiness, requireModule('freelance'), async (req, res) => {
+  const orders = await sql`SELECT * FROM freelance_orders WHERE business_id = ${req.business.id}`;
+  res.json({ orders: orders.rows });
+});
+
+// 12. Clinic
+app.post('/api/clinic/patient', requireBusiness, requireModule('clinic'), async (req, res) => {
+  const { name, phone, address } = req.body;
+  const result = await sql`INSERT INTO clinic_patients (business_id, name, phone, address) VALUES (${req.business.id}, ${name}, ${phone}, ${address}) RETURNING id`;
+  res.json({ id: result.rows[0].id, name, phone, address });
+});
+app.post('/api/clinic/appointment', requireBusiness, requireModule('clinic'), async (req, res) => {
+  const { patientId, date, reason } = req.body;
+  const result = await sql`INSERT INTO clinic_appointments (business_id, patient_id, date, reason) VALUES (${req.business.id}, ${patientId}, ${date}, ${reason}) RETURNING id`;
+  res.json({ id: result.rows[0].id, patientId, date, reason });
+});
+app.get('/api/clinic/patient/:id/bill', requireBusiness, requireModule('clinic'), async (req, res) => {
+  const patient = await sql`SELECT * FROM clinic_patients WHERE id = ${req.params.id} AND business_id = ${req.business.id}`;
+  if (patient.rowCount === 0) return res.status(404).json({ error: 'Patient not found' });
+  res.json({ patient: patient.rows[0], bill: Math.floor(Math.random() * 500) });
+});
+app.get('/api/clinic/patients', requireBusiness, requireModule('clinic'), async (req, res) => {
+  const patients = await sql`SELECT * FROM clinic_patients WHERE business_id = ${req.business.id}`;
+  res.json({ patients: patients.rows });
+});
+app.get('/api/clinic/appointments', requireBusiness, requireModule('clinic'), async (req, res) => {
+  const appointments = await sql`SELECT * FROM clinic_appointments WHERE business_id = ${req.business.id}`;
+  res.json({ appointments: appointments.rows });
+});
+
+// 13. KYC
+app.post('/api/kyc/id', requireBusiness, requireModule('kyc'), (req, res) => {
+  const { idNumber, name } = req.body;
+  res.json({ verified: idNumber && idNumber.length >= 5, message: idNumber && idNumber.length >= 5 ? 'ID verified' : 'Invalid ID' });
+});
+app.post('/api/kyc/phone', requireBusiness, requireModule('kyc'), (req, res) => {
+  const { phone } = req.body;
+  res.json({ verified: phone && phone.length === 10, message: phone && phone.length === 10 ? 'Phone verified' : 'Invalid phone' });
+});
+
+// 14. E‑commerce
+app.post('/api/ecommerce/product', requireBusiness, requireModule('ecommerce'), async (req, res) => {
+  const { name, price } = req.body;
+  const result = await sql`INSERT INTO ecommerce_products (business_id, name, price) VALUES (${req.business.id}, ${name}, ${price}) RETURNING id`;
+  res.json({ id: result.rows[0].id, name, price });
+});
+app.get('/api/ecommerce/products', requireBusiness, requireModule('ecommerce'), async (req, res) => {
+  const products = await sql`SELECT * FROM ecommerce_products WHERE business_id = ${req.business.id}`;
+  res.json({ products: products.rows });
+});
+app.post('/api/ecommerce/order', requireBusiness, requireModule('ecommerce'), async (req, res) => {
+  const { productId, quantity, customer } = req.body;
+  const result = await sql`INSERT INTO ecommerce_orders (business_id, product_id, quantity, customer, status) VALUES (${req.business.id}, ${productId}, ${quantity}, ${customer}, 'pending') RETURNING id`;
+  res.json({ id: result.rows[0].id, productId, quantity, customer, status: 'pending' });
+});
+app.post('/api/ecommerce/payment', requireBusiness, requireModule('ecommerce'), async (req, res) => {
+  const { orderId, method } = req.body;
+  await sql`UPDATE ecommerce_orders SET status = 'paid' WHERE id = ${orderId} AND business_id = ${req.business.id}`;
+  res.json({ success: true, paymentMethod: method });
+});
+app.get('/api/ecommerce/orders', requireBusiness, requireModule('ecommerce'), async (req, res) => {
+  const orders = await sql`SELECT * FROM ecommerce_orders WHERE business_id = ${req.business.id}`;
+  res.json({ orders: orders.rows });
+});
+
+// 15. AI Tutoring
+app.post('/api/tutor/chat', requireBusiness, requireModule('tutor'), (req, res) => {
+  const { question, grade } = req.body;
+  let answer = "I'm here to help with your studies.";
+  if (question.includes('algebra')) answer = "Algebra is about solving equations. Example: x + 2 = 5 → x = 3.";
+  res.json({ answer });
+});
+app.get('/api/tutor/curriculum', requireBusiness, requireModule('tutor'), (req, res) => {
+  const { grade } = req.query;
+  const curriculum = [
+    { grade: 10, subject: 'Math', topic: 'Algebra', content: 'Solving linear equations' },
+    { grade: 10, subject: 'Science', topic: 'Biology', content: 'Cell structure' }
+  ];
+  const filtered = curriculum.filter(c => c.grade == grade);
+  res.json({ curriculum: filtered });
+});
+
+// 16. Local Business Discovery
+app.post('/api/discovery/business', requireBusiness, requireModule('discovery'), async (req, res) => {
+  const { name, category, location, whatsapp } = req.body;
+  const result = await sql`INSERT INTO businesses_list (business_id, name, category, location, whatsapp) VALUES (${req.business.id}, ${name}, ${category}, ${location}, ${whatsapp}) RETURNING id`;
+  res.json({ id: result.rows[0].id, name, category, location, whatsapp });
+});
+app.get('/api/discovery/businesses', requireBusiness, requireModule('discovery'), async (req, res) => {
+  const { category } = req.query;
+  let query = sql`SELECT * FROM businesses_list WHERE business_id = ${req.business.id}`;
+  if (category) query = sql`SELECT * FROM businesses_list WHERE business_id = ${req.business.id} AND category = ${category}`;
+  const businesses = await query;
+  res.json({ businesses: businesses.rows });
+});
+app.post('/api/discovery/review', requireBusiness, requireModule('discovery'), async (req, res) => {
+  const { businessId, rating, comment } = req.body;
+  if (!businessId || !rating) return res.status(400).json({ error: 'Business ID and rating required' });
+  const listed = await sql`SELECT id FROM businesses_list WHERE id = ${businessId} AND business_id = ${req.business.id}`;
+  if (listed.rowCount === 0) return res.status(404).json({ error: 'Listed business not found' });
+  const result = await sql`
+    INSERT INTO discovery_reviews (business_list_id, reviewer_business_id, rating, comment)
+    VALUES (${businessId}, ${req.business.id}, ${rating}, ${comment})
+    RETURNING *
+  `;
+  res.json({ review: result.rows[0] });
+});
+app.get('/api/discovery/business/:id/whatsapp', requireBusiness, requireModule('discovery'), async (req, res) => {
+  const business = await sql`SELECT whatsapp FROM businesses_list WHERE id = ${req.params.id} AND business_id = ${req.business.id}`;
+  if (business.rowCount === 0) return res.status(404).json({ error: 'Business not found' });
+  res.json({ whatsappLink: `https://wa.me/${business.rows[0].whatsapp}` });
+});
+
+// ---------- DEBUG: Check if new-features.html exists ----------
+app.get('/debug-file', (req, res) => {
+  const fs = require('fs');
+  const filePath = path.join(__dirname, '../public/new-features.html');
+  fs.access(filePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      res.json({ exists: false, error: err.message, path: filePath });
+    } else {
+      res.json({ exists: true, path: filePath });
+    }
+  });
+});
+
+// ========== ADD MODULES TO BUSINESS (for testing) ==========
+app.post('/api/business/add-modules', requireBusiness, async (req, res) => {
+  const { modules } = req.body; // array of module keys to add
+  if (!modules || !Array.isArray(modules)) {
+    return res.status(400).json({ error: 'modules array required' });
+  }
+  let newModules = [...req.business.modules];
+  for (const mod of modules) {
+    if (!newModules.includes(mod)) newModules.push(mod);
+  }
+  await sql`
+    UPDATE businesses SET modules = ${newModules} WHERE id = ${req.business.id}
+  `;
+  res.json({ success: true, modules: newModules });
 });
 
 // ---------- SERVE NEW FEATURES TESTER PAGE ----------
