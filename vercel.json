@@ -5,9 +5,25 @@
     }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.js" },
-    { "source": "/new-features", "destination": "/api/index.js" },
-    { "source": "/docs", "destination": "/api/index.js" },
-    { "source": "/admin", "destination": "/api/index.js" }
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/new-features",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/docs",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/admin",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/success",
+      "destination": "/api/index.js"
+    }
   ]
 }
