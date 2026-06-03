@@ -1088,7 +1088,7 @@ app.get('/api/discovery/business/:id/whatsapp', requireBusiness, requireModule('
   res.json({ whatsappLink: `https://wa.me/${business.rows[0].whatsapp}` });
 });
 
-// Debug: check if new-features.html exists
+// ---------- DEBUG: Check if new-features.html exists ----------
 app.get('/debug-file', (req, res) => {
   const fs = require('fs');
   const filePath = path.join(__dirname, '../public/new-features.html');
@@ -1100,11 +1100,16 @@ app.get('/debug-file', (req, res) => {
     }
   });
 });
+
 // ---------- SERVE NEW FEATURES TESTER PAGE ----------
-app.get('/new-features', (req, res) => { res.sendFile(path.join(__dirname, '../public/new-features.html')); });
+app.get('/new-features', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/new-features.html'));
+});
 
 // ---------- CATCH-ALL ----------
-app.get('*', (req, res) => { res.sendFile(path.join(__dirname, '../public/index.html')); });
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
+});
 
 // ---------- LOCAL TEST SERVER ----------
 if (require.main === module) {
