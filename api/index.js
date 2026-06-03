@@ -349,6 +349,65 @@ app.post('/api/waitlist', async (req, res) => {
   res.json({ message: sent ? 'Added to waitlist and welcome email sent!' : 'Added to waitlist (but email could not be sent).' });
 });
 
+// ---------- LEMON SQUEEZY CHECKOUT ----------
+app.post('/api/create-ls-checkout', async (req, res) => {
+  const { email } = req.body;
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Valid email required' });
+  }
+  const LS_API_KEY = process.env.LEMONSQUEEZY_API_KEY;
+  const LS_STORE_ID = process.env.LEMONSQUEEZY_STORE_ID;
+  const LS_VARIANT_ID = process.env.LEMONSQUEEZY_VARIANT_ID;
+  if (!LS_API_KEY || !LS_STORE_ID || !LS_VARIANT_ID) {
+    console.error('Missing Lemon Squeezy environment variables');
+    return res.status(500).json({ error: 'Payment service not configured. Contact support.' });
+  }
+  try {
+    const response = await axios.post(
+      'https://api.lemonsqueezy.com/v1/checkouts',
+      {
+        data: {
+          type: 'checkouts',
+          attributes: {
+            checkout_data: { email, custom: { user_email: email } },
+            product_options: {
+              redirect_url: 'https://ba-kangombe.vercel.app/success',
+              receipt_button_text: 'Go to Dashboard',
+              receipt_link_url: 'https://ba-kangombe.vercel.app/dashboard'
+            },
+            checkout_options: {
+              embed: false,
+              media: false,
+              logo: false,
+              desc: false,
+              discount: true,
+              dark: false
+            }
+          },
+          relationships: {
+            store: { data: { type: 'stores', id: LS_STORE_ID } },
+            variant: { data: { type: 'variants', id: LS_VARIANT_ID } }
+          }
+        }
+      },
+      {
+        headers: {
+          Accept: 'application/vnd.api+json',
+          'Content-Type': 'application/vnd.api+json',
+          Authorization: `Bearer ${LS_API_KEY}`
+        },
+        timeout: 10000
+      }
+    );
+    const checkoutUrl = response.data.data.attributes.url;
+    if (!checkoutUrl) throw new Error('No checkout URL returned');
+    res.json({ url: checkoutUrl });
+  } catch (err) {
+    console.error('Lemon Squeezy checkout error:', err.response?.data || err.message);
+    res.status(500).json({ error: 'Checkout failed. Please try again later.' });
+  }
+});
+
 // ---------- LEMON SQUEEZY WEBHOOK (auto-create business & send API key) ----------
 app.post('/api/lemonsqueezy/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
@@ -360,14 +419,12 @@ app.post('/api/lemonsqueezy/webhook', express.raw({ type: 'application/json' }),
   const event = JSON.parse(req.body);
   const eventName = event.meta.event_name;
   console.log('Webhook received:', eventName);
-
-  // Handle both initial order and recurring payment success
   if (eventName === 'order_created' || eventName === 'subscription_payment_success') {
     let userEmail, customData;
     if (eventName === 'order_created') {
       userEmail = event.data.attributes.user_email || event.data.attributes.customer_email;
       customData = event.data.attributes.custom_data || {};
-    } else { // subscription_payment_success
+    } else {
       userEmail = event.data.attributes.user_email;
       customData = event.meta.custom_data || {};
     }
@@ -376,80 +433,22 @@ app.post('/api/lemonsqueezy/webhook', express.raw({ type: 'application/json' }),
       return res.status(400).json({ error: 'No user email' });
     }
     const businessName = customData.business_name || userEmail.split('@')[0];
-    
-    // Check if business already exists
     const existing = await sql`SELECT id, api_key FROM businesses WHERE email = ${userEmail}`;
     let apiKey;
     if (existing.rowCount > 0) {
       apiKey = existing.rows[0].api_key;
       console.log(`Business already exists for ${userEmail}`);
     } else {
-      // Create new business
       apiKey = crypto.randomBytes(32).toString('hex');
-      await sql`
-        INSERT INTO businesses (name, email, api_key, modules)
-        VALUES (${businessName}, ${userEmail}, ${apiKey}, ARRAY['website'])
-      `;
-      // Activate a default subscription (1 month)
+      await sql`INSERT INTO businesses (name, email, api_key, modules) VALUES (${businessName}, ${userEmail}, ${apiKey}, ARRAY['website'])`;
       const expiresAt = new Date();
       expiresAt.setMonth(expiresAt.getMonth() + 1);
-      await sql`
-        INSERT INTO subscriptions (business_id, plan, status, expires_at)
-        SELECT id, 'Pro', 'active', ${expiresAt}
-        FROM businesses WHERE api_key = ${apiKey}
-      `;
+      await sql`INSERT INTO subscriptions (business_id, plan, status, expires_at) SELECT id, 'Pro', 'active', ${expiresAt} FROM businesses WHERE api_key = ${apiKey}`;
       console.log(`Business created for ${userEmail} with API key ${apiKey}`);
     }
-    
-    // Send email with API key
     const apiKeyMessage = `Your API key: ${apiKey}\n\nYou can test your API at: https://ba-kangombe.vercel.app/new-features\nDocumentation: https://ba-kangombe.vercel.app/docs`;
     await sendEmail(userEmail, 'Your BaKangombe API Key', `<html><body><h2>Thank you for subscribing!</h2><p>${apiKeyMessage.replace(/\n/g, '<br>')}</p><p>– BaKangombe Team</p></body></html>`);
     console.log(`API key email sent to ${userEmail}`);
-  }
-  res.json({ received: true });
-});
-
-// ---------- LEMON SQUEEZY WEBHOOK (auto-create business & send API key) ----------
-app.post('/api/lemonsqueezy/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
-  const signature = req.headers['x-signature'];
-  if (secret && signature !== crypto.createHmac('sha256', secret).update(req.body).digest('hex')) {
-    return res.status(401).json({ error: 'Invalid signature' });
-  }
-  const event = JSON.parse(req.body);
-  if (event.meta.event_name === 'order_created') {
-    const order = event.data.attributes;
-    const userEmail = order.attributes.user_email || order.attributes.customer_email;
-    const customData = order.attributes.custom_data || {};
-    const businessName = customData.business_name || userEmail.split('@')[0];
-    
-    // Check if business already exists
-    const existing = await sql`SELECT id, api_key FROM businesses WHERE email = ${userEmail}`;
-    let apiKey;
-    if (existing.rowCount > 0) {
-      apiKey = existing.rows[0].api_key;
-    } else {
-      // Create new business
-      apiKey = crypto.randomBytes(32).toString('hex');
-      await sql`
-        INSERT INTO businesses (name, email, api_key, modules)
-        VALUES (${businessName}, ${userEmail}, ${apiKey}, ARRAY['website'])
-      `;
-      // Activate a default subscription (1 month)
-      const expiresAt = new Date();
-      expiresAt.setMonth(expiresAt.getMonth() + 1);
-      await sql`
-        INSERT INTO subscriptions (business_id, plan, status, expires_at)
-        SELECT id, 'Pro', 'active', ${expiresAt}
-        FROM businesses WHERE api_key = ${apiKey}
-      `;
-    }
-    
-    // Send email with API key
-    const apiKeyMessage = `Your API key: ${apiKey}\n\nYou can test your API at: https://ba-kangombe.vercel.app/new-features\nDocumentation: https://ba-kangombe.vercel.app/docs`;
-    await sendEmail(userEmail, 'Your BaKangombe API Key', `<html><body><h2>Thank you for subscribing!</h2><p>${apiKeyMessage.replace(/\n/g, '<br>')}</p><p>– BaKangombe Team</p></body></html>`);
-    
-    console.log(`Business created for ${userEmail} with API key ${apiKey}`);
   }
   res.json({ received: true });
 });
@@ -459,17 +458,10 @@ app.post('/api/test-webhook', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Email required' });
   const apiKey = crypto.randomBytes(32).toString('hex');
-  await sql`
-    INSERT INTO businesses (name, email, api_key, modules)
-    VALUES (${email.split('@')[0]}, ${email}, ${apiKey}, ARRAY['website'])
-  `;
+  await sql`INSERT INTO businesses (name, email, api_key, modules) VALUES (${email.split('@')[0]}, ${email}, ${apiKey}, ARRAY['website'])`;
   const expiresAt = new Date();
   expiresAt.setMonth(expiresAt.getMonth() + 1);
-  await sql`
-    INSERT INTO subscriptions (business_id, plan, status, expires_at)
-    SELECT id, 'Pro', 'active', ${expiresAt}
-    FROM businesses WHERE api_key = ${apiKey}
-  `;
+  await sql`INSERT INTO subscriptions (business_id, plan, status, expires_at) SELECT id, 'Pro', 'active', ${expiresAt} FROM businesses WHERE api_key = ${apiKey}`;
   await sendEmail(email, 'Your BaKangombe API Key (Test)', `<html><body><h2>Test API Key</h2><p>${apiKey}</p></body></html>`);
   res.json({ success: true, apiKey });
 });
@@ -535,10 +527,7 @@ app.post('/api/subscription/activate', requireBusiness, async (req, res) => {
   const { plan } = req.body;
   const expiresAt = new Date();
   expiresAt.setMonth(expiresAt.getMonth() + 1);
-  await sql`
-    INSERT INTO subscriptions (business_id, plan, status, expires_at)
-    VALUES (${req.business.id}, ${plan}, 'active', ${expiresAt})
-  `;
+  await sql`INSERT INTO subscriptions (business_id, plan, status, expires_at) VALUES (${req.business.id}, ${plan}, 'active', ${expiresAt})`;
   res.json({ success: true, plan, expiresAt });
 });
 
@@ -547,28 +536,15 @@ app.post('/api/system/create', requireBusiness, async (req, res) => {
   const selected = SERVICE_CATALOG[service];
   if (!selected) return res.status(400).json({ error: 'Unknown service' });
   const dashboardUrl = `/dashboard/${req.business.id}/${service}`;
-  await sql`
-    INSERT INTO business_services (business_id, service_key, service_name, modules)
-    VALUES (${req.business.id}, ${service}, ${selected.name}, ${selected.modules})
-  `;
-  await sql`
-    INSERT INTO generated_systems (business_id, system_name, system_type, dashboard_url)
-    VALUES (${req.business.id}, ${selected.name}, ${service}, ${dashboardUrl})
-  `;
+  await sql`INSERT INTO business_services (business_id, service_key, service_name, modules) VALUES (${req.business.id}, ${service}, ${selected.name}, ${selected.modules})`;
+  await sql`INSERT INTO generated_systems (business_id, system_name, system_type, dashboard_url) VALUES (${req.business.id}, ${selected.name}, ${service}, ${dashboardUrl})`;
   let newModules = [...req.business.modules];
   for (const mod of selected.modules) {
     if (!newModules.includes(mod)) newModules.push(mod);
   }
-  await sql`
-    UPDATE businesses SET modules = ${newModules} WHERE id = ${req.business.id}
-  `;
+  await sql`UPDATE businesses SET modules = ${newModules} WHERE id = ${req.business.id}`;
   req.business.modules = newModules;
-  res.json({
-    success: true,
-    system: selected.name,
-    modules: selected.modules,
-    dashboardUrl
-  });
+  res.json({ success: true, system: selected.name, modules: selected.modules, dashboardUrl });
 });
 
 app.get('/api/system/list', requireBusiness, async (req, res) => {
@@ -583,27 +559,15 @@ app.post('/api/system/bundle', requireBusiness, (req, res) => {
   res.json({ success: true, bundle, services });
 });
 
-// ---------- ENRICHMENT (now requireBusiness is defined) ----------
+// ---------- ENRICHMENT ----------
 const HUNTER_API_KEY = process.env.HUNTER_API_KEY;
 app.post('/api/enrich', requireBusiness, async (req, res) => {
   const { email } = req.body;
-  if (!email || !email.includes('@')) {
-    return res.status(400).json({ error: 'Valid email required' });
-  }
-  if (!HUNTER_API_KEY) {
-    return res.status(500).json({ error: 'Enrichment service not configured. Contact support.' });
-  }
+  if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
+  if (!HUNTER_API_KEY) return res.status(500).json({ error: 'Enrichment service not configured. Contact support.' });
   try {
-    const sub = await sql`
-      SELECT * FROM subscriptions
-      WHERE business_id = ${req.business.id}
-        AND status = 'active'
-        AND expires_at > NOW()
-      LIMIT 1
-    `;
-    if (sub.rowCount === 0) {
-      return res.status(402).json({ error: 'Active subscription required for enrichment. Please subscribe.' });
-    }
+    const sub = await sql`SELECT * FROM subscriptions WHERE business_id = ${req.business.id} AND status = 'active' AND expires_at > NOW() LIMIT 1`;
+    if (sub.rowCount === 0) return res.status(402).json({ error: 'Active subscription required for enrichment. Please subscribe.' });
   } catch (err) {
     if (!err.message.includes('relation "subscriptions" does not exist')) {
       console.error('Subscription check error:', err.message);
@@ -627,14 +591,11 @@ app.post('/api/enrich', requireBusiness, async (req, res) => {
     });
   } catch (err) {
     console.error('Hunter API error:', err.response?.data || err.message);
-    res.status(500).json({
-      error: 'Enrichment failed. Check Hunter API key or try again later.',
-      details: err.response?.data?.message || err.message
-    });
+    res.status(500).json({ error: 'Enrichment failed. Check Hunter API key or try again later.', details: err.response?.data?.message || err.message });
   }
 });
 
-// ---------- WEBSITE BUILDER (now requireBusiness is defined) ----------
+// ---------- WEBSITE BUILDER ----------
 app.post('/api/website/generate', requireBusiness, async (req, res) => {
   const { template = 'landing', title = 'My Site', content = 'Welcome!' } = req.body;
   if (!req.business.modules.includes('website')) {
@@ -658,11 +619,7 @@ app.post('/api/feedback', async (req, res) => {
   let feedbackId = null;
   if (dbReady) {
     try {
-      const result = await sql`
-        INSERT INTO feedback (name, email, message, user_agent)
-        VALUES (${name}, ${email}, ${message}, ${req.headers['user-agent']})
-        RETURNING id
-      `;
+      const result = await sql`INSERT INTO feedback (name, email, message, user_agent) VALUES (${name}, ${email}, ${message}, ${req.headers['user-agent']}) RETURNING id`;
       feedbackId = result.rows[0].id;
     } catch (err) { console.error(err); }
   }
@@ -722,10 +679,7 @@ app.post('/api/admin/respond', verifyAdminToken, async (req, res) => {
   if (!feedbackId || !replyMessage || !userEmail) return res.status(400).json({ error: 'Missing fields' });
   if (dbReady) {
     try {
-      await sql`
-        INSERT INTO feedback_responses (feedback_id, reply_message, replied_by)
-        VALUES (${feedbackId}, ${replyMessage}, ${req.adminEmail})
-      `;
+      await sql`INSERT INTO feedback_responses (feedback_id, reply_message, replied_by) VALUES (${feedbackId}, ${replyMessage}, ${req.adminEmail})`;
     } catch (err) { console.error(err); }
   }
   const html = `<html><body><h2>Response from BaKangombe Support</h2><p>Hello ${userName || 'Valued User'},</p><p>${replyMessage}</p><p>– BaKangombe Team</p></body></html>`;
@@ -818,210 +772,39 @@ app.get('/docs', (req, res) => {
   <title>BaKangombe · Complete API Documentation</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; scroll-behavior: smooth; }
-    body {
-      background: #f5f2e8;
-      color: #1e1a16;
-      font-family: 'Georgia', 'Times New Roman', Times, serif;
-      line-height: 1.7;
-    }
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 2rem;
-      background: #fffef7;
-      box-shadow: 0 0 30px rgba(0,0,0,0.05);
-    }
-    /* Navigation */
-    .nav-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 1rem;
-      padding-bottom: 1rem;
-      margin-bottom: 2rem;
-      border-bottom: 1px solid #e2dcd0;
-      font-family: system-ui, -apple-system, sans-serif;
-    }
-    .logo {
-      font-size: 1.6rem;
-      font-weight: 700;
-      background: linear-gradient(135deg, #8b5a2b, #c49a6c);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
-    .nav-links {
-      display: flex;
-      gap: 1.5rem;
-    }
-    .nav-links a {
-      text-decoration: none;
-      color: #5a3e2b;
-      font-weight: 500;
-      transition: color 0.2s;
-    }
-    .nav-links a:hover {
-      color: #8b5a2b;
-    }
-    /* Table of Contents - Sticky */
-    .toc-container {
-      position: sticky;
-      top: 2rem;
-      float: right;
-      width: 280px;
-      margin-left: 2rem;
-      margin-bottom: 2rem;
-      background: #faf8f3;
-      border-left: 4px solid #c49a6c;
-      padding: 1rem;
-      font-family: system-ui, sans-serif;
-      font-size: 0.9rem;
-      border-radius: 0 8px 8px 0;
-    }
-    .toc-container h2 {
-      font-size: 1.2rem;
-      margin-bottom: 0.5rem;
-      font-weight: 600;
-    }
-    .toc-container ul {
-      list-style: none;
-      max-height: 80vh;
-      overflow-y: auto;
-    }
-    .toc-container li {
-      margin: 0.5rem 0;
-    }
-    .toc-container a {
-      text-decoration: none;
-      color: #5a3e2b;
-      display: block;
-      padding: 0.2rem 0;
-      transition: 0.2s;
-    }
-    .toc-container a:hover {
-      color: #8b5a2b;
-      text-decoration: underline;
-    }
-    /* Main content – clear float */
-    .main-content {
-      overflow: hidden;
-    }
-    h1, h2, h3 {
-      font-weight: normal;
-      letter-spacing: -0.3px;
-      margin-top: 2rem;
-    }
-    h1 {
-      font-size: 2.8rem;
-      margin-top: 0;
-    }
-    h2 {
-      font-size: 1.8rem;
-      border-bottom: 1px solid #e2dcd0;
-      padding-bottom: 0.3rem;
-      margin-top: 2rem;
-    }
-    h3 {
-      font-size: 1.4rem;
-      margin: 1.5rem 0 0.5rem;
-      color: #4a3724;
-    }
-    .endpoint {
-      margin: 1.5rem 0;
-      padding: 1rem 1.5rem;
-      background: #fefcf8;
-      border-left: 3px solid #c49a6c;
-      border-radius: 0 8px 8px 0;
-    }
-    .method {
-      display: inline-block;
-      background: #2c5f2d;
-      color: white;
-      font-family: monospace;
-      font-size: 0.7rem;
-      padding: 0.2rem 0.6rem;
-      border-radius: 20px;
-      margin-right: 0.8rem;
-      vertical-align: middle;
-    }
+    body { background: #f5f2e8; color: #1e1a16; font-family: 'Georgia', 'Times New Roman', Times, serif; line-height: 1.7; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 2rem; background: #fffef7; box-shadow: 0 0 30px rgba(0,0,0,0.05); }
+    .nav-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; padding-bottom: 1rem; margin-bottom: 2rem; border-bottom: 1px solid #e2dcd0; font-family: system-ui, -apple-system, sans-serif; }
+    .logo { font-size: 1.6rem; font-weight: 700; background: linear-gradient(135deg, #8b5a2b, #c49a6c); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .nav-links { display: flex; gap: 1.5rem; }
+    .nav-links a { text-decoration: none; color: #5a3e2b; font-weight: 500; transition: color 0.2s; }
+    .nav-links a:hover { color: #8b5a2b; }
+    .toc-container { position: sticky; top: 2rem; float: right; width: 280px; margin-left: 2rem; margin-bottom: 2rem; background: #faf8f3; border-left: 4px solid #c49a6c; padding: 1rem; font-family: system-ui, sans-serif; font-size: 0.9rem; border-radius: 0 8px 8px 0; }
+    .toc-container h2 { font-size: 1.2rem; margin-bottom: 0.5rem; font-weight: 600; }
+    .toc-container ul { list-style: none; max-height: 80vh; overflow-y: auto; }
+    .toc-container li { margin: 0.5rem 0; }
+    .toc-container a { text-decoration: none; color: #5a3e2b; display: block; padding: 0.2rem 0; transition: 0.2s; }
+    .toc-container a:hover { color: #8b5a2b; text-decoration: underline; }
+    .main-content { overflow: hidden; }
+    h1, h2, h3 { font-weight: normal; letter-spacing: -0.3px; margin-top: 2rem; }
+    h1 { font-size: 2.8rem; margin-top: 0; }
+    h2 { font-size: 1.8rem; border-bottom: 1px solid #e2dcd0; padding-bottom: 0.3rem; margin-top: 2rem; }
+    h3 { font-size: 1.4rem; margin: 1.5rem 0 0.5rem; color: #4a3724; }
+    .endpoint { margin: 1.5rem 0; padding: 1rem 1.5rem; background: #fefcf8; border-left: 3px solid #c49a6c; border-radius: 0 8px 8px 0; }
+    .method { display: inline-block; background: #2c5f2d; color: white; font-family: monospace; font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 20px; margin-right: 0.8rem; vertical-align: middle; }
     .method.free { background: #2c5f2d; }
     .method.premium { background: #b76e2e; }
-    .path {
-      font-family: 'SF Mono', monospace;
-      font-size: 1rem;
-    }
-    pre {
-      background: #2d2a24;
-      color: #f5e6d3;
-      padding: 0.8rem;
-      border-radius: 8px;
-      overflow-x: auto;
-      font-size: 0.85rem;
-      margin: 0.8rem 0;
-    }
-    code {
-      font-family: 'SF Mono', monospace;
-      background: #f0ede8;
-      padding: 0.2rem 0.4rem;
-      border-radius: 4px;
-      font-size: 0.9rem;
-      color: #3b2a1f;
-    }
-    .copy-btn {
-      background: #e2dcd0;
-      border: none;
-      padding: 0.2rem 0.7rem;
-      border-radius: 20px;
-      font-size: 0.7rem;
-      cursor: pointer;
-      margin-left: 0.5rem;
-    }
-    .copy-btn:hover {
-      background: #c49a6c;
-      color: white;
-    }
-    .diagram {
-      background: #fef8ef;
-      border: 1px dashed #c49a6c;
-      padding: 1rem;
-      margin: 1rem 0;
-      font-family: monospace;
-      white-space: pre;
-      overflow-x: auto;
-      font-size: 0.8rem;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 1rem 0;
-    }
-    th, td {
-      border: 1px solid #e2dcd0;
-      padding: 0.5rem;
-      text-align: left;
-    }
-    th {
-      background: #faf8f3;
-      font-weight: 600;
-    }
-    footer {
-      margin-top: 3rem;
-      text-align: center;
-      font-size: 0.8rem;
-      color: #9b8a7a;
-      border-top: 1px solid #e2dcd0;
-      padding-top: 2rem;
-      clear: both;
-    }
-    @media (max-width: 900px) {
-      .toc-container {
-        float: none;
-        width: 100%;
-        margin: 0 0 2rem 0;
-        position: static;
-      }
-    }
+    .path { font-family: monospace; font-size: 1rem; }
+    pre { background: #2d2a24; color: #f5e6d3; padding: 0.8rem; border-radius: 8px; overflow-x: auto; font-size: 0.85rem; margin: 0.8rem 0; }
+    code { font-family: monospace; background: #f0ede8; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.9rem; color: #3b2a1f; }
+    .copy-btn { background: #e2dcd0; border: none; padding: 0.2rem 0.7rem; border-radius: 20px; font-size: 0.7rem; cursor: pointer; margin-left: 0.5rem; }
+    .copy-btn:hover { background: #c49a6c; color: white; }
+    .diagram { background: #fef8ef; border: 1px dashed #c49a6c; padding: 1rem; margin: 1rem 0; font-family: monospace; white-space: pre; overflow-x: auto; font-size: 0.8rem; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+    th, td { border: 1px solid #e2dcd0; padding: 0.5rem; text-align: left; }
+    th { background: #faf8f3; font-weight: 600; }
+    footer { margin-top: 3rem; text-align: center; font-size: 0.8rem; color: #9b8a7a; border-top: 1px solid #e2dcd0; padding-top: 2rem; clear: both; }
+    @media (max-width: 900px) { .toc-container { float: none; width: 100%; margin: 0 0 2rem 0; position: static; } }
   </style>
 </head>
 <body>
@@ -1037,7 +820,6 @@ app.get('/docs', (req, res) => {
       <a href="https://github.com/KernelBornie/BaKangombe" target="_blank">GitHub</a>
     </div>
   </div>
-
   <div class="toc-container">
     <h2>📖 Contents</h2>
     <ul>
@@ -1068,12 +850,10 @@ app.get('/docs', (req, res) => {
       <li><a href="#errors">❌ Error Codes</a></li>
     </ul>
   </div>
-
   <div class="main-content">
     <h1>BaKangombe</h1>
     <p style="font-size:1.2rem">Complete API Reference · Email Validation & 16 Business Systems</p>
     <p>BaKangombe is a unified platform that provides email intelligence (validation, enrichment, disposable detection, domain scoring) and a full suite of 16 ready‑to‑use business modules. Whether you're a startup, an enterprise, or a developer, you can integrate any of these modules via a single API key and start building immediately.</p>
-
     <h2 id="auth">🔐 Authentication & Rate Limits</h2>
     <p>All endpoints except <code>/api/validate</code> and <code>/api/feedback</code> require a valid <code>X-API-Key</code> header containing your business API key. This ensures that your data is isolated and secure.</p>
     <pre><code>X-API-Key: your_business_api_key</code></pre>
@@ -1081,29 +861,20 @@ app.get('/docs', (req, res) => {
     <h3>Rate Limits</h3>
     <table>
       <thead><tr><th>Plan</th><th>Requests per minute</th><th>Monthly cap</th></tr></thead>
-      <tbody>
-        <tr><td>Free</td><td>100</td><td>Unlimited</td></tr>
-        <tr><td>Premium</td><td>10,000</td><td>300,000</td></tr>
-      </tbody>
+      <tbody><tr><td>Free</td><td>100</td><td>Unlimited</td></tr><tr><td>Premium</td><td>10,000</td><td>300,000</td></tr></tbody>
     </table>
     <p>When you exceed the limit, the API returns HTTP 429 with a <code>Retry-After</code> header. We recommend implementing exponential backoff in your clients.</p>
 
     <h2 id="email">📧 Email Validation & Enrichment</h2>
     <p>These endpoints are the core of BaKangombe's email intelligence. They use advanced DNS checks, real‑time MX lookups, and (for enrichment) the Hunter.io API to return verified company and person data.</p>
-    
     <div class="endpoint"><h3><span class="method free">POST</span> <span class="path">/api/validate</span></h3><p>Validates a single email address. Checks syntax, MX records, disposable domain, and free provider status. Returns a quality score (0–100). No API key required.</p><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/validate -H "Content-Type: application/json" -d '{"email":"user@example.com"}'</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/validate -H \"Content-Type: application/json\" -d \'{\"email\":\"user@example.com\"}\'')">Copy</button></div>
-    
     <div class="endpoint"><h3><span class="method premium">POST</span> <span class="path">/api/enrich</span></h3><p>Enriches an email with company/person data (name, company, verification status). Requires an active subscription and a valid Hunter.io API key on the server.</p><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/enrich -H "X-API-Key: YOUR_KEY" -H "Content-Type: application/json" -d '{"email":"bill@microsoft.com"}'</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/enrich -H \"X-API-Key: YOUR_KEY\" -H \"Content-Type: application/json\" -d \'{\"email\":\"bill@microsoft.com\"}\'')">Copy</button></div>
-    
     <div class="endpoint"><h3><span class="method premium">POST</span> <span class="path">/api/disposable</span></h3><p>Checks if an email domain is disposable (e.g., mailinator.com). Useful to block temporary signups.</p><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/disposable -H "X-API-Key: YOUR_KEY" -d '{"email":"temp@mailinator.com"}'</code></pre></div>
-    
     <div class="endpoint"><h3><span class="method premium">POST</span> <span class="path">/api/domain/score</span></h3><p>Returns SPF, DKIM and DMARC status and a security score (0–100) for any domain. Helps assess email deliverability.</p><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/domain/score -H "X-API-Key: YOUR_KEY" -d '{"domain":"github.com"}'</code></pre></div>
-    
     <div class="endpoint"><h3><span class="method premium">POST</span> <span class="path">/api/validate/batch</span></h3><p>Upload a CSV file where the first column contains email addresses. Returns validation results for every row. Ideal for cleaning large lists.</p><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/validate/batch -H "X-API-Key: YOUR_KEY" -F "file=@emails.csv"</code></pre></div>
 
     <h2 id="business">🏢 Business Management</h2>
     <p>These endpoints handle business registration, subscription management, and system activation. They are the entry point for any customer.</p>
-    
     <div class="endpoint"><h3><span class="method">POST</span> <span class="path">/api/business/register</span></h3><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/business/register -H "Content-Type: application/json" -d '{"name":"My Business","email":"contact@example.com"}'</code></pre></div>
     <div class="endpoint"><h3><span class="method">POST</span> <span class="path">/api/subscription/activate</span></h3><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/subscription/activate -H "X-API-Key: YOUR_KEY" -d '{"plan":"Pro"}'</code></pre><p>Activates a monthly subscription. The expires_at field is set to one month from now.</p></div>
     <div class="endpoint"><h3><span class="method">POST</span> <span class="path">/api/system/create</span></h3><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/system/create -H "X-API-Key: YOUR_KEY" -d '{"service":"clinic"}'</code></pre><p>Available services: <code>business_management</code>, <code>mobile_money</code>, <code>ecommerce</code>, <code>ai_chatbot</code>, <code>clinic</code>, <code>agritech</code>, <code>freelance</code>, <code>discovery</code>, <code>website_builder</code>. This endpoint enables the required modules for the chosen system.</p></div>
@@ -1111,79 +882,40 @@ app.get('/docs', (req, res) => {
 
     <h2 id="modules">📦 The 16 Business Modules</h2>
     <p>Each module is a complete sub‑system that you can enable via <code>/api/system/create</code>. All endpoints require the corresponding module key (e.g., <code>'momo'</code>, <code>'invoice'</code>, <code>'clinic'</code>) and are secured by the <code>requireModule</code> middleware.</p>
-    
-    <!-- Module 1: Mobile Money -->
     <h3 id="mod1">1. Mobile Money <code>momo</code></h3>
     <p>Simulate mobile money transfers and requests. All transactions are stored per business and can be listed.</p>
     <ul><li><code>POST /api/momo/transfer</code> – send money (amount, phone, provider)</li><li><code>POST /api/momo/request</code> – request money</li><li><code>GET /api/momo/transactions</code> – list all transactions</li></ul>
-    <div class="diagram">
-      Mobile Money flow:
-      Customer A → POST /momo/transfer → transaction created (status processing) → after 2 seconds → status completed.
-    </div>
-
+    <div class="diagram">Mobile Money flow: Customer A → POST /momo/transfer → transaction created (status processing) → after 2 seconds → status completed.</div>
     <h3 id="mod2">2. Invoice & ZRA Billing <code>invoice</code></h3>
-    <p>Create, pay and export invoices. Each invoice can have multiple items and tracks payment status.</p>
     <ul><li><code>POST /api/invoice/create</code></li><li><code>PUT /api/invoice/:id/pay</code></li><li><code>GET /api/invoice/export/csv</code></li></ul>
-
     <h3 id="mod3">3. WhatsApp Mini E‑commerce <code>whatsapp</code></h3>
-    <p>Manage products and generate WhatsApp checkout links. Perfect for informal sellers.</p>
-    <ul><li><code>POST /api/whatsapp/product</code></li><li><code>GET /api/whatsapp/products</code></li><li><code>POST /api/whatsapp/order</code></li><li><code>GET /api/whatsapp/order/:id/checkout</code> – returns a wa.me link with the order details.</li></ul>
-
+    <ul><li><code>POST /api/whatsapp/product</code></li><li><code>GET /api/whatsapp/products</code></li><li><code>POST /api/whatsapp/order</code></li><li><code>GET /api/whatsapp/order/:id/checkout</code></li></ul>
     <h3 id="mod4">4. Logistics & Delivery <code>logistics</code></h3>
-    <p>Optimise routes, assign drivers and track them (mock implementation with static coordinates).</p>
     <ul><li><code>POST /api/logistics/route</code></li><li><code>POST /api/logistics/driver/assign</code></li><li><code>GET /api/logistics/driver/:id/track</code></li></ul>
-
     <h3 id="mod5">5. Agritech Marketplace <code>agritech</code></h3>
-    <p>Connect farmers with buyers. Farmers list crops and prices; buyers can match with available crops.</p>
-    <ul><li><code>POST /api/agritech/farmer</code></li><li><code>GET /api/agritech/farmers</code></li><li><code>POST /api/agritech/buyer/match</code></li><li><code>GET /api/agritech/price/intelligence</code> – returns static commodity prices (maize, soy, groundnuts).</li></ul>
-    <div class="diagram">
-      Agritech flow:
-      Farmer (name, crop, price, location) → POST /farmer → stored.
-      Buyer → POST /buyer/match?crop=maize&maxPrice=200 → returns matching farmers.
-    </div>
-
+    <ul><li><code>POST /api/agritech/farmer</code></li><li><code>GET /api/agritech/farmers</code></li><li><code>POST /api/agritech/buyer/match</code></li><li><code>GET /api/agritech/price/intelligence</code></li></ul>
+    <div class="diagram">Agritech flow: Farmer (name, crop, price, location) → POST /farmer → stored. Buyer → POST /buyer/match?crop=maize&maxPrice=200 → returns matching farmers.</div>
     <h3 id="mod6">6. AI Customer Support <code>ai</code></h3>
-    <p>Train a simple FAQ bot. You can feed question–answer pairs and then ask questions.</p>
     <ul><li><code>POST /api/ai/chat</code></li><li><code>POST /api/ai/train</code></li></ul>
-
     <h3 id="mod7">7. Micro‑Lending <code>lending</code></h3>
-    <p>Calculate credit scores (based on income, debt and history) and check loan eligibility.</p>
     <ul><li><code>POST /api/lending/score</code></li><li><code>POST /api/lending/eligibility</code></li></ul>
-
     <h3 id="mod8">8. SME Dashboard <code>sme</code></h3>
-    <p>Record sales and expenses, then get profit, revenue and costs.</p>
     <ul><li><code>POST /api/sme/sale</code></li><li><code>POST /api/sme/expense</code></li><li><code>GET /api/sme/profit</code></li></ul>
-
     <h3 id="mod9">9. Inventory & POS <code>inventory</code></h3>
-    <p>Manage products (add, list, update stock) and record point‑of‑sale sales. Low stock alerts (stock <5).</p>
     <ul><li><code>POST /api/inventory/product</code></li><li><code>PUT /api/inventory/stock</code></li><li><code>GET /api/inventory/alerts</code></li><li><code>GET /api/inventory/products</code></li><li><code>POST /api/pos/sale</code></li></ul>
-
     <h3 id="mod10">10. Social Ads <code>social_ads</code></h3>
-    <p>Create ad campaigns, update budgets and track total leads.</p>
     <ul><li><code>POST /api/social/ad/create</code></li><li><code>POST /api/social/ad/budget</code></li><li><code>GET /api/social/leads</code></li><li><code>GET /api/social/ads</code></li></ul>
-
     <h3 id="mod11">11. Freelance Marketplace <code>freelance</code></h3>
-    <p>Post services, create orders, and release escrow. Simple escrow simulation.</p>
     <ul><li><code>POST /api/freelance/service</code></li><li><code>GET /api/freelance/services</code></li><li><code>POST /api/freelance/order</code></li><li><code>POST /api/freelance/escrow</code></li><li><code>GET /api/freelance/orders</code></li></ul>
-
     <h3 id="mod12">12. Clinic Management <code>clinic</code></h3>
-    <p>Register patients, schedule appointments, and generate random bills.</p>
     <ul><li><code>POST /api/clinic/patient</code></li><li><code>GET /api/clinic/patients</code></li><li><code>POST /api/clinic/appointment</code></li><li><code>GET /api/clinic/appointments</code></li><li><code>GET /api/clinic/patient/:id/bill</code></li></ul>
-
     <h3 id="mod13">13. Identity Verification (KYC) <code>kyc</code></h3>
-    <p>Mock ID and phone verification (basic length checks).</p>
     <ul><li><code>POST /api/kyc/id</code></li><li><code>POST /api/kyc/phone</code></li></ul>
-
     <h3 id="mod14">14. E‑commerce BaaS <code>ecommerce</code></h3>
-    <p>Full e‑commerce backend: products, orders, payments.</p>
     <ul><li><code>POST /api/ecommerce/product</code></li><li><code>GET /api/ecommerce/products</code></li><li><code>POST /api/ecommerce/order</code></li><li><code>GET /api/ecommerce/orders</code></li><li><code>POST /api/ecommerce/payment</code></li></ul>
-
     <h3 id="mod15">15. AI Tutoring <code>tutor</code></h3>
-    <p>Simple Q&A for educational purposes. Answers algebra questions and provides a static curriculum.</p>
     <ul><li><code>POST /api/tutor/chat</code></li><li><code>GET /api/tutor/curriculum</code></li></ul>
-
     <h3 id="mod16">16. Local Business Discovery <code>discovery</code></h3>
-    <p>Add business listings, search by category, leave reviews, and get WhatsApp links.</p>
     <ul><li><code>POST /api/discovery/business</code></li><li><code>GET /api/discovery/businesses</code></li><li><code>POST /api/discovery/review</code></li><li><code>GET /api/discovery/business/:id/whatsapp</code></li></ul>
 
     <h2 id="feedback">📝 Feedback & Waitlist</h2>
@@ -1207,7 +939,6 @@ app.get('/docs', (req, res) => {
     <h2>🔧 Interactive Testing</h2>
     <p>Visit <a href="/new-features">/new-features</a> for a full UI where you can register, activate modules, and test every endpoint live. The tester uses the same API key and shows real‑time responses.</p>
   </div>
-
   <footer>
     <p>Built by <strong>Bornface Kangombe Kernel</strong> – developer, creator, founder.</p>
     <p><a href="/docs">Documentation</a> · <a href="https://github.com/KernelBornie/BaKangombe">GitHub</a> · <a href="/new-features">Live Demo</a></p>
