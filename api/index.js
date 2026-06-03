@@ -15,7 +15,9 @@ const crypto = require('crypto');
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+
+// Serve static files from the public folder (one level up from api)
+app.use(express.static(path.join(__dirname, '../public')));
 
 // ---------- Vercel Postgres (graceful fallback) ----------
 let dbReady = false;
@@ -729,7 +731,11 @@ app.get('/api/admin/feedback/:id/responses', verifyAdminToken, async (req, res) 
   }
   res.json({ responses: [] });
 });
-app.get('/admin', (req, res) => { res.sendFile(path.join(__dirname, '../public/admin.html')); });
+
+// Admin page (static HTML)
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/admin.html'));
+});
 
 // ---------- HEALTH CHECK ENDPOINT ----------
 app.get('/api/health', async (req, res) => {
@@ -1154,4 +1160,64 @@ app.get('/docs', (req, res) => {
     <table>
       <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
       <tbody>
-        <tr><td>400</td><td
+        <tr><td>400</td><td>Bad request – missing or invalid JSON</td></tr>
+        <tr><td>401</td><td>Unauthorized – API key missing or invalid</td></tr>
+        <tr><td>402</td><td>Payment required – subscription needed for enrichment</td></tr>
+        <tr><td>403</td><td>Forbidden – module not enabled for this business</td></tr>
+        <tr><td>404</td><td>Not found – resource does not exist</td></tr>
+        <tr><td>429</td><td>Rate limit exceeded</td></tr>
+        <tr><td>500</td><td>Internal server error – check logs</td></tr>
+      </tbody>
+    </table>
+
+    <h2>🔧 Interactive Testing</h2>
+    <p>Visit <a href="/new-features">/new-features</a> for a full UI where you can register, activate modules, and test every endpoint live. The tester uses the same API key and shows real‑time responses.</p>
+  </div>
+
+  <footer>
+    <p>Built by <strong>Bornface Kangombe Kernel</strong> – developer, creator, founder.</p>
+    <p><a href="/docs">Documentation</a> · <a href="https://github.com/KernelBornie/BaKangombe">GitHub</a> · <a href="/new-features">Live Demo</a></p>
+  </footer>
+</div>
+<script>
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text);
+    const toast = document.createElement('div');
+    toast.innerText = '✓ Copied to clipboard';
+    toast.style.position = 'fixed';
+    toast.style.bottom = '20px';
+    toast.style.right = '20px';
+    toast.style.background = '#2c5f2d';
+    toast.style.color = 'white';
+    toast.style.padding = '0.5rem 1rem';
+    toast.style.borderRadius = '2rem';
+    toast.style.fontSize = '0.8rem';
+    toast.style.zIndex = '1000';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+  }
+</script>
+</body>
+</html>`);
+});
+
+// ---------- SERVE NEW FEATURES TESTER PAGE ----------
+app.get('/new-features', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/new-features.html'));
+});
+
+// ---------- CATCH-ALL ----------
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
+});
+
+// ---------- LOCAL TEST SERVER ----------
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`🚀 BaKangombe local server running on http://localhost:${PORT}`);
+    console.log(`📖 Test endpoints: http://localhost:${PORT}/api/validate`);
+    console.log(`💰 Multi‑tenant features: /api/momo/transfer, etc. (require API key and module permissions)`);
+  });
+}
+module.exports = app;
