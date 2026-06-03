@@ -55,6 +55,19 @@
     .card { background: rgba(255,255,255,0.02); backdrop-filter: blur(8px); border-radius: 1.5rem; padding: 1.8rem; border: 1px solid rgba(255,255,255,0.05); transition: 0.3s; }
     .card:hover { border-color: rgba(79,70,229,0.5); transform: translateY(-6px); background: rgba(255,255,255,0.04); }
     .card h3 { font-size: 1.6rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+    .api-section {
+      background: rgba(79,70,229,0.15);
+      border-radius: 1.5rem;
+      padding: 1.5rem;
+      margin: 2rem 0;
+      border: 1px solid rgba(79,70,229,0.3);
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .api-section input { flex: 2; margin: 0; }
+    .api-section button { margin: 0; }
     .tester-card {
       background: rgba(255,255,255,0.03);
       border-radius: 1.5rem;
@@ -107,7 +120,7 @@
     .feature-list li { margin: 0.75rem 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
     .cta-card { text-align: center; background: linear-gradient(135deg, rgba(79,70,229,0.15), rgba(79,70,229,0.05)); border: 1px solid rgba(79,70,229,0.3); border-radius: 2rem; padding: 2.5rem; margin: 3rem 0; }
     .input-group { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; margin: 1.5rem 0; }
-    input { padding: 0.75rem 1.2rem; border-radius: 3rem; border: 1px solid rgba(255,255,255,0.2); background: #0f1117; color: white; width: 280px; }
+    input, textarea { padding: 0.75rem 1.2rem; border-radius: 3rem; border: 1px solid rgba(255,255,255,0.2); background: #0f1117; color: white; width: 280px; }
     .toast { position: fixed; bottom: 20px; right: 20px; background: #10b981; color: white; padding: 0.8rem 1.5rem; border-radius: 2rem; font-size: 0.9rem; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 1000; }
     .footer { text-align: center; padding: 2rem 0; border-top: 1px solid rgba(255,255,255,0.05); color: #6c7a91; font-size: 0.85rem; }
     .footer a { color: #a0c4ff; text-decoration: none; }
@@ -116,6 +129,7 @@
       .hero-sub { font-size: 1rem; }
       .navbar { flex-direction: column; }
       .nav-links { justify-content: center; gap: 1rem; }
+      .api-section { flex-direction: column; align-items: stretch; }
     }
   </style>
 </head>
@@ -148,6 +162,14 @@
     </div>
   </div>
 
+  <!-- Business API Key Section (saved in localStorage, used for enrichment and website builder) -->
+  <div class="api-section reveal">
+    <input type="text" id="apiKeyInput" placeholder="Enter your Business API Key (for enrichment & website builder)" style="flex:2">
+    <button id="saveApiKeyBtn" class="btn btn-primary" style="background:#10b981;">💾 Save Key</button>
+    <button id="registerBusinessBtn" class="btn btn-outline">🏢 Register New Business</button>
+    <span id="keyStatus" style="font-size:0.8rem;"></span>
+  </div>
+
   <div class="grid reveal" id="features">
     <div class="card"><h3>✅ Syntax & MX Check</h3><p>Verifies email format and domain mail exchanger records.</p></div>
     <div class="card"><h3>🚫 Disposable Detection</h3><p>Identifies temporary emails from Mailinator, 10minutemail, etc.</p></div>
@@ -155,7 +177,7 @@
     <div class="card"><h3>📊 Batch Validation</h3><p>Upload CSV and get results – ideal for cleaning large lists.</p></div>
   </div>
 
-  <!-- VALIDATION TESTER (free) -->
+  <!-- VALIDATION TESTER (free, no API key) -->
   <div class="tester-card reveal">
     <h3>🔧 Live API Tester – Email Validation</h3>
     <div class="tester-header">
@@ -165,15 +187,14 @@
     <div id="validateResponse" class="response-area">Click "Validate" to see the result.</div>
   </div>
 
-  <!-- ENRICHMENT TESTER (requires premium API key) -->
+  <!-- ENRICHMENT TESTER (uses saved business API key) -->
   <div class="tester-card reveal">
-    <h3>🏢 Live API Tester – Enrichment (Premium only)</h3>
+    <h3>🏢 Live API Tester – Enrichment (requires business API key + active subscription)</h3>
     <div class="tester-header">
       <input type="email" id="enrichEmail" placeholder="email@example.com" style="flex:1;">
-      <input type="text" id="premiumApiKey" placeholder="Premium API Key (required)" style="width: 220px;">
       <button class="btn btn-primary" id="testEnrichBtn">Enrich</button>
     </div>
-    <div id="enrichResponse" class="response-area">Enter an email and your premium API key to see company/person data.</div>
+    <div id="enrichResponse" class="response-area">Enter an email – your saved business API key will be used.</div>
   </div>
 
   <div class="reveal" id="pricing">
@@ -222,10 +243,10 @@
         </form>
         <div id="feedbackResult" style="margin-top:0.5rem; font-size:0.8rem;"></div>
       </div>
-      <!-- Website Builder Demo (Premium) -->
+      <!-- Website Builder Demo (uses saved business API key) -->
       <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 1rem;">
         <h4>🏗️ Website Builder (Premium)</h4>
-        <p>Generate a simple landing page HTML. Requires premium API key.</p>
+        <p>Generate a simple landing page HTML. Requires business API key and 'website' module enabled.</p>
         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
           <input type="text" id="siteTitle" placeholder="Site Title" style="flex:1;">
           <input type="text" id="siteContent" placeholder="Content" style="flex:1;">
@@ -233,7 +254,6 @@
             <option value="landing">Landing</option>
             <option value="blog">Blog</option>
           </select>
-          <input type="text" id="builderApiKey" placeholder="Premium API Key" style="flex:1;">
           <button id="generateWebsiteBtn" class="btn btn-outline">Generate HTML</button>
         </div>
         <pre id="websiteOutput" style="background:#0a0c10; padding:0.5rem; border-radius:0.5rem; margin-top:0.5rem; white-space:pre-wrap; font-size:0.7rem;"></pre>
@@ -252,12 +272,65 @@
 
   <div class="footer">
     <p>Built by <strong>Bornface Kangombe Kernel</strong> – developer, creator, founder.</p>
-    <p><a href="/docs">Documentation</a> · <a href="https://github.com/KernelBornie/BaKangombe">GitHub</a> · <a href="https://ba-kangombe.vercel.app/api/validate">Live Demo</a></p>
+    <p><a href="/docs">Documentation</a> · <a href="https://github.com/KernelBornie/BaKangombe">GitHub</a> · <a href="/new-features">Live Demo</a></p>
   </div>
 </div>
 <div id="toast" class="toast">✓ Copied to clipboard</div>
 
 <script>
+  // API Key management (same as /new-features)
+  let currentApiKey = localStorage.getItem('bakangombe_api_key') || '';
+  const apiKeyInput = document.getElementById('apiKeyInput');
+  const keyStatus = document.getElementById('keyStatus');
+  if (apiKeyInput) apiKeyInput.value = currentApiKey;
+  if (currentApiKey && keyStatus) keyStatus.innerText = '✓ Key saved';
+
+  function saveKey() {
+    const key = apiKeyInput.value.trim();
+    localStorage.setItem('bakangombe_api_key', key);
+    currentApiKey = key;
+    if (keyStatus) keyStatus.innerText = '✓ Key saved';
+    alert('API key saved. Enrichment and website builder will use this key.');
+  }
+  document.getElementById('saveApiKeyBtn')?.addEventListener('click', saveKey);
+
+  async function apiCall(endpoint, method = 'GET', body = null, useApiKey = true) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (useApiKey && currentApiKey) opts.headers['X-API-Key'] = currentApiKey;
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(endpoint, opts);
+    if (!res.ok) {
+      let errMsg = `HTTP ${res.status}`;
+      try {
+        const err = await res.json();
+        errMsg = err.error || errMsg;
+      } catch(e) {}
+      throw new Error(errMsg);
+    }
+    return await res.json();
+  }
+
+  async function registerBusiness() {
+    const name = prompt("Business name:"); if (!name) return;
+    const email = prompt("Business email:"); if (!email) return;
+    try {
+      const res = await fetch('/api/business/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, modules: [] })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Business registered! Your API key: ${data.apiKey}\nSave it now.`);
+        if (apiKeyInput) apiKeyInput.value = data.apiKey;
+        localStorage.setItem('bakangombe_api_key', data.apiKey);
+        currentApiKey = data.apiKey;
+        if (keyStatus) keyStatus.innerText = '✓ Key saved';
+      } else alert('Error: ' + data.error);
+    } catch (err) { alert('Registration failed: ' + err.message); }
+  }
+  document.getElementById('registerBusinessBtn')?.addEventListener('click', registerBusiness);
+
   function copyToClipboard(text) {
     navigator.clipboard.writeText(text);
     const toast = document.getElementById('toast');
@@ -265,98 +338,78 @@
     setTimeout(() => { toast.style.opacity = '0'; }, 2000);
   }
 
-  // Validation tester
+  // Validation tester (no API key)
   const testValidateBtn = document.getElementById('testValidateBtn');
   const testEmail = document.getElementById('testEmail');
   const validateResponse = document.getElementById('validateResponse');
-
   async function testValidation() {
     const email = testEmail.value.trim();
     if (!email) { validateResponse.innerHTML = 'Please enter an email address.'; return; }
     validateResponse.innerHTML = '<div class="spinner"></div> Validating...';
     try {
-      const res = await fetch('/api/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`HTTP ${res.status}: ${errorText.substring(0, 100)}`);
-      }
-      const data = await res.json();
+      const data = await apiCall('/api/validate', 'POST', { email }, false);
       validateResponse.innerHTML = `<strong>Result:</strong>\n${JSON.stringify(data, null, 2)}`;
     } catch (err) {
       validateResponse.innerHTML = `Error: ${err.message}`;
     }
   }
-  testValidateBtn.addEventListener('click', testValidation);
-  testEmail.addEventListener('keypress', (e) => { if (e.key === 'Enter') testValidation(); });
+  if (testValidateBtn) testValidateBtn.addEventListener('click', testValidation);
+  if (testEmail) testEmail.addEventListener('keypress', (e) => { if (e.key === 'Enter') testValidation(); });
 
-  // Enrichment tester
+  // Enrichment tester (uses saved business API key)
   const testEnrichBtn = document.getElementById('testEnrichBtn');
   const enrichEmail = document.getElementById('enrichEmail');
-  const premiumApiKey = document.getElementById('premiumApiKey');
   const enrichResponse = document.getElementById('enrichResponse');
-
   async function testEnrichment() {
     const email = enrichEmail.value.trim();
-    const key = premiumApiKey.value.trim();
     if (!email) { enrichResponse.innerHTML = 'Please enter an email address.'; return; }
-    if (!key) { enrichResponse.innerHTML = 'Please enter your premium API key.'; return; }
+    if (!currentApiKey) { enrichResponse.innerHTML = 'Please save your business API key first.'; return; }
     enrichResponse.innerHTML = '<div class="spinner"></div> Enriching...';
     try {
-      const res = await fetch('/api/enrich', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': key },
-        body: JSON.stringify({ email })
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await apiCall('/api/enrich', 'POST', { email }, true);
       enrichResponse.innerHTML = `<strong>Enrichment result:</strong>\n${JSON.stringify(data, null, 2)}`;
     } catch (err) {
       enrichResponse.innerHTML = `Error: ${err.message}`;
     }
   }
-  testEnrichBtn.addEventListener('click', testEnrichment);
-  enrichEmail.addEventListener('keypress', (e) => { if (e.key === 'Enter') testEnrichment(); });
-  premiumApiKey.addEventListener('keypress', (e) => { if (e.key === 'Enter') testEnrichment(); });
+  if (testEnrichBtn) testEnrichBtn.addEventListener('click', testEnrichment);
+  if (enrichEmail) enrichEmail.addEventListener('keypress', (e) => { if (e.key === 'Enter') testEnrichment(); });
 
   // Feedback form
-  document.getElementById('feedbackForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = document.getElementById('feedbackName').value;
-    const email = document.getElementById('feedbackEmail').value;
-    const message = document.getElementById('feedbackMessage').value;
-    const res = await fetch('/api/feedback', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, message })
+  const feedbackForm = document.getElementById('feedbackForm');
+  if (feedbackForm) {
+    feedbackForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('feedbackName').value;
+      const email = document.getElementById('feedbackEmail').value;
+      const message = document.getElementById('feedbackMessage').value;
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, message })
+      });
+      const data = await res.json();
+      document.getElementById('feedbackResult').innerHTML = data.success ? '✓ Thank you for your feedback!' : '❌ Error sending feedback.';
+      if (data.success) feedbackForm.reset();
     });
-    const data = await res.json();
-    document.getElementById('feedbackResult').innerHTML = data.success ? '✓ Thank you for your feedback!' : '❌ Error sending feedback.';
-    if (data.success) document.getElementById('feedbackForm').reset();
-  });
+  }
 
-  // Website builder demo
-  document.getElementById('generateWebsiteBtn').addEventListener('click', async () => {
-    const title = document.getElementById('siteTitle').value;
-    const content = document.getElementById('siteContent').value;
-    const template = document.getElementById('siteTemplate').value;
-    const apiKey = document.getElementById('builderApiKey').value;
-    if (!apiKey) { alert('Premium API key required'); return; }
-    const res = await fetch('/api/website/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
-      body: JSON.stringify({ title, content, template })
+  // Website builder (uses saved business API key)
+  const generateWebsiteBtn = document.getElementById('generateWebsiteBtn');
+  if (generateWebsiteBtn) {
+    generateWebsiteBtn.addEventListener('click', async () => {
+      const title = document.getElementById('siteTitle').value;
+      const content = document.getElementById('siteContent').value;
+      const template = document.getElementById('siteTemplate').value;
+      if (!currentApiKey) { alert('Save your business API key first'); return; }
+      try {
+        const data = await apiCall('/api/website/generate', 'POST', { title, content, template }, true);
+        document.getElementById('websiteOutput').innerHTML = data.html;
+      } catch (err) {
+        document.getElementById('websiteOutput').innerHTML = 'Error: ' + err.message;
+      }
     });
-    const data = await res.json();
-    if (res.ok) {
-      document.getElementById('websiteOutput').innerHTML = data.html;
-    } else {
-      document.getElementById('websiteOutput').innerHTML = 'Error: ' + (data.error || 'Unknown');
-    }
-  });
+  }
 
   // Scroll reveal
   const reveals = document.querySelectorAll('.reveal');
