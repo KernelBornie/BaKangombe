@@ -1,20 +1,13 @@
 {
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/index.js"
-    },
-    {
-      "source": "/new-features",
-      "destination": "/index.js"
-    },
-    {
-      "source": "/docs",
-      "destination": "/index.js"
-    },
-    {
-      "source": "/admin",
-      "destination": "/index.js"
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 60
     }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/new-features", "destination": "/api/index.js" },
+    { "source": "/docs", "destination": "/api/index.js" },
+    { "source": "/admin", "destination": "/api/index.js" }
   ]
 }
