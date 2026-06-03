@@ -1088,6 +1088,18 @@ app.get('/api/discovery/business/:id/whatsapp', requireBusiness, requireModule('
   res.json({ whatsappLink: `https://wa.me/${business.rows[0].whatsapp}` });
 });
 
+// Debug: check if new-features.html exists
+app.get('/debug-file', (req, res) => {
+  const fs = require('fs');
+  const filePath = path.join(__dirname, '../public/new-features.html');
+  fs.access(filePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      res.json({ exists: false, error: err.message, path: filePath });
+    } else {
+      res.json({ exists: true, path: filePath });
+    }
+  });
+});
 // ---------- SERVE NEW FEATURES TESTER PAGE ----------
 app.get('/new-features', (req, res) => { res.sendFile(path.join(__dirname, '../public/new-features.html')); });
 
