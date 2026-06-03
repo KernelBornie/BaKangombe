@@ -44,6 +44,7 @@
 <div class="activate-section">
   <button id="activateAllBtn" style="background:#f59e0b;">⚡ Activate All Modules (One Click)</button>
   <button id="activateSingleBtn" style="background:#10b981;">➕ Activate Single System</button>
+  <button id="checkModulesBtn" style="background:#4f46e5;">🔍 Check Enabled Modules</button>
   <span style="font-size:0.8rem;">Use after saving your API key.</span>
 </div>
 
@@ -72,7 +73,7 @@
   </div>
   <!-- 4. Logistics -->
   <div class="module-card"><h3>🚚 4. Logistics & Delivery</h3>
-    <textarea id="stops" rows="2" placeholder='Stops JSON e.g., [{"lat":-15.3875,"lng":28.3228}]'></textarea>
+    <textarea id="stopsText" rows="2" placeholder='Stops JSON e.g., [{"lat":-15.3875,"lng":28.3228}]'></textarea>
     <button onclick="optimizeRoute()">Optimize Route</button>
     <input type="text" id="routeId" placeholder="Route ID"><input type="text" id="driverId" placeholder="Driver ID (1)">
     <button onclick="assignDriver()">Assign Driver</button><button onclick="trackDriver()">Track Driver</button>
@@ -193,6 +194,18 @@
     else alert('Error: ' + JSON.stringify(data));
   };
 
+  // ========== CHECK ENABLED MODULES ==========
+  async function checkModules() {
+    try {
+      const me = await apiCall('/api/business/me');
+      const modules = me.business.modules;
+      alert(`Enabled modules: ${modules.join(', ') || 'none'}`);
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  }
+  document.getElementById('checkModulesBtn').onclick = checkModules;
+
   // ========== ACTIVATE ALL MODULES ==========
   async function activateAllModules() {
     const services = [
@@ -226,16 +239,16 @@
     }
   };
 
-  // Module functions (keep as before)
+  // ========== MODULE FUNCTIONS (with validation) ==========
   async function sendMoney() { try { const d = await apiCall('/api/momo/transfer', 'POST', { amount: mmAmount.value, phone: mmPhone.value, provider: mmProvider.value }); setRes('mmRes', d); } catch(e) { setRes('mmRes', {error: e.message}); } }
   async function requestMoney() { try { const d = await apiCall('/api/momo/request', 'POST', { amount: mmAmount.value, phone: mmPhone.value, provider: mmProvider.value }); setRes('mmRes', d); } catch(e) { setRes('mmRes', {error: e.message}); } }
   async function listMomo() { try { const d = await apiCall('/api/momo/transactions'); setRes('mmRes', d); } catch(e) { setRes('mmRes', {error: e.message}); } }
   async function createInvoice() { try { const items = invItems.value.split(','); const d = await apiCall('/api/invoice/create', 'POST', { customer: invCustomer.value, amount: parseFloat(invAmount.value), items }); setRes('invRes', d); } catch(e) { setRes('invRes', {error: e.message}); } }
-  async function payInvoice() { try { const d = await apiCall(`/api/invoice/${payId.value}/pay`, 'PUT'); setRes('invRes', d); } catch(e) { setRes('invRes', {error: e.message}); } }
+  async function payInvoice() { try { const id = payId.value.trim(); if(!id) throw new Error('Invoice ID required'); const d = await apiCall(`/api/invoice/${id}/pay`, 'PUT'); setRes('invRes', d); } catch(e) { setRes('invRes', {error: e.message}); } }
   async function addWaProduct() { try { const d = await apiCall('/api/whatsapp/product', 'POST', { name: waName.value, price: parseFloat(waPrice.value), description: waDesc.value }); setRes('waRes', d); } catch(e) { setRes('waRes', {error: e.message}); } }
   async function listWaProducts() { try { const d = await apiCall('/api/whatsapp/products'); setRes('waRes', d); } catch(e) { setRes('waRes', {error: e.message}); } }
   async function createWaOrder() { try { const d = await apiCall('/api/whatsapp/order', 'POST', { productId: parseInt(waProdId.value), customerPhone: waPhone.value }); setRes('waRes', d); } catch(e) { setRes('waRes', {error: e.message}); } }
-  async function optimizeRoute() { try { const stops = JSON.parse(stops.value); const d = await apiCall('/api/logistics/route', 'POST', { stops }); setRes('logRes', d); } catch(e) { setRes('logRes', {error: e.message}); } }
+  async function optimizeRoute() { try { const stopsData = JSON.parse(stopsText.value); const d = await apiCall('/api/logistics/route', 'POST', { stops: stopsData }); setRes('logRes', d); } catch(e) { setRes('logRes', {error: e.message}); } }
   async function assignDriver() { try { const d = await apiCall('/api/logistics/driver/assign', 'POST', { routeId: parseInt(routeId.value), driverId: parseInt(driverId.value) }); setRes('logRes', d); } catch(e) { setRes('logRes', {error: e.message}); } }
   async function trackDriver() { try { const d = await apiCall(`/api/logistics/driver/${driverId.value}/track`); setRes('logRes', d); } catch(e) { setRes('logRes', {error: e.message}); } }
   async function addFarmer() { try { const d = await apiCall('/api/agritech/farmer', 'POST', { name: farmerName.value, crop: crop.value, price: parseFloat(price.value), location: location.value }); setRes('agriRes', d); } catch(e) { setRes('agriRes', {error: e.message}); } }
@@ -262,7 +275,7 @@
   async function createOrder() { try { const d = await apiCall('/api/freelance/order', 'POST', { serviceId: parseInt(orderServiceId.value), buyer: buyer.value }); setRes('freeRes', d); } catch(e) { setRes('freeRes', {error: e.message}); } }
   async function listOrders() { try { const d = await apiCall('/api/freelance/orders'); setRes('freeRes', d); } catch(e) { setRes('freeRes', {error: e.message}); } }
   async function releaseEscrow() { try { const d = await apiCall('/api/freelance/escrow', 'POST', { orderId: parseInt(orderId.value) }); setRes('freeRes', d); } catch(e) { setRes('freeRes', {error: e.message}); } }
-  async function addPatient() { try { const d = await apiCall('/api/clinic/patient', 'POST', { name: patientName.value, phone: patientPhone.value, address: patientAddr.value }); setRes('clinicRes', d); } catch(e) { setRes('clinicRes', {error: e.message}); } }
+  async function addPatient() { try { if(!patientName.value || !patientPhone.value) throw new Error('Name and phone required'); const d = await apiCall('/api/clinic/patient', 'POST', { name: patientName.value, phone: patientPhone.value, address: patientAddr.value }); setRes('clinicRes', d); } catch(e) { setRes('clinicRes', {error: e.message}); } }
   async function listPatients() { try { const d = await apiCall('/api/clinic/patients'); setRes('clinicRes', d); } catch(e) { setRes('clinicRes', {error: e.message}); } }
   async function scheduleAppointment() { try { const d = await apiCall('/api/clinic/appointment', 'POST', { patientId: parseInt(apptPatientId.value), date: apptDate.value, reason: apptReason.value }); setRes('clinicRes', d); } catch(e) { setRes('clinicRes', {error: e.message}); } }
   async function listAppointments() { try { const d = await apiCall('/api/clinic/appointments'); setRes('clinicRes', d); } catch(e) { setRes('clinicRes', {error: e.message}); } }
