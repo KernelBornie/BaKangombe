@@ -3,390 +3,228 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BaKangombe – New Features Demo</title>
+  <title>BaKangombe – New Features Tester</title>
   <style>
-    body { background: #0a0c10; color: #eef2ff; font-family: system-ui; padding: 2rem; max-width: 1200px; margin: 0 auto; }
-    h1, h2, h3 { color: #a0c4ff; }
-    .feature { background: rgba(255,255,255,0.03); border-radius: 1rem; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid rgba(255,255,255,0.08); }
-    input, select, textarea, button { background: #0f1117; border: 1px solid rgba(255,255,255,0.1); color: white; padding: 0.5rem; border-radius: 0.5rem; margin: 0.5rem 0; width: 100%; max-width: 400px; display: block; }
-    button { background: #4f46e5; width: auto; cursor: pointer; }
-    pre { background: #0f1117; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin-top: 1rem; max-height: 200px; }
-    .nav { background: #0f1117; padding: 1rem; border-radius: 1rem; margin-bottom: 2rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
-    .nav a { color: #a0c4ff; text-decoration: none; }
-    .api-key-section { background: rgba(79,70,229,0.2); padding: 1rem; border-radius: 1rem; margin-bottom: 2rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
-    .api-key-section input { flex: 2; margin: 0; }
-    .api-key-section button { width: auto; margin: 0; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0c10; color: #eef2ff; font-family: system-ui, sans-serif; padding: 2rem; max-width: 1400px; margin: 0 auto; }
+    h1, h2, h3 { color: #a0c4ff; margin-bottom: 0.5rem; }
+    .api-section { background: #0f1117; padding: 1rem; border-radius: 1rem; margin-bottom: 2rem; border: 1px solid rgba(255,255,255,0.1); display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+    input, select, button { background: #1e293b; border: 1px solid #334155; padding: 0.5rem 1rem; border-radius: 0.5rem; color: white; margin: 0.25rem; }
+    button { background: #4f46e5; cursor: pointer; transition: 0.2s; }
+    button:hover { background: #6366f1; }
+    .module-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 1.5rem; }
+    .module-card { background: #0f1117; border-radius: 1rem; padding: 1rem; border: 1px solid rgba(255,255,255,0.08); }
+    .response { background: #0a0c10; padding: 0.5rem; border-radius: 0.5rem; margin-top: 0.5rem; font-family: monospace; font-size: 0.7rem; white-space: pre-wrap; max-height: 150px; overflow: auto; }
     hr { margin: 1rem 0; border-color: #334155; }
-    .response { font-family: monospace; font-size: 0.75rem; background: #0a0c10; padding: 0.5rem; border-radius: 0.5rem; margin-top: 0.5rem; white-space: pre-wrap; }
   </style>
 </head>
 <body>
-<div class="nav">
-  <a href="/">Home</a>
-  <a href="/docs">Docs</a>
-  <a href="/admin">Admin</a>
-  <a href="/new-features">New Features</a>
-</div>
-<div class="api-key-section">
-  <input type="text" id="apiKeyInput" placeholder="Enter your Business API Key (required for all features)" style="flex:2">
-  <button id="saveApiKeyBtn">Save Key</button>
-  <button id="registerBusinessBtn" style="background:#10b981;">Register New Business</button>
-</div>
 <h1>🚀 New BaKangombe Features (Demo)</h1>
-<p>All endpoints are live and require a valid API key. Use the tester below after saving your key.</p>
-
-<!-- 1. Mobile Money -->
-<div class="feature"><h3>📱 1. Mobile Money API</h3>
-  <input type="number" id="momoAmount" placeholder="Amount">
-  <input type="text" id="momoPhone" placeholder="Phone (e.g., 0977123456)">
-  <select id="momoProvider"><option>mtn</option><option>airtel</option></select>
-  <button onclick="testMomoTransfer()">Send Money</button>
-  <button onclick="testMomoRequest()">Request Money</button>
-  <button onclick="getMomoTransactions()">List Transactions</button>
-  <div id="momoResult" class="response"></div>
+<div class="api-section">
+  <input type="text" id="apiKeyInput" placeholder="Enter your Business API Key" style="flex:2">
+  <button id="saveKeyBtn">💾 Save Key</button>
+  <button id="registerBtn">🏢 Register New Business</button>
+  <span id="keyStatus" style="font-size:0.8rem;"></span>
 </div>
+<p>All endpoints require a valid API key. Save your key above, then test any module.</p>
 
-<!-- 2. Invoice -->
-<div class="feature"><h3>🧾 2. Invoice & ZRA Billing</h3>
-  <input type="text" id="invCustomer" placeholder="Customer name">
-  <input type="number" id="invAmount" placeholder="Amount">
-  <input type="text" id="invItems" placeholder="Items (comma separated)">
-  <button onclick="createInvoice()">Create Invoice</button>
-  <input type="number" id="payInvoiceId" placeholder="Invoice ID to pay">
-  <button onclick="payInvoice()">Pay Invoice</button>
-  <div id="invoiceResult" class="response"></div>
-</div>
-
-<!-- 3. WhatsApp Mini E‑commerce -->
-<div class="feature"><h3>💬 3. WhatsApp Mini E-commerce</h3>
-  <input type="text" id="waName" placeholder="Product name">
-  <input type="number" id="waPrice" placeholder="Price">
-  <input type="text" id="waDesc" placeholder="Description">
-  <button onclick="addWhatsappProduct()">Add Product</button>
-  <button onclick="listWhatsappProducts()">List Products</button>
-  <input type="number" id="waProductId" placeholder="Product ID">
-  <input type="text" id="waPhone" placeholder="Customer phone">
-  <button onclick="createWhatsappOrder()">Create Order</button>
-  <div id="waResult" class="response"></div>
-</div>
-
-<!-- 4. Logistics & Delivery (mock) -->
-<div class="feature"><h3>🚚 4. Logistics & Delivery</h3>
-  <textarea id="stops" rows="2" placeholder='Stops as JSON array, e.g., [{"lat":-15.3875,"lng":28.3228}]'></textarea>
-  <button onclick="optimizeRoute()">Optimize Route</button>
-  <input type="number" id="routeId" placeholder="Route ID">
-  <input type="number" id="driverId" placeholder="Driver ID (1)">
-  <button onclick="assignDriver()">Assign Driver</button>
-  <button onclick="trackDriver()">Track Driver</button>
-  <div id="logisticsResult" class="response"></div>
-</div>
-
-<!-- 5. Agritech Marketplace -->
-<div class="feature"><h3>🌾 5. Agritech Marketplace</h3>
-  <input type="text" id="farmerName" placeholder="Farmer name">
-  <input type="text" id="crop" placeholder="Crop (e.g., maize)">
-  <input type="number" id="price" placeholder="Price per unit">
-  <input type="text" id="location" placeholder="Location">
-  <button onclick="addFarmer()">Add Farmer</button>
-  <button onclick="listFarmers()">List Farmers</button>
-  <input type="text" id="matchCrop" placeholder="Crop to match">
-  <input type="number" id="maxPrice" placeholder="Max price">
-  <button onclick="matchBuyer()">Match Buyer</button>
-  <div id="agritechResult" class="response"></div>
-</div>
-
-<!-- 6. AI Customer Support -->
-<div class="feature"><h3>🤖 6. AI Customer Support</h3>
-  <input type="text" id="aiQuery" placeholder="Ask something (e.g., pricing)">
-  <button onclick="askAI()">Ask AI</button>
-  <input type="text" id="trainQ" placeholder="Question">
-  <input type="text" id="trainA" placeholder="Answer">
-  <button onclick="trainAI()">Train AI</button>
-  <div id="aiResult" class="response"></div>
-</div>
-
-<!-- 7. Micro‑Lending -->
-<div class="feature"><h3>💰 7. Micro-Lending</h3>
-  <input type="number" id="income" placeholder="Monthly income">
-  <input type="number" id="debt" placeholder="Debt amount">
-  <select id="history"><option>good</option><option>bad</option></select>
-  <button onclick="getCreditScore()">Get Credit Score</button>
-  <input type="number" id="scoreVal" placeholder="Score from above">
-  <input type="number" id="reqAmount" placeholder="Requested loan amount">
-  <button onclick="checkEligibility()">Check Eligibility</button>
-  <div id="lendingResult" class="response"></div>
-</div>
-
-<!-- 8. SME Dashboard -->
-<div class="feature"><h3>📊 8. SME Dashboard</h3>
-  <input type="number" id="saleAmount" placeholder="Sale amount">
-  <input type="number" id="customerId" placeholder="Customer ID (1)">
-  <button onclick="recordSale()">Record Sale</button>
-  <input type="number" id="expenseAmount" placeholder="Expense amount">
-  <input type="text" id="expenseCat" placeholder="Category (e.g., rent)">
-  <button onclick="recordExpense()">Record Expense</button>
-  <button onclick="getProfit()">Get Profit</button>
-  <div id="smeResult" class="response"></div>
-</div>
-
-<!-- 9. Inventory & POS -->
-<div class="feature"><h3>🏪 9. Inventory & POS</h3>
-  <input type="text" id="prodName" placeholder="Product name">
-  <input type="number" id="prodPrice" placeholder="Price">
-  <input type="number" id="prodStock" placeholder="Initial stock">
-  <button onclick="addProduct()">Add Product</button>
-  <button onclick="listInventoryProducts()">List Products</button>
-  <input type="number" id="updateProdId" placeholder="Product ID">
-  <input type="number" id="updateQty" placeholder="Change quantity (+ or -)">
-  <button onclick="updateStock()">Update Stock</button>
-  <button onclick="getLowStockAlerts()">Low Stock Alerts</button>
-  <input type="number" id="posProdId" placeholder="Product ID for sale">
-  <input type="number" id="posQty" placeholder="Quantity">
-  <select id="payMethod"><option>momo</option><option>cash</option></select>
-  <button onclick="posSale()">Record POS Sale</button>
-  <div id="inventoryResult" class="response"></div>
-</div>
-
-<!-- 10. Social Ads -->
-<div class="feature"><h3>📢 10. Social Ads</h3>
-  <input type="text" id="adName" placeholder="Ad name">
-  <input type="number" id="adBudget" placeholder="Budget">
-  <input type="text" id="adTarget" placeholder="Target (e.g., Zambia)">
-  <button onclick="createAd()">Create Ad</button>
-  <button onclick="listAds()">List Ads</button>
-  <input type="number" id="adId" placeholder="Ad ID">
-  <input type="number" id="newBudget" placeholder="New budget">
-  <button onclick="updateAdBudget()">Update Budget</button>
-  <button onclick="getLeads()">Get Leads</button>
-  <div id="socialResult" class="response"></div>
-</div>
-
-<!-- 11. Freelance Marketplace -->
-<div class="feature"><h3>💼 11. Freelance Marketplace</h3>
-  <input type="text" id="serviceTitle" placeholder="Service title">
-  <input type="number" id="servicePrice" placeholder="Price">
-  <input type="text" id="seller" placeholder="Seller name">
-  <button onclick="postService()">Post Service</button>
-  <button onclick="listServices()">List Services</button>
-  <input type="number" id="serviceIdOrder" placeholder="Service ID">
-  <input type="text" id="buyer" placeholder="Buyer name">
-  <button onclick="createFreelanceOrder()">Create Order</button>
-  <button onclick="listFreelanceOrders()">List Orders</button>
-  <input type="number" id="orderId" placeholder="Order ID">
-  <button onclick="releaseEscrow()">Release Escrow</button>
-  <div id="freelanceResult" class="response"></div>
-</div>
-
-<!-- 12. Clinic Management -->
-<div class="feature"><h3>🏥 12. Clinic Management</h3>
-  <input type="text" id="patientName" placeholder="Patient name">
-  <input type="text" id="patientPhone" placeholder="Phone">
-  <input type="text" id="patientAddr" placeholder="Address">
-  <button onclick="addPatient()">Add Patient</button>
-  <button onclick="listPatients()">List Patients</button>
-  <input type="number" id="patientIdApp" placeholder="Patient ID">
-  <input type="date" id="appDate">
-  <input type="text" id="appReason" placeholder="Reason">
-  <button onclick="scheduleAppointment()">Schedule Appointment</button>
-  <button onclick="listAppointments()">List Appointments</button>
-  <input type="number" id="billPatientId" placeholder="Patient ID for bill">
-  <button onclick="getPatientBill()">Get Bill</button>
-  <div id="clinicResult" class="response"></div>
-</div>
-
-<!-- 13. KYC (Identity Verification) -->
-<div class="feature"><h3>🪪 13. Identity Verification (KYC)</h3>
-  <input type="text" id="idNumber" placeholder="ID number (min 5 chars)">
-  <input type="text" id="idName" placeholder="Name">
-  <button onclick="verifyID()">Verify ID</button>
-  <input type="text" id="phoneKyc" placeholder="Phone (10 digits)">
-  <button onclick="verifyPhone()">Verify Phone</button>
-  <div id="kycResult" class="response"></div>
-</div>
-
-<!-- 14. E‑commerce BaaS -->
-<div class="feature"><h3>🛒 14. E‑commerce BaaS</h3>
-  <input type="text" id="ecName" placeholder="Product name">
-  <input type="number" id="ecPrice" placeholder="Price">
-  <button onclick="addEcommerceProduct()">Add Product</button>
-  <button onclick="listEcommerceProducts()">List Products</button>
-  <input type="number" id="ecProdId" placeholder="Product ID">
-  <input type="number" id="ecQty" placeholder="Quantity">
-  <input type="text" id="ecCustomer" placeholder="Customer name">
-  <button onclick="createEcommerceOrder()">Create Order</button>
-  <button onclick="listEcommerceOrders()">List Orders</button>
-  <input type="number" id="ecOrderId" placeholder="Order ID">
-  <select id="ecMethod"><option>momo</option><option>card</option></select>
-  <button onclick="processEcommercePayment()">Process Payment</button>
-  <div id="ecommerceResult" class="response"></div>
-</div>
-
-<!-- 15. AI Tutoring -->
-<div class="feature"><h3>📚 15. AI Tutoring</h3>
-  <input type="text" id="tutorQuestion" placeholder="Ask a question (e.g., algebra)">
-  <input type="number" id="tutorGrade" placeholder="Grade (e.g., 10)">
-  <button onclick="askTutor()">Ask Tutor</button>
-  <button onclick="getCurriculum()">Get Curriculum (grade 10)</button>
-  <div id="tutorResult" class="response"></div>
-</div>
-
-<!-- 16. Local Business Discovery -->
-<div class="feature"><h3>📍 16. Local Business Discovery</h3>
-  <input type="text" id="bizName" placeholder="Business name">
-  <input type="text" id="bizCategory" placeholder="Category (e.g., food)">
-  <input type="text" id="bizLocation" placeholder="Location">
-  <input type="text" id="bizWhatsapp" placeholder="WhatsApp number">
-  <button onclick="addBusiness()">Add Business</button>
-  <input type="text" id="searchCategory" placeholder="Search category">
-  <button onclick="searchBusinesses()">Search Businesses</button>
-  <input type="number" id="bizIdReview" placeholder="Business ID">
-  <input type="number" id="rating" placeholder="Rating (1-5)">
-  <input type="text" id="reviewComment" placeholder="Review comment">
-  <button onclick="addReview()">Add Review</button>
-  <input type="number" id="bizIdWhatsapp" placeholder="Business ID for WhatsApp">
-  <button onclick="getBusinessWhatsapp()">Get WhatsApp Link</button>
-  <div id="discoveryResult" class="response"></div>
+<div class="module-grid">
+  <!-- 1. Mobile Money -->
+  <div class="module-card"><h3>📱 1. Mobile Money</h3>
+    <input type="number" id="mmAmount" placeholder="Amount"><input type="text" id="mmPhone" placeholder="Phone (e.g., 0977123456)"><select id="mmProvider"><option>mtn</option><option>airtel</option></select>
+    <button onclick="sendMoney()">Send Money</button><button onclick="requestMoney()">Request Money</button><button onclick="listMomo()">List Transactions</button>
+    <div id="mmRes" class="response"></div>
+  </div>
+  <!-- 2. Invoice -->
+  <div class="module-card"><h3>🧾 2. Invoice & ZRA Billing</h3>
+    <input type="text" id="invCustomer" placeholder="Customer"><input type="number" id="invAmount" placeholder="Amount"><input type="text" id="invItems" placeholder="Items (comma)">
+    <button onclick="createInvoice()">Create Invoice</button>
+    <input type="text" id="payId" placeholder="Invoice ID to pay"><button onclick="payInvoice()">Pay Invoice</button>
+    <div id="invRes" class="response"></div>
+  </div>
+  <!-- 3. WhatsApp E‑commerce -->
+  <div class="module-card"><h3>💬 3. WhatsApp Mini E‑commerce</h3>
+    <input type="text" id="waName" placeholder="Product name"><input type="number" id="waPrice" placeholder="Price"><input type="text" id="waDesc" placeholder="Description">
+    <button onclick="addWaProduct()">Add Product</button><button onclick="listWaProducts()">List Products</button>
+    <input type="text" id="waProdId" placeholder="Product ID"><input type="text" id="waPhone" placeholder="Customer phone"><button onclick="createWaOrder()">Create Order</button>
+    <div id="waRes" class="response"></div>
+  </div>
+  <!-- 4. Logistics -->
+  <div class="module-card"><h3>🚚 4. Logistics & Delivery</h3>
+    <textarea id="stops" rows="2" placeholder='Stops JSON e.g., [{"lat":-15.3875,"lng":28.3228}]'></textarea>
+    <button onclick="optimizeRoute()">Optimize Route</button>
+    <input type="text" id="routeId" placeholder="Route ID"><input type="text" id="driverId" placeholder="Driver ID (1)">
+    <button onclick="assignDriver()">Assign Driver</button><button onclick="trackDriver()">Track Driver</button>
+    <div id="logRes" class="response"></div>
+  </div>
+  <!-- 5. Agritech -->
+  <div class="module-card"><h3>🌾 5. Agritech Marketplace</h3>
+    <input type="text" id="farmerName" placeholder="Farmer"><input type="text" id="crop" placeholder="Crop"><input type="number" id="price" placeholder="Price"><input type="text" id="location" placeholder="Location">
+    <button onclick="addFarmer()">Add Farmer</button><button onclick="listFarmers()">List Farmers</button>
+    <input type="text" id="matchCrop" placeholder="Crop to match"><input type="number" id="maxPrice" placeholder="Max price"><button onclick="matchBuyer()">Match Buyer</button>
+    <div id="agriRes" class="response"></div>
+  </div>
+  <!-- 6. AI Support -->
+  <div class="module-card"><h3>🤖 6. AI Customer Support</h3>
+    <input type="text" id="aiQuery" placeholder="Ask something"><button onclick="askAI()">Ask AI</button>
+    <input type="text" id="trainQ" placeholder="Question"><input type="text" id="trainA" placeholder="Answer"><button onclick="trainAI()">Train AI</button>
+    <div id="aiRes" class="response"></div>
+  </div>
+  <!-- 7. Lending -->
+  <div class="module-card"><h3>💰 7. Micro-Lending</h3>
+    <input type="number" id="income" placeholder="Monthly income"><input type="number" id="debt" placeholder="Debt"><select id="history"><option>good</option><option>bad</option></select>
+    <button onclick="getCreditScore()">Get Credit Score</button>
+    <input type="number" id="scoreVal" placeholder="Score"><input type="number" id="reqAmount" placeholder="Requested amount"><button onclick="checkEligibility()">Check Eligibility</button>
+    <div id="lendRes" class="response"></div>
+  </div>
+  <!-- 8. SME Dashboard -->
+  <div class="module-card"><h3>📊 8. SME Dashboard</h3>
+    <input type="number" id="saleAmount" placeholder="Sale amount"><input type="text" id="custId" placeholder="Customer ID (1)"><button onclick="recordSale()">Record Sale</button>
+    <input type="number" id="expenseAmount" placeholder="Expense amount"><input type="text" id="expenseCat" placeholder="Category"><button onclick="recordExpense()">Record Expense</button>
+    <button onclick="getProfit()">Get Profit</button>
+    <div id="smeRes" class="response"></div>
+  </div>
+  <!-- 9. Inventory & POS -->
+  <div class="module-card"><h3>🏪 9. Inventory & POS</h3>
+    <input type="text" id="invProdName" placeholder="Product name"><input type="number" id="invProdPrice" placeholder="Price"><input type="number" id="invStock" placeholder="Stock">
+    <button onclick="addInvProduct()">Add Product</button><button onclick="listInvProducts()">List Products</button>
+    <input type="text" id="stockProdId" placeholder="Product ID"><input type="number" id="stockQty" placeholder="Quantity (+/-)"><button onclick="updateStock()">Update Stock</button>
+    <button onclick="lowStockAlerts()">Low Stock Alerts</button>
+    <input type="text" id="posProdId" placeholder="Product ID"><input type="number" id="posQty" placeholder="Quantity"><select id="posMethod"><option>momo</option><option>cash</option></select><button onclick="recordPOS()">Record POS Sale</button>
+    <div id="invRes2" class="response"></div>
+  </div>
+  <!-- 10. Social Ads -->
+  <div class="module-card"><h3>📢 10. Social Ads</h3>
+    <input type="text" id="adName" placeholder="Ad name"><input type="number" id="adBudget" placeholder="Budget"><input type="text" id="adTarget" placeholder="Target">
+    <button onclick="createAd()">Create Ad</button><button onclick="listAds()">List Ads</button>
+    <input type="text" id="adId" placeholder="Ad ID"><input type="number" id="newBudget" placeholder="New budget"><button onclick="updateAdBudget()">Update Budget</button>
+    <button onclick="getLeads()">Get Leads</button>
+    <div id="socialRes" class="response"></div>
+  </div>
+  <!-- 11. Freelance -->
+  <div class="module-card"><h3>💼 11. Freelance Marketplace</h3>
+    <input type="text" id="serviceTitle" placeholder="Service title"><input type="number" id="servicePrice" placeholder="Price"><input type="text" id="seller" placeholder="Seller">
+    <button onclick="postService()">Post Service</button><button onclick="listServices()">List Services</button>
+    <input type="text" id="orderServiceId" placeholder="Service ID"><input type="text" id="buyer" placeholder="Buyer"><button onclick="createOrder()">Create Order</button>
+    <button onclick="listOrders()">List Orders</button><input type="text" id="orderId" placeholder="Order ID"><button onclick="releaseEscrow()">Release Escrow</button>
+    <div id="freeRes" class="response"></div>
+  </div>
+  <!-- 12. Clinic -->
+  <div class="module-card"><h3>🏥 12. Clinic Management</h3>
+    <input type="text" id="patientName" placeholder="Patient name"><input type="text" id="patientPhone" placeholder="Phone"><input type="text" id="patientAddr" placeholder="Address">
+    <button onclick="addPatient()">Add Patient</button><button onclick="listPatients()">List Patients</button>
+    <input type="text" id="apptPatientId" placeholder="Patient ID"><input type="date" id="apptDate"><input type="text" id="apptReason" placeholder="Reason"><button onclick="scheduleAppointment()">Schedule Appointment</button>
+    <button onclick="listAppointments()">List Appointments</button><input type="text" id="billPatientId" placeholder="Patient ID"><button onclick="getBill()">Get Bill</button>
+    <div id="clinicRes" class="response"></div>
+  </div>
+  <!-- 13. KYC -->
+  <div class="module-card"><h3>🪪 13. Identity Verification (KYC)</h3>
+    <input type="text" id="idNumber" placeholder="ID number (min 5 chars)"><input type="text" id="idName" placeholder="Name"><button onclick="verifyID()">Verify ID</button>
+    <input type="text" id="kycPhone" placeholder="Phone (10 digits)"><button onclick="verifyPhone()">Verify Phone</button>
+    <div id="kycRes" class="response"></div>
+  </div>
+  <!-- 14. E‑commerce BaaS -->
+  <div class="module-card"><h3>🛒 14. E‑commerce BaaS</h3>
+    <input type="text" id="ecName" placeholder="Product name"><input type="number" id="ecPrice" placeholder="Price"><button onclick="addEcProduct()">Add Product</button><button onclick="listEcProducts()">List Products</button>
+    <input type="text" id="ecProdId" placeholder="Product ID"><input type="number" id="ecQty" placeholder="Quantity"><input type="text" id="ecCustomer" placeholder="Customer"><button onclick="createEcOrder()">Create Order</button>
+    <button onclick="listEcOrders()">List Orders</button><input type="text" id="ecOrderId" placeholder="Order ID"><select id="ecMethod"><option>momo</option><option>card</option></select><button onclick="processEcPayment()">Process Payment</button>
+    <div id="ecRes" class="response"></div>
+  </div>
+  <!-- 15. AI Tutoring -->
+  <div class="module-card"><h3>📚 15. AI Tutoring</h3>
+    <input type="text" id="tutorQ" placeholder="Ask a question (e.g., algebra)"><input type="text" id="tutorGrade" placeholder="Grade (e.g., 10)"><button onclick="askTutor()">Ask Tutor</button>
+    <button onclick="getCurriculum()">Get Curriculum (grade 10)</button>
+    <div id="tutorRes" class="response"></div>
+  </div>
+  <!-- 16. Business Discovery -->
+  <div class="module-card"><h3>📍 16. Local Business Discovery</h3>
+    <input type="text" id="bizName" placeholder="Business name"><input type="text" id="bizCategory" placeholder="Category"><input type="text" id="bizLocation" placeholder="Location"><input type="text" id="bizWhatsapp" placeholder="WhatsApp"><button onclick="addBusiness()">Add Business</button>
+    <input type="text" id="searchCat" placeholder="Search category"><button onclick="searchBusinesses()">Search Businesses</button>
+    <input type="text" id="revBizId" placeholder="Business ID"><input type="number" id="rating" placeholder="Rating (1-5)"><input type="text" id="reviewComment" placeholder="Review comment"><button onclick="addReview()">Add Review</button>
+    <input type="text" id="waBizId" placeholder="Business ID for WhatsApp"><button onclick="getWhatsAppLink()">Get WhatsApp Link</button>
+    <div id="discRes" class="response"></div>
+  </div>
 </div>
 
 <script>
-  let currentApiKey = localStorage.getItem('bakangombeApiKey') || '';
-  document.getElementById('apiKeyInput').value = currentApiKey;
-  document.getElementById('saveApiKeyBtn').addEventListener('click', () => {
-    const key = document.getElementById('apiKeyInput').value.trim();
-    localStorage.setItem('bakangombeApiKey', key);
-    currentApiKey = key;
-    alert('API key saved. You can now use all features.');
-  });
-  async function apiCall(url, method = 'GET', body = null) {
-    const opts = { method, headers: { 'Content-Type': 'application/json' } };
-    if (currentApiKey) opts.headers['X-API-Key'] = currentApiKey;
+  let apiKey = localStorage.getItem('bakangombe_api_key') || '';
+  document.getElementById('apiKeyInput').value = apiKey;
+  if(apiKey) document.getElementById('keyStatus').innerText = '✓ Key saved';
+  function saveKey() { apiKey = document.getElementById('apiKeyInput').value; localStorage.setItem('bakangombe_api_key', apiKey); document.getElementById('keyStatus').innerText = '✓ Key saved'; alert('API key saved!'); }
+  document.getElementById('saveKeyBtn').onclick = saveKey;
+  async function apiCall(endpoint, method = 'GET', body = null) {
+    if (!apiKey) throw new Error('No API key saved. Save your key first.');
+    const opts = { method, headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey } };
     if (body) opts.body = JSON.stringify(body);
-    const res = await fetch(url, opts);
-    if (!res.ok) {
-      let errMsg = `HTTP ${res.status}`;
-      try {
-        const err = await res.json();
-        errMsg = err.error || errMsg;
-      } catch(e) {}
-      throw new Error(errMsg);
-    }
-    return await res.json();
+    const res = await fetch(endpoint, opts);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
   }
-  async function registerBusiness() {
-    const name = prompt("Business name:");
-    if (!name) return;
-    const email = prompt("Business email:");
-    if (!email) return;
-    try {
-      const res = await fetch('/api/business/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, modules: [] })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        alert(`Business registered! Your API key: ${data.apiKey}\nSave it now.`);
-        document.getElementById('apiKeyInput').value = data.apiKey;
-        localStorage.setItem('bakangombeApiKey', data.apiKey);
-        currentApiKey = data.apiKey;
-      } else {
-        alert('Error: ' + data.error);
-      }
-    } catch (err) {
-      alert('Registration failed: ' + err.message);
-    }
-  }
-  document.getElementById('registerBusinessBtn').addEventListener('click', registerBusiness);
+  function setRes(divId, data) { document.getElementById(divId).innerHTML = JSON.stringify(data, null, 2); }
 
-  // Helper to display results
-  function setResult(divId, data) {
-    document.getElementById(divId).innerHTML = JSON.stringify(data, null, 2);
-  }
+  document.getElementById('registerBtn').onclick = async () => {
+    const name = prompt('Business name:'); if (!name) return;
+    const email = prompt('Business email:'); if (!email) return;
+    const res = await fetch('/api/business/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email }) });
+    const data = await res.json();
+    if(data.apiKey) { document.getElementById('apiKeyInput').value = data.apiKey; saveKey(); alert('Registered! API key saved.'); }
+    else alert('Error: ' + JSON.stringify(data));
+  };
 
-  // 1. Mobile Money
-  async function testMomoTransfer() { try { const data = { amount: momoAmount.value, phone: momoPhone.value, provider: momoProvider.value }; const result = await apiCall('/api/momo/transfer', 'POST', data); setResult('momoResult', result); } catch(e) { setResult('momoResult', {error: e.message}); } }
-  async function testMomoRequest() { try { const data = { amount: momoAmount.value, phone: momoPhone.value, provider: momoProvider.value }; const result = await apiCall('/api/momo/request', 'POST', data); setResult('momoResult', result); } catch(e) { setResult('momoResult', {error: e.message}); } }
-  async function getMomoTransactions() { try { const result = await apiCall('/api/momo/transactions'); setResult('momoResult', result); } catch(e) { setResult('momoResult', {error: e.message}); } }
-
-  // 2. Invoice
-  async function createInvoice() { try { const items = invItems.value.split(','); const data = { customer: invCustomer.value, amount: parseFloat(invAmount.value), items }; const result = await apiCall('/api/invoice/create', 'POST', data); setResult('invoiceResult', result); } catch(e) { setResult('invoiceResult', {error: e.message}); } }
-  async function payInvoice() { try { const id = payInvoiceId.value; const result = await apiCall(`/api/invoice/${id}/pay`, 'PUT'); setResult('invoiceResult', result); } catch(e) { setResult('invoiceResult', {error: e.message}); } }
-
-  // 3. WhatsApp
-  async function addWhatsappProduct() { try { const data = { name: waName.value, price: parseFloat(waPrice.value), description: waDesc.value }; const result = await apiCall('/api/whatsapp/product', 'POST', data); setResult('waResult', result); } catch(e) { setResult('waResult', {error: e.message}); } }
-  async function listWhatsappProducts() { try { const result = await apiCall('/api/whatsapp/products'); setResult('waResult', result); } catch(e) { setResult('waResult', {error: e.message}); } }
-  async function createWhatsappOrder() { try { const data = { productId: parseInt(waProductId.value), customerPhone: waPhone.value }; const result = await apiCall('/api/whatsapp/order', 'POST', data); setResult('waResult', result); } catch(e) { setResult('waResult', {error: e.message}); } }
-
-  // 4. Logistics
-  async function optimizeRoute() { try { const stops = JSON.parse(stops.value); const result = await apiCall('/api/logistics/route', 'POST', { stops }); setResult('logisticsResult', result); } catch(e) { setResult('logisticsResult', {error: e.message}); } }
-  async function assignDriver() { try { const data = { routeId: parseInt(routeId.value), driverId: parseInt(driverId.value) }; const result = await apiCall('/api/logistics/driver/assign', 'POST', data); setResult('logisticsResult', result); } catch(e) { setResult('logisticsResult', {error: e.message}); } }
-  async function trackDriver() { try { const id = driverId.value; const result = await apiCall(`/api/logistics/driver/${id}/track`); setResult('logisticsResult', result); } catch(e) { setResult('logisticsResult', {error: e.message}); } }
-
-  // 5. Agritech
-  async function addFarmer() { try { const data = { name: farmerName.value, crop: crop.value, price: parseFloat(price.value), location: location.value }; const result = await apiCall('/api/agritech/farmer', 'POST', data); setResult('agritechResult', result); } catch(e) { setResult('agritechResult', {error: e.message}); } }
-  async function listFarmers() { try { const result = await apiCall('/api/agritech/farmers'); setResult('agritechResult', result); } catch(e) { setResult('agritechResult', {error: e.message}); } }
-  async function matchBuyer() { try { const data = { crop: matchCrop.value, maxPrice: parseFloat(maxPrice.value) }; const result = await apiCall('/api/agritech/buyer/match', 'POST', data); setResult('agritechResult', result); } catch(e) { setResult('agritechResult', {error: e.message}); } }
-
-  // 6. AI
-  async function askAI() { try { const data = { query: aiQuery.value }; const result = await apiCall('/api/ai/chat', 'POST', data); setResult('aiResult', result); } catch(e) { setResult('aiResult', {error: e.message}); } }
-  async function trainAI() { try { const data = { question: trainQ.value, answer: trainA.value }; const result = await apiCall('/api/ai/train', 'POST', data); setResult('aiResult', result); } catch(e) { setResult('aiResult', {error: e.message}); } }
-
-  // 7. Lending
-  async function getCreditScore() { try { const data = { income: parseFloat(income.value), debt: parseFloat(debt.value), history: history.value }; const result = await apiCall('/api/lending/score', 'POST', data); setResult('lendingResult', result); } catch(e) { setResult('lendingResult', {error: e.message}); } }
-  async function checkEligibility() { try { const data = { score: parseFloat(scoreVal.value), requestedAmount: parseFloat(reqAmount.value) }; const result = await apiCall('/api/lending/eligibility', 'POST', data); setResult('lendingResult', result); } catch(e) { setResult('lendingResult', {error: e.message}); } }
-
-  // 8. SME
-  async function recordSale() { try { const data = { amount: parseFloat(saleAmount.value), customerId: parseInt(customerId.value) }; const result = await apiCall('/api/sme/sale', 'POST', data); setResult('smeResult', result); } catch(e) { setResult('smeResult', {error: e.message}); } }
-  async function recordExpense() { try { const data = { amount: parseFloat(expenseAmount.value), category: expenseCat.value }; const result = await apiCall('/api/sme/expense', 'POST', data); setResult('smeResult', result); } catch(e) { setResult('smeResult', {error: e.message}); } }
-  async function getProfit() { try { const result = await apiCall('/api/sme/profit'); setResult('smeResult', result); } catch(e) { setResult('smeResult', {error: e.message}); } }
-
-  // 9. Inventory/POS
-  async function addProduct() { try { const data = { name: prodName.value, price: parseFloat(prodPrice.value), stock: parseInt(prodStock.value) }; const result = await apiCall('/api/inventory/product', 'POST', data); setResult('inventoryResult', result); } catch(e) { setResult('inventoryResult', {error: e.message}); } }
-  async function listInventoryProducts() { try { const result = await apiCall('/api/inventory/products'); setResult('inventoryResult', result); } catch(e) { setResult('inventoryResult', {error: e.message}); } }
-  async function updateStock() { try { const data = { productId: parseInt(updateProdId.value), quantity: parseInt(updateQty.value) }; const result = await apiCall('/api/inventory/stock', 'PUT', data); setResult('inventoryResult', result); } catch(e) { setResult('inventoryResult', {error: e.message}); } }
-  async function getLowStockAlerts() { try { const result = await apiCall('/api/inventory/alerts'); setResult('inventoryResult', result); } catch(e) { setResult('inventoryResult', {error: e.message}); } }
-  async function posSale() { try { const data = { productId: parseInt(posProdId.value), quantity: parseInt(posQty.value), paymentMethod: payMethod.value }; const result = await apiCall('/api/pos/sale', 'POST', data); setResult('inventoryResult', result); } catch(e) { setResult('inventoryResult', {error: e.message}); } }
-
-  // 10. Social Ads
-  async function createAd() { try { const data = { name: adName.value, budget: parseFloat(adBudget.value), target: adTarget.value }; const result = await apiCall('/api/social/ad/create', 'POST', data); setResult('socialResult', result); } catch(e) { setResult('socialResult', {error: e.message}); } }
-  async function listAds() { try { const result = await apiCall('/api/social/ads'); setResult('socialResult', result); } catch(e) { setResult('socialResult', {error: e.message}); } }
-  async function updateAdBudget() { try { const data = { adId: parseInt(adId.value), newBudget: parseFloat(newBudget.value) }; const result = await apiCall('/api/social/ad/budget', 'POST', data); setResult('socialResult', result); } catch(e) { setResult('socialResult', {error: e.message}); } }
-  async function getLeads() { try { const result = await apiCall('/api/social/leads'); setResult('socialResult', result); } catch(e) { setResult('socialResult', {error: e.message}); } }
-
-  // 11. Freelance
-  async function postService() { try { const data = { title: serviceTitle.value, price: parseFloat(servicePrice.value), seller: seller.value }; const result = await apiCall('/api/freelance/service', 'POST', data); setResult('freelanceResult', result); } catch(e) { setResult('freelanceResult', {error: e.message}); } }
-  async function listServices() { try { const result = await apiCall('/api/freelance/services'); setResult('freelanceResult', result); } catch(e) { setResult('freelanceResult', {error: e.message}); } }
-  async function createFreelanceOrder() { try { const data = { serviceId: parseInt(serviceIdOrder.value), buyer: buyer.value }; const result = await apiCall('/api/freelance/order', 'POST', data); setResult('freelanceResult', result); } catch(e) { setResult('freelanceResult', {error: e.message}); } }
-  async function listFreelanceOrders() { try { const result = await apiCall('/api/freelance/orders'); setResult('freelanceResult', result); } catch(e) { setResult('freelanceResult', {error: e.message}); } }
-  async function releaseEscrow() { try { const data = { orderId: parseInt(orderId.value) }; const result = await apiCall('/api/freelance/escrow', 'POST', data); setResult('freelanceResult', result); } catch(e) { setResult('freelanceResult', {error: e.message}); } }
-
-  // 12. Clinic
-  async function addPatient() { try { const data = { name: patientName.value, phone: patientPhone.value, address: patientAddr.value }; const result = await apiCall('/api/clinic/patient', 'POST', data); setResult('clinicResult', result); } catch(e) { setResult('clinicResult', {error: e.message}); } }
-  async function listPatients() { try { const result = await apiCall('/api/clinic/patients'); setResult('clinicResult', result); } catch(e) { setResult('clinicResult', {error: e.message}); } }
-  async function scheduleAppointment() { try { const data = { patientId: parseInt(patientIdApp.value), date: appDate.value, reason: appReason.value }; const result = await apiCall('/api/clinic/appointment', 'POST', data); setResult('clinicResult', result); } catch(e) { setResult('clinicResult', {error: e.message}); } }
-  async function listAppointments() { try { const result = await apiCall('/api/clinic/appointments'); setResult('clinicResult', result); } catch(e) { setResult('clinicResult', {error: e.message}); } }
-  async function getPatientBill() { try { const id = billPatientId.value; const result = await apiCall(`/api/clinic/patient/${id}/bill`); setResult('clinicResult', result); } catch(e) { setResult('clinicResult', {error: e.message}); } }
-
-  // 13. KYC
-  async function verifyID() { try { const data = { idNumber: idNumber.value, name: idName.value }; const result = await apiCall('/api/kyc/id', 'POST', data); setResult('kycResult', result); } catch(e) { setResult('kycResult', {error: e.message}); } }
-  async function verifyPhone() { try { const data = { phone: phoneKyc.value }; const result = await apiCall('/api/kyc/phone', 'POST', data); setResult('kycResult', result); } catch(e) { setResult('kycResult', {error: e.message}); } }
-
-  // 14. E‑commerce
-  async function addEcommerceProduct() { try { const data = { name: ecName.value, price: parseFloat(ecPrice.value) }; const result = await apiCall('/api/ecommerce/product', 'POST', data); setResult('ecommerceResult', result); } catch(e) { setResult('ecommerceResult', {error: e.message}); } }
-  async function listEcommerceProducts() { try { const result = await apiCall('/api/ecommerce/products'); setResult('ecommerceResult', result); } catch(e) { setResult('ecommerceResult', {error: e.message}); } }
-  async function createEcommerceOrder() { try { const data = { productId: parseInt(ecProdId.value), quantity: parseInt(ecQty.value), customer: ecCustomer.value }; const result = await apiCall('/api/ecommerce/order', 'POST', data); setResult('ecommerceResult', result); } catch(e) { setResult('ecommerceResult', {error: e.message}); } }
-  async function listEcommerceOrders() { try { const result = await apiCall('/api/ecommerce/orders'); setResult('ecommerceResult', result); } catch(e) { setResult('ecommerceResult', {error: e.message}); } }
-  async function processEcommercePayment() { try { const data = { orderId: parseInt(ecOrderId.value), method: ecMethod.value }; const result = await apiCall('/api/ecommerce/payment', 'POST', data); setResult('ecommerceResult', result); } catch(e) { setResult('ecommerceResult', {error: e.message}); } }
-
-  // 15. AI Tutoring
-  async function askTutor() { try { const data = { question: tutorQuestion.value, grade: parseInt(tutorGrade.value) }; const result = await apiCall('/api/tutor/chat', 'POST', data); setResult('tutorResult', result); } catch(e) { setResult('tutorResult', {error: e.message}); } }
-  async function getCurriculum() { try { const grade = tutorGrade.value; const result = await apiCall(`/api/tutor/curriculum?grade=${grade}`); setResult('tutorResult', result); } catch(e) { setResult('tutorResult', {error: e.message}); } }
-
-  // 16. Business Discovery
-  async function addBusiness() { try { const data = { name: bizName.value, category: bizCategory.value, location: bizLocation.value, whatsapp: bizWhatsapp.value }; const result = await apiCall('/api/discovery/business', 'POST', data); setResult('discoveryResult', result); } catch(e) { setResult('discoveryResult', {error: e.message}); } }
-  async function searchBusinesses() { try { const cat = searchCategory.value; const result = await apiCall(`/api/discovery/businesses?category=${cat}`); setResult('discoveryResult', result); } catch(e) { setResult('discoveryResult', {error: e.message}); } }
-  async function addReview() { try { const data = { businessId: parseInt(bizIdReview.value), rating: parseInt(rating.value), comment: reviewComment.value }; const result = await apiCall('/api/discovery/review', 'POST', data); setResult('discoveryResult', result); } catch(e) { setResult('discoveryResult', {error: e.message}); } }
-  async function getBusinessWhatsapp() { try { const id = bizIdWhatsapp.value; const result = await apiCall(`/api/discovery/business/${id}/whatsapp`); setResult('discoveryResult', result); } catch(e) { setResult('discoveryResult', {error: e.message}); } }
+  // Module functions
+  async function sendMoney() { try { const d = await apiCall('/api/momo/transfer', 'POST', { amount: mmAmount.value, phone: mmPhone.value, provider: mmProvider.value }); setRes('mmRes', d); } catch(e) { setRes('mmRes', {error: e.message}); } }
+  async function requestMoney() { try { const d = await apiCall('/api/momo/request', 'POST', { amount: mmAmount.value, phone: mmPhone.value, provider: mmProvider.value }); setRes('mmRes', d); } catch(e) { setRes('mmRes', {error: e.message}); } }
+  async function listMomo() { try { const d = await apiCall('/api/momo/transactions'); setRes('mmRes', d); } catch(e) { setRes('mmRes', {error: e.message}); } }
+  async function createInvoice() { try { const items = invItems.value.split(','); const d = await apiCall('/api/invoice/create', 'POST', { customer: invCustomer.value, amount: parseFloat(invAmount.value), items }); setRes('invRes', d); } catch(e) { setRes('invRes', {error: e.message}); } }
+  async function payInvoice() { try { const d = await apiCall(`/api/invoice/${payId.value}/pay`, 'PUT'); setRes('invRes', d); } catch(e) { setRes('invRes', {error: e.message}); } }
+  async function addWaProduct() { try { const d = await apiCall('/api/whatsapp/product', 'POST', { name: waName.value, price: parseFloat(waPrice.value), description: waDesc.value }); setRes('waRes', d); } catch(e) { setRes('waRes', {error: e.message}); } }
+  async function listWaProducts() { try { const d = await apiCall('/api/whatsapp/products'); setRes('waRes', d); } catch(e) { setRes('waRes', {error: e.message}); } }
+  async function createWaOrder() { try { const d = await apiCall('/api/whatsapp/order', 'POST', { productId: parseInt(waProdId.value), customerPhone: waPhone.value }); setRes('waRes', d); } catch(e) { setRes('waRes', {error: e.message}); } }
+  async function optimizeRoute() { try { const stops = JSON.parse(stops.value); const d = await apiCall('/api/logistics/route', 'POST', { stops }); setRes('logRes', d); } catch(e) { setRes('logRes', {error: e.message}); } }
+  async function assignDriver() { try { const d = await apiCall('/api/logistics/driver/assign', 'POST', { routeId: parseInt(routeId.value), driverId: parseInt(driverId.value) }); setRes('logRes', d); } catch(e) { setRes('logRes', {error: e.message}); } }
+  async function trackDriver() { try { const d = await apiCall(`/api/logistics/driver/${driverId.value}/track`); setRes('logRes', d); } catch(e) { setRes('logRes', {error: e.message}); } }
+  async function addFarmer() { try { const d = await apiCall('/api/agritech/farmer', 'POST', { name: farmerName.value, crop: crop.value, price: parseFloat(price.value), location: location.value }); setRes('agriRes', d); } catch(e) { setRes('agriRes', {error: e.message}); } }
+  async function listFarmers() { try { const d = await apiCall('/api/agritech/farmers'); setRes('agriRes', d); } catch(e) { setRes('agriRes', {error: e.message}); } }
+  async function matchBuyer() { try { const d = await apiCall('/api/agritech/buyer/match', 'POST', { crop: matchCrop.value, maxPrice: parseFloat(maxPrice.value) }); setRes('agriRes', d); } catch(e) { setRes('agriRes', {error: e.message}); } }
+  async function askAI() { try { const d = await apiCall('/api/ai/chat', 'POST', { query: aiQuery.value }); setRes('aiRes', d); } catch(e) { setRes('aiRes', {error: e.message}); } }
+  async function trainAI() { try { const d = await apiCall('/api/ai/train', 'POST', { question: trainQ.value, answer: trainA.value }); setRes('aiRes', d); } catch(e) { setRes('aiRes', {error: e.message}); } }
+  async function getCreditScore() { try { const d = await apiCall('/api/lending/score', 'POST', { income: parseFloat(income.value), debt: parseFloat(debt.value), history: history.value }); setRes('lendRes', d); } catch(e) { setRes('lendRes', {error: e.message}); } }
+  async function checkEligibility() { try { const d = await apiCall('/api/lending/eligibility', 'POST', { score: parseFloat(scoreVal.value), requestedAmount: parseFloat(reqAmount.value) }); setRes('lendRes', d); } catch(e) { setRes('lendRes', {error: e.message}); } }
+  async function recordSale() { try { const d = await apiCall('/api/sme/sale', 'POST', { amount: parseFloat(saleAmount.value), customerId: parseInt(custId.value) }); setRes('smeRes', d); } catch(e) { setRes('smeRes', {error: e.message}); } }
+  async function recordExpense() { try { const d = await apiCall('/api/sme/expense', 'POST', { amount: parseFloat(expenseAmount.value), category: expenseCat.value }); setRes('smeRes', d); } catch(e) { setRes('smeRes', {error: e.message}); } }
+  async function getProfit() { try { const d = await apiCall('/api/sme/profit'); setRes('smeRes', d); } catch(e) { setRes('smeRes', {error: e.message}); } }
+  async function addInvProduct() { try { const d = await apiCall('/api/inventory/product', 'POST', { name: invProdName.value, price: parseFloat(invProdPrice.value), stock: parseInt(invStock.value) }); setRes('invRes2', d); } catch(e) { setRes('invRes2', {error: e.message}); } }
+  async function listInvProducts() { try { const d = await apiCall('/api/inventory/products'); setRes('invRes2', d); } catch(e) { setRes('invRes2', {error: e.message}); } }
+  async function updateStock() { try { const d = await apiCall('/api/inventory/stock', 'PUT', { productId: parseInt(stockProdId.value), quantity: parseInt(stockQty.value) }); setRes('invRes2', d); } catch(e) { setRes('invRes2', {error: e.message}); } }
+  async function lowStockAlerts() { try { const d = await apiCall('/api/inventory/alerts'); setRes('invRes2', d); } catch(e) { setRes('invRes2', {error: e.message}); } }
+  async function recordPOS() { try { const d = await apiCall('/api/pos/sale', 'POST', { productId: parseInt(posProdId.value), quantity: parseInt(posQty.value), paymentMethod: posMethod.value }); setRes('invRes2', d); } catch(e) { setRes('invRes2', {error: e.message}); } }
+  async function createAd() { try { const d = await apiCall('/api/social/ad/create', 'POST', { name: adName.value, budget: parseFloat(adBudget.value), target: adTarget.value }); setRes('socialRes', d); } catch(e) { setRes('socialRes', {error: e.message}); } }
+  async function listAds() { try { const d = await apiCall('/api/social/ads'); setRes('socialRes', d); } catch(e) { setRes('socialRes', {error: e.message}); } }
+  async function updateAdBudget() { try { const d = await apiCall('/api/social/ad/budget', 'POST', { adId: parseInt(adId.value), newBudget: parseFloat(newBudget.value) }); setRes('socialRes', d); } catch(e) { setRes('socialRes', {error: e.message}); } }
+  async function getLeads() { try { const d = await apiCall('/api/social/leads'); setRes('socialRes', d); } catch(e) { setRes('socialRes', {error: e.message}); } }
+  async function postService() { try { const d = await apiCall('/api/freelance/service', 'POST', { title: serviceTitle.value, price: parseFloat(servicePrice.value), seller: seller.value }); setRes('freeRes', d); } catch(e) { setRes('freeRes', {error: e.message}); } }
+  async function listServices() { try { const d = await apiCall('/api/freelance/services'); setRes('freeRes', d); } catch(e) { setRes('freeRes', {error: e.message}); } }
+  async function createOrder() { try { const d = await apiCall('/api/freelance/order', 'POST', { serviceId: parseInt(orderServiceId.value), buyer: buyer.value }); setRes('freeRes', d); } catch(e) { setRes('freeRes', {error: e.message}); } }
+  async function listOrders() { try { const d = await apiCall('/api/freelance/orders'); setRes('freeRes', d); } catch(e) { setRes('freeRes', {error: e.message}); } }
+  async function releaseEscrow() { try { const d = await apiCall('/api/freelance/escrow', 'POST', { orderId: parseInt(orderId.value) }); setRes('freeRes', d); } catch(e) { setRes('freeRes', {error: e.message}); } }
+  async function addPatient() { try { const d = await apiCall('/api/clinic/patient', 'POST', { name: patientName.value, phone: patientPhone.value, address: patientAddr.value }); setRes('clinicRes', d); } catch(e) { setRes('clinicRes', {error: e.message}); } }
+  async function listPatients() { try { const d = await apiCall('/api/clinic/patients'); setRes('clinicRes', d); } catch(e) { setRes('clinicRes', {error: e.message}); } }
+  async function scheduleAppointment() { try { const d = await apiCall('/api/clinic/appointment', 'POST', { patientId: parseInt(apptPatientId.value), date: apptDate.value, reason: apptReason.value }); setRes('clinicRes', d); } catch(e) { setRes('clinicRes', {error: e.message}); } }
+  async function listAppointments() { try { const d = await apiCall('/api/clinic/appointments'); setRes('clinicRes', d); } catch(e) { setRes('clinicRes', {error: e.message}); } }
+  async function getBill() { try { const d = await apiCall(`/api/clinic/patient/${billPatientId.value}/bill`); setRes('clinicRes', d); } catch(e) { setRes('clinicRes', {error: e.message}); } }
+  async function verifyID() { try { const d = await apiCall('/api/kyc/id', 'POST', { idNumber: idNumber.value, name: idName.value }); setRes('kycRes', d); } catch(e) { setRes('kycRes', {error: e.message}); } }
+  async function verifyPhone() { try { const d = await apiCall('/api/kyc/phone', 'POST', { phone: kycPhone.value }); setRes('kycRes', d); } catch(e) { setRes('kycRes', {error: e.message}); } }
+  async function addEcProduct() { try { const d = await apiCall('/api/ecommerce/product', 'POST', { name: ecName.value, price: parseFloat(ecPrice.value) }); setRes('ecRes', d); } catch(e) { setRes('ecRes', {error: e.message}); } }
+  async function listEcProducts() { try { const d = await apiCall('/api/ecommerce/products'); setRes('ecRes', d); } catch(e) { setRes('ecRes', {error: e.message}); } }
+  async function createEcOrder() { try { const d = await apiCall('/api/ecommerce/order', 'POST', { productId: parseInt(ecProdId.value), quantity: parseInt(ecQty.value), customer: ecCustomer.value }); setRes('ecRes', d); } catch(e) { setRes('ecRes', {error: e.message}); } }
+  async function listEcOrders() { try { const d = await apiCall('/api/ecommerce/orders'); setRes('ecRes', d); } catch(e) { setRes('ecRes', {error: e.message}); } }
+  async function processEcPayment() { try { const d = await apiCall('/api/ecommerce/payment', 'POST', { orderId: parseInt(ecOrderId.value), method: ecMethod.value }); setRes('ecRes', d); } catch(e) { setRes('ecRes', {error: e.message}); } }
+  async function askTutor() { try { const d = await apiCall('/api/tutor/chat', 'POST', { question: tutorQ.value, grade: parseInt(tutorGrade.value) }); setRes('tutorRes', d); } catch(e) { setRes('tutorRes', {error: e.message}); } }
+  async function getCurriculum() { try { const grade = tutorGrade.value; const d = await apiCall(`/api/tutor/curriculum?grade=${grade}`); setRes('tutorRes', d); } catch(e) { setRes('tutorRes', {error: e.message}); } }
+  async function addBusiness() { try { const d = await apiCall('/api/discovery/business', 'POST', { name: bizName.value, category: bizCategory.value, location: bizLocation.value, whatsapp: bizWhatsapp.value }); setRes('discRes', d); } catch(e) { setRes('discRes', {error: e.message}); } }
+  async function searchBusinesses() { try { const cat = searchCat.value; const d = await apiCall(`/api/discovery/businesses?category=${cat}`); setRes('discRes', d); } catch(e) { setRes('discRes', {error: e.message}); } }
+  async function addReview() { try { const d = await apiCall('/api/discovery/review', 'POST', { businessId: parseInt(revBizId.value), rating: parseInt(rating.value), comment: reviewComment.value }); setRes('discRes', d); } catch(e) { setRes('discRes', {error: e.message}); } }
+  async function getWhatsAppLink() { try { const d = await apiCall(`/api/discovery/business/${waBizId.value}/whatsapp`); setRes('discRes', d); } catch(e) { setRes('discRes', {error: e.message}); } }
 </script>
 </body>
 </html>
