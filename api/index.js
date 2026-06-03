@@ -349,30 +349,64 @@ app.post('/api/waitlist', async (req, res) => {
   res.json({ message: sent ? 'Added to waitlist and welcome email sent!' : 'Added to waitlist (but email could not be sent).' });
 });
 
-// ---------- LEMON SQUEEZY CHECKOUT ----------
-app.post('/api/create-ls-checkout', async (req, res) => {
-  const { email } = req.body;
-  if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
-  const LS_API_KEY = process.env.LEMONSQUEEZY_API_KEY || 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...';
-  const LS_STORE_ID = process.env.LEMONSQUEEZY_STORE_ID || '387550';
-  const LS_VARIANT_ID = process.env.LEMONSQUEEZY_VARIANT_ID || '1705111';
-  try {
-    const response = await axios.post('https://api.lemonsqueezy.com/v1/checkouts', {
-      data: {
-        type: 'checkouts',
-        attributes: {
-          checkout_data: { email, custom: { user_email: email } },
-          product_options: { redirect_url: 'https://ba-kangombe.vercel.app/success', receipt_button_text: 'Go to Dashboard', receipt_link_url: 'https://ba-kangombe.vercel.app/dashboard' },
-          checkout_options: { embed: false, media: false, logo: false, desc: false, discount: true, dark: false }
-        },
-        relationships: { store: { data: { type: 'stores', id: LS_STORE_ID } }, variant: { data: { type: 'variants', id: LS_VARIANT_ID } } }
-      }
-    }, { headers: { Accept: 'application/vnd.api+json', 'Content-Type': 'application/vnd.api+json', Authorization: `Bearer ${LS_API_KEY}` } });
-    res.json({ url: response.data.data.attributes.url });
-  } catch (err) {
-    console.error(err.response?.data || err.message);
-    res.status(500).json({ error: 'Checkout failed' });
+// ---------- LEMON SQUEEZY WEBHOOK (auto-create business & send API key) ----------
+app.post('/api/lemonsqueezy/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
+  const signature = req.headers['x-signature'];
+  if (secret && signature !== crypto.createHmac('sha256', secret).update(req.body).digest('hex')) {
+    console.error('Invalid signature');
+    return res.status(401).json({ error: 'Invalid signature' });
   }
+  const event = JSON.parse(req.body);
+  const eventName = event.meta.event_name;
+  console.log('Webhook received:', eventName);
+
+  // Handle both initial order and recurring payment success
+  if (eventName === 'order_created' || eventName === 'subscription_payment_success') {
+    let userEmail, customData;
+    if (eventName === 'order_created') {
+      userEmail = event.data.attributes.user_email || event.data.attributes.customer_email;
+      customData = event.data.attributes.custom_data || {};
+    } else { // subscription_payment_success
+      userEmail = event.data.attributes.user_email;
+      customData = event.meta.custom_data || {};
+    }
+    if (!userEmail) {
+      console.error('No user email in webhook');
+      return res.status(400).json({ error: 'No user email' });
+    }
+    const businessName = customData.business_name || userEmail.split('@')[0];
+    
+    // Check if business already exists
+    const existing = await sql`SELECT id, api_key FROM businesses WHERE email = ${userEmail}`;
+    let apiKey;
+    if (existing.rowCount > 0) {
+      apiKey = existing.rows[0].api_key;
+      console.log(`Business already exists for ${userEmail}`);
+    } else {
+      // Create new business
+      apiKey = crypto.randomBytes(32).toString('hex');
+      await sql`
+        INSERT INTO businesses (name, email, api_key, modules)
+        VALUES (${businessName}, ${userEmail}, ${apiKey}, ARRAY['website'])
+      `;
+      // Activate a default subscription (1 month)
+      const expiresAt = new Date();
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
+      await sql`
+        INSERT INTO subscriptions (business_id, plan, status, expires_at)
+        SELECT id, 'Pro', 'active', ${expiresAt}
+        FROM businesses WHERE api_key = ${apiKey}
+      `;
+      console.log(`Business created for ${userEmail} with API key ${apiKey}`);
+    }
+    
+    // Send email with API key
+    const apiKeyMessage = `Your API key: ${apiKey}\n\nYou can test your API at: https://ba-kangombe.vercel.app/new-features\nDocumentation: https://ba-kangombe.vercel.app/docs`;
+    await sendEmail(userEmail, 'Your BaKangombe API Key', `<html><body><h2>Thank you for subscribing!</h2><p>${apiKeyMessage.replace(/\n/g, '<br>')}</p><p>– BaKangombe Team</p></body></html>`);
+    console.log(`API key email sent to ${userEmail}`);
+  }
+  res.json({ received: true });
 });
 
 // ---------- LEMON SQUEEZY WEBHOOK (auto-create business & send API key) ----------
