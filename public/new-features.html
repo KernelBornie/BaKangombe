@@ -8,7 +8,8 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #0a0c10; color: #eef2ff; font-family: system-ui, sans-serif; padding: 2rem; max-width: 1400px; margin: 0 auto; }
     h1, h2, h3 { color: #a0c4ff; margin-bottom: 0.5rem; }
-    .api-section { background: #0f1117; padding: 1rem; border-radius: 1rem; margin-bottom: 2rem; border: 1px solid rgba(255,255,255,0.1); display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+    .api-section { background: #0f1117; padding: 1rem; border-radius: 1rem; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.1); display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+    .activate-section { background: rgba(79,70,229,0.2); padding: 1rem; border-radius: 1rem; margin-bottom: 2rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
     input, select, button { background: #1e293b; border: 1px solid #334155; padding: 0.5rem 1rem; border-radius: 0.5rem; color: white; margin: 0.25rem; }
     button { background: #4f46e5; cursor: pointer; transition: 0.2s; }
     button:hover { background: #6366f1; }
@@ -31,12 +32,21 @@
 </div>
 
 <h1>🚀 New BaKangombe Features (Demo)</h1>
+
 <div class="api-section">
   <input type="text" id="apiKeyInput" placeholder="Enter your Business API Key" style="flex:2">
   <button id="saveKeyBtn">💾 Save Key</button>
   <button id="registerBtn">🏢 Register New Business</button>
   <span id="keyStatus" style="font-size:0.8rem;"></span>
 </div>
+
+<!-- ACTIVATION BUTTONS -->
+<div class="activate-section">
+  <button id="activateAllBtn" style="background:#f59e0b;">⚡ Activate All Modules (One Click)</button>
+  <button id="activateSingleBtn" style="background:#10b981;">➕ Activate Single System</button>
+  <span style="font-size:0.8rem;">Use after saving your API key.</span>
+</div>
+
 <p>All endpoints require a valid API key. Save your key above, then test any module.</p>
 
 <div class="module-grid">
@@ -173,6 +183,7 @@
   }
   function setRes(divId, data) { document.getElementById(divId).innerHTML = JSON.stringify(data, null, 2); }
 
+  // Register business
   document.getElementById('registerBtn').onclick = async () => {
     const name = prompt('Business name:'); if (!name) return;
     const email = prompt('Business email:'); if (!email) return;
@@ -182,7 +193,40 @@
     else alert('Error: ' + JSON.stringify(data));
   };
 
-  // Module functions
+  // ========== ACTIVATE ALL MODULES ==========
+  async function activateAllModules() {
+    const services = [
+      'business_management', 'mobile_money', 'ecommerce', 'ai_chatbot',
+      'clinic', 'agritech', 'freelance', 'discovery', 'website_builder'
+    ];
+    let results = [];
+    for (const service of services) {
+      try {
+        const res = await apiCall('/api/system/create', 'POST', { service });
+        results.push({ service, success: true, modules: res.modules });
+      } catch (err) {
+        results.push({ service, success: false, error: err.message });
+      }
+    }
+    alert(`Activation complete.\n${results.map(r => `${r.service}: ${r.success ? '✓' : '✗ ' + r.error}`).join('\n')}`);
+    location.reload();
+  }
+  document.getElementById('activateAllBtn').onclick = activateAllModules;
+
+  // Single system activation (prompt)
+  document.getElementById('activateSingleBtn').onclick = async () => {
+    const service = prompt('Enter service key:\nOptions: business_management, mobile_money, ecommerce, ai_chatbot, clinic, agritech, freelance, discovery, website_builder');
+    if (!service) return;
+    try {
+      const res = await apiCall('/api/system/create', 'POST', { service });
+      alert(`System "${service}" activated!\nModules: ${res.modules.join(', ')}`);
+      location.reload();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
+
+  // Module functions (keep as before)
   async function sendMoney() { try { const d = await apiCall('/api/momo/transfer', 'POST', { amount: mmAmount.value, phone: mmPhone.value, provider: mmProvider.value }); setRes('mmRes', d); } catch(e) { setRes('mmRes', {error: e.message}); } }
   async function requestMoney() { try { const d = await apiCall('/api/momo/request', 'POST', { amount: mmAmount.value, phone: mmPhone.value, provider: mmProvider.value }); setRes('mmRes', d); } catch(e) { setRes('mmRes', {error: e.message}); } }
   async function listMomo() { try { const d = await apiCall('/api/momo/transactions'); setRes('mmRes', d); } catch(e) { setRes('mmRes', {error: e.message}); } }
