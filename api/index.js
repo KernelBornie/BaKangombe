@@ -84,13 +84,23 @@ async function cachedDnsResolve(domain, type, resolverFn) {
   return result;
 }
 
-async function getMxRecords(domain) {
-  return cachedDnsResolve(domain, 'mx', async () => {
-    try {
-      const mx = await dns.resolveMx(domain);
-      return mx && mx.length > 0;
-    } catch { return false; }
-  });
+// ---------- IMPROVED MX LOOKUP with timeout and fallback ----------
+async function getMxRecords(domain, timeout = 5000) {
+  try {
+    const mx = await Promise.race([
+      dns.resolveMx(domain),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('DNS timeout')), timeout))
+    ]);
+    return mx && mx.length > 0;
+  } catch (err) {
+    console.error(`MX lookup failed for ${domain}:`, err.message);
+    // Known email providers – assume MX exists to avoid false negatives
+    const knownDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'protonmail.com'];
+    if (knownDomains.includes(domain.toLowerCase())) {
+      return true;
+    }
+    return false;
+  }
 }
 
 async function checkSpf(domain) {
@@ -153,10 +163,6 @@ app.use('/api/', checkPremiumKey);
 
 app.use('/api/validate', (req, res, next) => rateLimitWithHeaders(req, res, next, FREE_LIMIT_MAX));
 app.use('/api/feedback', (req, res, next) => rateLimitWithHeaders(req, res, next, FREE_LIMIT_MAX));
-app.use('/api/enrich', (req, res, next) => {
-  if (req.isPremium) return rateLimitWithHeaders(req, res, next, PREMIUM_LIMIT_MAX);
-  next();
-});
 app.use('/api/validate/batch', (req, res, next) => {
   if (req.isPremium) return rateLimitWithHeaders(req, res, next, PREMIUM_LIMIT_MAX);
   next();
@@ -169,10 +175,7 @@ app.use('/api/disposable', (req, res, next) => {
   if (req.isPremium) return rateLimitWithHeaders(req, res, next, PREMIUM_LIMIT_MAX);
   next();
 });
-app.use('/api/website/generate', (req, res, next) => {
-  if (req.isPremium) return rateLimitWithHeaders(req, res, next, PREMIUM_LIMIT_MAX);
-  next();
-});
+// Website builder rate limit is now inside the route (no global rate limit needed)
 
 const getCount = (req, defaultCount = 5) => {
   let count = parseInt(req.params.count) || parseInt(req.query.count) || defaultCount;
@@ -371,19 +374,39 @@ app.post('/api/create-ls-checkout', async (req, res) => {
     res.status(500).json({ error: 'Checkout failed' });
   }
 });
-// ---------- ENRICHMENT (enhanced with better error handling) ----------
+
+// ---------- ENRICHMENT (fixed with business key and subscription check) ----------
 const HUNTER_API_KEY = process.env.HUNTER_API_KEY;
-app.post('/api/enrich', async (req, res) => {
+
+app.post('/api/enrich', requireBusiness, async (req, res) => {
   const { email } = req.body;
   if (!email || !email.includes('@')) {
     return res.status(400).json({ error: 'Valid email required' });
   }
-  if (!req.isPremium) {
-    return res.status(402).json({ error: 'Premium API key required' });
-  }
   if (!HUNTER_API_KEY) {
-    return res.status(500).json({ error: 'Enrichment service not configured. Please contact support.' });
+    return res.status(500).json({ error: 'Enrichment service not configured. Contact support.' });
   }
+
+  // Optional subscription check – gracefully handle if table does not exist yet
+  try {
+    const sub = await sql`
+      SELECT * FROM subscriptions
+      WHERE business_id = ${req.business.id}
+        AND status = 'active'
+        AND expires_at > NOW()
+      LIMIT 1
+    `;
+    if (sub.rowCount === 0) {
+      return res.status(402).json({ error: 'Active subscription required for enrichment. Please subscribe.' });
+    }
+  } catch (err) {
+    // If the subscriptions table doesn't exist yet, skip the check (graceful fallback)
+    if (!err.message.includes('relation "subscriptions" does not exist')) {
+      console.error('Subscription check error:', err.message);
+      return res.status(500).json({ error: 'Internal server error. Please try again.' });
+    }
+  }
+
   try {
     const url = `https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(email)}&api_key=${HUNTER_API_KEY}`;
     const response = await axios.get(url, { timeout: 10000 });
@@ -401,18 +424,20 @@ app.post('/api/enrich', async (req, res) => {
     });
   } catch (err) {
     console.error('Hunter API error:', err.response?.data || err.message);
-    // Return a friendly error message
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Enrichment failed. Check Hunter API key or try again later.',
-      details: err.response?.data?.message || err.message 
+      details: err.response?.data?.message || err.message
     });
   }
 });
 
-// ---------- WEBSITE BUILDER ----------
-app.post('/api/website/generate', async (req, res) => {
+// ---------- WEBSITE BUILDER (fixed to use business API key) ----------
+app.post('/api/website/generate', requireBusiness, async (req, res) => {
   const { template = 'landing', title = 'My Site', content = 'Welcome!' } = req.body;
-  if (!req.isPremium) return res.status(402).json({ error: 'Premium API key required' });
+  // Optional: check if business has 'website' module enabled
+  if (!req.business.modules.includes('website')) {
+    return res.status(403).json({ error: 'Website builder not enabled. Please subscribe to a plan that includes it.' });
+  }
   let html;
   if (template === 'landing') {
     html = `<!DOCTYPE html><html><head><title>${title}</title><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:system-ui;background:#0a0c10;color:#eef2ff;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;text-align:center}.card{background:rgba(255,255,255,0.05);border-radius:1rem;padding:2rem;max-width:500px}button{background:#4f46e5;border:none;padding:0.5rem 1rem;border-radius:2rem;color:white;cursor:pointer}</style></head><body><div class="card"><h1>${title}</h1><p>${content}</p><button onclick="alert('Hello!')">Click me</button></div></body></html>`;
@@ -448,7 +473,7 @@ app.post('/api/feedback', async (req, res) => {
   res.json({ success: true, message: 'Thank you! A confirmation email has been sent.' });
 });
 
-// ---------- GENERATE PREMIUM KEY ----------
+// ---------- GENERATE PREMIUM KEY (still needed for legacy) ----------
 app.post('/api/generate-key', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Email required' });
@@ -632,7 +657,7 @@ app.get('/docs', (req, res) => {
       <div id="feedback" class="endpoint-card"><h3><span class="method">POST</span> <span class="path">/api/feedback</span> <span class="badge free">Free</span></h3><p>Submits user feedback. A confirmation email is sent to the provided address. Data is stored in Vercel Postgres.</p><pre><code>{ "name": "Alice", "email": "alice@example.com", "message": "Great API!" }</code></pre><pre><code>{ "success": true, "message": "Thank you! A confirmation email has been sent." }</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/feedback -H \"Content-Type: application/json\" -d \'{\"name\":\"User\",\"email\":\"user@example.com\",\"message\":\"Great API!\"}\'')">Copy cURL</button></div>
     </section>
     <section id="errors"><h2>Error Codes</h2>
-    <table>
+    </table>
       <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
       <tbody><tr><td>400</td><td>Bad request – missing email/domain or invalid JSON</td></tr>
       <tr><td>402</td><td>Payment required – premium endpoint called without valid API key</td></tr>
@@ -793,7 +818,8 @@ const SERVICE_CATALOG = {
   clinic: { name: "Clinic Management", modules: ["clinic", "invoice"] },
   agritech: { name: "Agritech Platform", modules: ["agritech"] },
   freelance: { name: "Freelance Marketplace", modules: ["freelance"] },
-  discovery: { name: "Business Directory", modules: ["discovery"] }
+  discovery: { name: "Business Directory", modules: ["discovery"] },
+  website_builder: { name: "Website Builder", modules: ["website"] } // new
 };
 
 const SYSTEM_BUNDLES = {
@@ -827,7 +853,6 @@ app.post('/api/subscription/activate', requireBusiness, async (req, res) => {
     INSERT INTO subscriptions (business_id, plan, status, expires_at)
     VALUES (${req.business.id}, ${plan}, 'active', ${expiresAt})
   `;
-  // Optionally, you could add module access based on plan here.
   res.json({ success: true, plan, expiresAt });
 });
 
@@ -878,7 +903,7 @@ app.get('/api/system/list', requireBusiness, async (req, res) => {
   res.json({ systems: systems.rows });
 });
 
-// Get services for a bundle (no DB change, just returns the list)
+// Get services for a bundle
 app.post('/api/system/bundle', requireBusiness, (req, res) => {
   const { bundle } = req.body;
   const services = SYSTEM_BUNDLES[bundle];
@@ -1036,6 +1061,11 @@ app.get('/api/inventory/alerts', requireBusiness, requireModule('inventory'), as
   const lowStock = await sql`SELECT * FROM inventory_products WHERE business_id = ${req.business.id} AND stock < 5`;
   res.json({ lowStock: lowStock.rows });
 });
+// NEW: list all inventory products
+app.get('/api/inventory/products', requireBusiness, requireModule('inventory'), async (req, res) => {
+  const products = await sql`SELECT * FROM inventory_products WHERE business_id = ${req.business.id}`;
+  res.json({ products: products.rows });
+});
 app.post('/api/pos/sale', requireBusiness, requireModule('inventory'), async (req, res) => {
   const { productId, quantity, paymentMethod } = req.body;
   const product = await sql`SELECT price, stock FROM inventory_products WHERE id = ${productId} AND business_id = ${req.business.id}`;
@@ -1060,6 +1090,11 @@ app.get('/api/social/leads', requireBusiness, requireModule('social_ads'), async
   const leads = await sql`SELECT SUM(leads) as total FROM social_ads WHERE business_id = ${req.business.id}`;
   res.json({ leads: leads.rows[0].total || 0 });
 });
+// NEW: list all social ads
+app.get('/api/social/ads', requireBusiness, requireModule('social_ads'), async (req, res) => {
+  const ads = await sql`SELECT * FROM social_ads WHERE business_id = ${req.business.id}`;
+  res.json({ ads: ads.rows });
+});
 
 // 11. Freelance (module: freelance)
 app.post('/api/freelance/service', requireBusiness, requireModule('freelance'), async (req, res) => {
@@ -1081,6 +1116,11 @@ app.post('/api/freelance/escrow', requireBusiness, requireModule('freelance'), a
   await sql`UPDATE freelance_orders SET status = 'released' WHERE id = ${orderId} AND business_id = ${req.business.id}`;
   res.json({ success: true });
 });
+// NEW: list all freelance orders
+app.get('/api/freelance/orders', requireBusiness, requireModule('freelance'), async (req, res) => {
+  const orders = await sql`SELECT * FROM freelance_orders WHERE business_id = ${req.business.id}`;
+  res.json({ orders: orders.rows });
+});
 
 // 12. Clinic (module: clinic)
 app.post('/api/clinic/patient', requireBusiness, requireModule('clinic'), async (req, res) => {
@@ -1097,6 +1137,16 @@ app.get('/api/clinic/patient/:id/bill', requireBusiness, requireModule('clinic')
   const patient = await sql`SELECT * FROM clinic_patients WHERE id = ${req.params.id} AND business_id = ${req.business.id}`;
   if (patient.rowCount === 0) return res.status(404).json({ error: 'Patient not found' });
   res.json({ patient: patient.rows[0], bill: Math.floor(Math.random() * 500) });
+});
+// NEW: list all clinic patients
+app.get('/api/clinic/patients', requireBusiness, requireModule('clinic'), async (req, res) => {
+  const patients = await sql`SELECT * FROM clinic_patients WHERE business_id = ${req.business.id}`;
+  res.json({ patients: patients.rows });
+});
+// NEW: list all clinic appointments
+app.get('/api/clinic/appointments', requireBusiness, requireModule('clinic'), async (req, res) => {
+  const appointments = await sql`SELECT * FROM clinic_appointments WHERE business_id = ${req.business.id}`;
+  res.json({ appointments: appointments.rows });
 });
 
 // 13. KYC (module: kyc)
@@ -1128,6 +1178,11 @@ app.post('/api/ecommerce/payment', requireBusiness, requireModule('ecommerce'), 
   const { orderId, method } = req.body;
   await sql`UPDATE ecommerce_orders SET status = 'paid' WHERE id = ${orderId} AND business_id = ${req.business.id}`;
   res.json({ success: true, paymentMethod: method });
+});
+// NEW: list all ecommerce orders
+app.get('/api/ecommerce/orders', requireBusiness, requireModule('ecommerce'), async (req, res) => {
+  const orders = await sql`SELECT * FROM ecommerce_orders WHERE business_id = ${req.business.id}`;
+  res.json({ orders: orders.rows });
 });
 
 // 15. AI Tutoring (module: tutor)
