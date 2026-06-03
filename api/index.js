@@ -666,47 +666,219 @@ app.get('/api/admin/feedback/:id/responses', verifyAdminToken, async (req, res) 
 });
 app.get('/admin', (req, res) => { res.sendFile(path.join(__dirname, '../public/admin.html')); });
 
-// ---------- PROFESSIONAL DOCUMENTATION PAGE (full HTML) ----------
+// ---------- HEALTH CHECK ENDPOINT ----------
+app.get('/api/health', async (req, res) => {
+  try {
+    await sql`SELECT 1`;
+    res.json({ status: 'ok', database: 'connected', timestamp: new Date().toISOString() });
+  } catch (err) {
+    res.status(500).json({ status: 'error', database: err.message });
+  }
+});
+
+// ---------- BOOK‑STYLE PROFESSIONAL DOCUMENTATION ----------
 app.get('/docs', (req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BaKangombe API – Complete Documentation</title>
+  <title>BaKangombe · Complete API Documentation</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0a0c10; color: #eef2ff; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; }
-    .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
-    .navbar { display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; flex-wrap: wrap; gap: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 2rem; }
-    .logo { font-size: 1.5rem; font-weight: 700; background: linear-gradient(135deg, #d9a7c7, #fff0d4, #a0c4ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
-    .nav-links { display: flex; gap: 1.5rem; flex-wrap: wrap; }
-    .nav-links a { color: #cbd5e6; text-decoration: none; font-weight: 500; transition: color 0.2s; }
-    .nav-links a:hover { color: #a0c4ff; }
-    h1 { font-size: 2.2rem; margin-bottom: 0.5rem; }
-    h2 { font-size: 1.6rem; margin: 2rem 0 1rem; color: #a0c4ff; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem; }
-    h3 { font-size: 1.2rem; margin: 1.2rem 0 0.5rem; color: #eef2ff; }
-    .badge { display: inline-block; background: #4f46e5; padding: 0.2rem 0.7rem; border-radius: 2rem; font-size: 0.7rem; font-weight: 600; margin-left: 0.75rem; vertical-align: middle; }
-    .badge.free { background: #10b981; }
-    .badge.premium { background: #f59e0b; }
-    .endpoint { background: rgba(255,255,255,0.03); border-radius: 0.75rem; padding: 1.2rem; margin: 1rem 0; border: 1px solid rgba(255,255,255,0.08); }
-    .method { display: inline-block; background: #4f46e5; padding: 0.2rem 0.7rem; border-radius: 1.5rem; font-size: 0.75rem; font-weight: 700; margin-right: 0.8rem; font-family: monospace; }
-    .path { font-family: monospace; font-size: 1rem; word-break: break-all; }
-    pre { background: #0f1117; padding: 0.8rem; border-radius: 0.5rem; overflow-x: auto; font-size: 0.85rem; margin: 0.8rem 0; border: 1px solid rgba(255,255,255,0.05); }
-    code { font-family: monospace; background: #1e293b; padding: 0.2rem 0.4rem; border-radius: 0.3rem; font-size: 0.9rem; }
-    table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
-    th, td { text-align: left; padding: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.08); }
-    th { font-weight: 600; color: #a0c4ff; }
-    .copy-btn { background: #1e293b; border: none; padding: 0.2rem 0.7rem; border-radius: 1.5rem; color: #a0c4ff; cursor: pointer; font-size: 0.7rem; font-weight: 500; transition: 0.2s; margin-left: 0.5rem; }
-    .copy-btn:hover { background: #4f46e5; color: white; }
-    .toast { position: fixed; bottom: 20px; right: 20px; background: #10b981; color: white; padding: 0.5rem 1rem; border-radius: 2rem; font-size: 0.8rem; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 1000; }
-    .footer { margin-top: 3rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.05); text-align: center; color: #6c7a91; font-size: 0.85rem; }
-    @media (max-width: 768px) { .container { padding: 1rem; } .navbar { flex-direction: column; } }
+    body {
+      background: #f5f2e8;
+      color: #1e1a16;
+      font-family: 'Georgia', 'Times New Roman', Times, serif;
+      line-height: 1.7;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 2rem 4rem;
+      background: #fffef7;
+      box-shadow: 0 0 30px rgba(0,0,0,0.05);
+    }
+    .nav-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding-bottom: 1rem;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid #e2dcd0;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .logo {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #8b5a2b, #c49a6c);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .nav-links {
+      display: flex;
+      gap: 1.5rem;
+    }
+    .nav-links a {
+      text-decoration: none;
+      color: #5a3e2b;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover {
+      color: #8b5a2b;
+    }
+    .book-title {
+      font-size: 2.8rem;
+      font-weight: normal;
+      text-align: center;
+      margin: 2rem 0 0.5rem;
+      letter-spacing: -0.5px;
+    }
+    .book-subtitle {
+      text-align: center;
+      color: #6b5a4a;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid #e2dcd0;
+      padding-bottom: 1.5rem;
+    }
+    .toc {
+      background: #faf8f3;
+      padding: 1.5rem 2rem;
+      margin: 2rem 0;
+      border-left: 4px solid #c49a6c;
+      font-family: system-ui, sans-serif;
+    }
+    .toc h2 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      font-weight: 500;
+    }
+    .toc ul {
+      columns: 2;
+      list-style: none;
+    }
+    .toc li {
+      margin: 0.4rem 0;
+    }
+    .toc a {
+      text-decoration: none;
+      color: #5a3e2b;
+    }
+    .toc a:hover {
+      text-decoration: underline;
+    }
+    h1, h2, h3 {
+      font-weight: normal;
+      letter-spacing: -0.3px;
+    }
+    h2 {
+      font-size: 1.8rem;
+      margin: 2rem 0 1rem;
+      padding-bottom: 0.3rem;
+      border-bottom: 1px solid #e2dcd0;
+    }
+    h3 {
+      font-size: 1.4rem;
+      margin: 1.5rem 0 0.5rem;
+      color: #4a3724;
+    }
+    .endpoint {
+      margin: 1.5rem 0;
+      padding: 1rem 1.5rem;
+      background: #fefcf8;
+      border-left: 3px solid #c49a6c;
+      border-radius: 0 8px 8px 0;
+    }
+    .method {
+      display: inline-block;
+      background: #2c5f2d;
+      color: white;
+      font-family: monospace;
+      font-size: 0.7rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      margin-right: 0.8rem;
+      vertical-align: middle;
+    }
+    .method.free {
+      background: #2c5f2d;
+    }
+    .method.premium {
+      background: #b76e2e;
+    }
+    .path {
+      font-family: 'SF Mono', monospace;
+      font-size: 1rem;
+    }
+    pre {
+      background: #2d2a24;
+      color: #f5e6d3;
+      padding: 0.8rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      margin: 0.8rem 0;
+    }
+    code {
+      font-family: 'SF Mono', monospace;
+      background: #f0ede8;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      color: #3b2a1f;
+    }
+    .copy-btn {
+      background: #e2dcd0;
+      border: none;
+      padding: 0.2rem 0.7rem;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      cursor: pointer;
+      margin-left: 0.5rem;
+    }
+    .copy-btn:hover {
+      background: #c49a6c;
+      color: white;
+    }
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    .module-card {
+      background: #fefcf8;
+      border: 1px solid #e2dcd0;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    .module-card h4 {
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+      color: #4a3724;
+    }
+    footer {
+      margin-top: 3rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: #9b8a7a;
+      border-top: 1px solid #e2dcd0;
+      padding-top: 2rem;
+    }
+    @media (max-width: 768px) {
+      .container { padding: 1rem; }
+      .toc ul { columns: 1; }
+    }
   </style>
 </head>
 <body>
 <div class="container">
-  <div class="navbar">
+  <div class="nav-bar">
     <div class="logo">BaKangombe</div>
     <div class="nav-links">
       <a href="/#features">Features</a>
@@ -718,115 +890,89 @@ app.get('/docs', (req, res) => {
     </div>
   </div>
 
-  <h1>BaKangombe API Documentation</h1>
-  <p>Real‑time email validation, disposable detection, MX lookup, domain reputation scoring, batch CSV, and 16 business modules. All endpoints (except <code>/api/validate</code> and <code>/api/feedback</code>) require a valid <code>X-API-Key</code> header.</p>
+  <div class="book-title">BaKangombe</div>
+  <div class="book-subtitle">Complete API Reference · Email Validation & 16 Business Systems</div>
 
-  <h2>🔐 Authentication</h2>
-  <p>Include your business API key in every request:</p>
+  <div class="toc">
+    <h2>📖 Contents</h2>
+    <ul>
+      <li><a href="#auth">🔐 Authentication & Rate Limits</a></li>
+      <li><a href="#email">📧 Email Validation & Enrichment</a></li>
+      <li><a href="#business">🏢 Business Management</a></li>
+      <li><a href="#modules">📦 The 16 Business Modules</a>
+        <ul style="margin-left: 1rem; columns: 1;">
+          <li><a href="#mod1">1. Mobile Money</a></li>
+          <li><a href="#mod2">2. Invoice & ZRA Billing</a></li>
+          <li><a href="#mod3">3. WhatsApp Mini E‑commerce</a></li>
+          <li><a href="#mod4">4. Logistics & Delivery</a></li>
+          <li><a href="#mod5">5. Agritech Marketplace</a></li>
+          <li><a href="#mod6">6. AI Customer Support</a></li>
+          <li><a href="#mod7">7. Micro‑Lending</a></li>
+          <li><a href="#mod8">8. SME Dashboard</a></li>
+          <li><a href="#mod9">9. Inventory & POS</a></li>
+          <li><a href="#mod10">10. Social Ads</a></li>
+          <li><a href="#mod11">11. Freelance Marketplace</a></li>
+          <li><a href="#mod12">12. Clinic Management</a></li>
+          <li><a href="#mod13">13. Identity Verification (KYC)</a></li>
+          <li><a href="#mod14">14. E‑commerce BaaS</a></li>
+          <li><a href="#mod15">15. AI Tutoring</a></li>
+          <li><a href="#mod16">16. Local Business Discovery</a></li>
+        </ul>
+      </li>
+      <li><a href="#feedback">📝 Feedback & Waitlist</a></li>
+      <li><a href="#errors">❌ Error Codes</a></li>
+    </ul>
+  </div>
+
+  <h2 id="auth">🔐 Authentication & Rate Limits</h2>
+  <p>All endpoints (except <code>/api/validate</code> and <code>/api/feedback</code>) require a valid <code>X-API-Key</code> header containing your business API key.</p>
   <pre><code>X-API-Key: your_business_api_key</code></pre>
-  <p>To obtain a key, register via <code>POST /api/business/register</code> or use the <a href="/new-features">interactive tester</a>.</p>
-
-  <h2>⚡ Rate Limits</h2>
+  <p>Obtain a key by calling <code>POST /api/business/register</code> or using the <a href="/new-features">interactive tester</a>.</p>
   <table>
     <thead><tr><th>Plan</th><th>Requests per minute</th><th>Monthly cap</th></tr></thead>
     <tbody><tr><td>Free</td><td>100</td><td>Unlimited</td></tr><tr><td>Premium</td><td>10,000</td><td>300,000</td></tr></tbody>
   </table>
 
-  <h2>📧 Email Validation & Enrichment</h2>
-  <div class="endpoint">
-    <h3><span class="method">POST</span> <span class="path">/api/validate</span> <span class="badge free">Free</span></h3>
-    <p>Validates a single email (syntax, MX, disposable, free provider). No API key required.</p>
-    <pre><code>curl -X POST https://ba-kangombe.vercel.app/api/validate -H "Content-Type: application/json" -d '{"email":"user@example.com"}'</code></pre>
-    <button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/validate -H \"Content-Type: application/json\" -d \'{\"email\":\"user@example.com\"}\'')">Copy</button>
-  </div>
+  <h2 id="email">📧 Email Validation & Enrichment</h2>
+  <div class="endpoint"><h3><span class="method free">POST</span> <span class="path">/api/validate</span></h3><p>Validates a single email (syntax, MX, disposable, free provider). No API key required.</p><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/validate -H "Content-Type: application/json" -d '{"email":"user@example.com"}'</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/validate -H \"Content-Type: application/json\" -d \'{\"email\":\"user@example.com\"}\'')">Copy</button></div>
+  <div class="endpoint"><h3><span class="method premium">POST</span> <span class="path">/api/enrich</span></h3><p>Enriches an email with company/person data (requires active subscription).</p><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/enrich -H "X-API-Key: YOUR_KEY" -H "Content-Type: application/json" -d '{"email":"bill@microsoft.com"}'</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/enrich -H \"X-API-Key: YOUR_KEY\" -H \"Content-Type: application/json\" -d \'{\"email\":\"bill@microsoft.com\"}\'')">Copy</button></div>
+  <div class="endpoint"><h3><span class="method premium">POST</span> <span class="path">/api/disposable</span></h3><p>Checks if an email domain is disposable.</p><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/disposable -H "X-API-Key: YOUR_KEY" -d '{"email":"temp@mailinator.com"}'</code></pre></div>
+  <div class="endpoint"><h3><span class="method premium">POST</span> <span class="path">/api/domain/score</span></h3><p>Returns SPF/DKIM/DMARC status and security score (0-100).</p><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/domain/score -H "X-API-Key: YOUR_KEY" -d '{"domain":"github.com"}'</code></pre></div>
+  <div class="endpoint"><h3><span class="method premium">POST</span> <span class="path">/api/validate/batch</span></h3><p>Upload a CSV file (first column emails) and get validation results.</p><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/validate/batch -H "X-API-Key: YOUR_KEY" -F "file=@emails.csv"</code></pre></div>
 
-  <div class="endpoint">
-    <h3><span class="method">POST</span> <span class="path">/api/enrich</span> <span class="badge premium">Premium</span></h3>
-    <p>Enriches an email with company/person data (requires active subscription).</p>
-    <pre><code>curl -X POST https://ba-kangombe.vercel.app/api/enrich -H "X-API-Key: YOUR_KEY" -H "Content-Type: application/json" -d '{"email":"bill@microsoft.com"}'</code></pre>
-    <button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/enrich -H \"X-API-Key: YOUR_KEY\" -H \"Content-Type: application/json\" -d \'{\"email\":\"bill@microsoft.com\"}\'')">Copy</button>
-  </div>
-
-  <div class="endpoint">
-    <h3><span class="method">POST</span> <span class="path">/api/disposable</span> <span class="badge premium">Premium</span></h3>
-    <p>Checks if an email domain is disposable.</p>
-    <pre><code>curl -X POST https://ba-kangombe.vercel.app/api/disposable -H "X-API-Key: YOUR_KEY" -d '{"email":"temp@mailinator.com"}'</code></pre>
-  </div>
-
-  <div class="endpoint">
-    <h3><span class="method">POST</span> <span class="path">/api/domain/score</span> <span class="badge premium">Premium</span></h3>
-    <p>Returns SPF/DKIM/DMARC status and security score (0-100).</p>
-    <pre><code>curl -X POST https://ba-kangombe.vercel.app/api/domain/score -H "X-API-Key: YOUR_KEY" -d '{"domain":"github.com"}'</code></pre>
-  </div>
-
-  <div class="endpoint">
-    <h3><span class="method">POST</span> <span class="path">/api/validate/batch</span> <span class="badge premium">Premium</span></h3>
-    <p>Upload a CSV file (first column emails) and get validation results.</p>
-    <pre><code>curl -X POST https://ba-kangombe.vercel.app/api/validate/batch -H "X-API-Key: YOUR_KEY" -F "file=@emails.csv"</code></pre>
-  </div>
-
-  <h2>🏢 Business Management</h2>
+  <h2 id="business">🏢 Business Management</h2>
   <div class="endpoint"><h3><span class="method">POST</span> <span class="path">/api/business/register</span></h3><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/business/register -H "Content-Type: application/json" -d '{"name":"My Business","email":"contact@example.com"}'</code></pre></div>
   <div class="endpoint"><h3><span class="method">POST</span> <span class="path">/api/subscription/activate</span></h3><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/subscription/activate -H "X-API-Key: YOUR_KEY" -d '{"plan":"Pro"}'</code></pre></div>
   <div class="endpoint"><h3><span class="method">POST</span> <span class="path">/api/system/create</span></h3><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/system/create -H "X-API-Key: YOUR_KEY" -d '{"service":"clinic"}'</code></pre><p>Available services: <code>business_management</code>, <code>mobile_money</code>, <code>ecommerce</code>, <code>ai_chatbot</code>, <code>clinic</code>, <code>agritech</code>, <code>freelance</code>, <code>discovery</code>, <code>website_builder</code>.</p></div>
   <div class="endpoint"><h3><span class="method">GET</span> <span class="path">/api/business/me</span></h3><pre><code>curl -X GET https://ba-kangombe.vercel.app/api/business/me -H "X-API-Key: YOUR_KEY"</code></pre></div>
 
-  <h2>📦 All 16 Business Modules</h2>
-  <p>Each module below requires the corresponding module key (enabled via <code>/api/system/create</code>).</p>
+  <h2 id="modules">📦 The 16 Business Modules</h2>
+  <p>Each module below is a complete sub‑system. Enable them via <code>/api/system/create</code>. All endpoints require the corresponding module key (e.g., <code>'momo'</code>, <code>'invoice'</code>, <code>'clinic'</code>).</p>
 
-  <h3>1. Mobile Money</h3>
-  <ul><li><code>POST /api/momo/transfer</code> – send money</li><li><code>POST /api/momo/request</code> – request money</li><li><code>GET /api/momo/transactions</code> – list transactions</li></ul>
+  <div class="module-grid">
+    <div class="module-card"><h4>1. Mobile Money <code>momo</code></h4><ul><li><code>POST /api/momo/transfer</code> – send money</li><li><code>POST /api/momo/request</code> – request money</li><li><code>GET /api/momo/transactions</code> – list all</li></ul></div>
+    <div class="module-card"><h4>2. Invoice & ZRA Billing <code>invoice</code></h4><ul><li><code>POST /api/invoice/create</code></li><li><code>PUT /api/invoice/:id/pay</code></li><li><code>GET /api/invoice/export/csv</code></li></ul></div>
+    <div class="module-card"><h4>3. WhatsApp Mini E‑commerce <code>whatsapp</code></h4><ul><li><code>POST /api/whatsapp/product</code></li><li><code>GET /api/whatsapp/products</code></li><li><code>POST /api/whatsapp/order</code></li><li><code>GET /api/whatsapp/order/:id/checkout</code></li></ul></div>
+    <div class="module-card"><h4>4. Logistics & Delivery <code>logistics</code></h4><ul><li><code>POST /api/logistics/route</code></li><li><code>POST /api/logistics/driver/assign</code></li><li><code>GET /api/logistics/driver/:id/track</code></li></ul></div>
+    <div class="module-card"><h4>5. Agritech Marketplace <code>agritech</code></h4><ul><li><code>POST /api/agritech/farmer</code></li><li><code>GET /api/agritech/farmers</code></li><li><code>POST /api/agritech/buyer/match</code></li><li><code>GET /api/agritech/price/intelligence</code></li></ul></div>
+    <div class="module-card"><h4>6. AI Customer Support <code>ai</code></h4><ul><li><code>POST /api/ai/chat</code></li><li><code>POST /api/ai/train</code></li></ul></div>
+    <div class="module-card"><h4>7. Micro‑Lending <code>lending</code></h4><ul><li><code>POST /api/lending/score</code></li><li><code>POST /api/lending/eligibility</code></li></ul></div>
+    <div class="module-card"><h4>8. SME Dashboard <code>sme</code></h4><ul><li><code>POST /api/sme/sale</code></li><li><code>POST /api/sme/expense</code></li><li><code>GET /api/sme/profit</code></li></ul></div>
+    <div class="module-card"><h4>9. Inventory & POS <code>inventory</code></h4><ul><li><code>POST /api/inventory/product</code></li><li><code>PUT /api/inventory/stock</code></li><li><code>GET /api/inventory/alerts</code></li><li><code>GET /api/inventory/products</code></li><li><code>POST /api/pos/sale</code></li></ul></div>
+    <div class="module-card"><h4>10. Social Ads <code>social_ads</code></h4><ul><li><code>POST /api/social/ad/create</code></li><li><code>POST /api/social/ad/budget</code></li><li><code>GET /api/social/leads</code></li><li><code>GET /api/social/ads</code></li></ul></div>
+    <div class="module-card"><h4>11. Freelance Marketplace <code>freelance</code></h4><ul><li><code>POST /api/freelance/service</code></li><li><code>GET /api/freelance/services</code></li><li><code>POST /api/freelance/order</code></li><li><code>POST /api/freelance/escrow</code></li><li><code>GET /api/freelance/orders</code></li></ul></div>
+    <div class="module-card"><h4>12. Clinic Management <code>clinic</code></h4><ul><li><code>POST /api/clinic/patient</code></li><li><code>GET /api/clinic/patients</code></li><li><code>POST /api/clinic/appointment</code></li><li><code>GET /api/clinic/appointments</code></li><li><code>GET /api/clinic/patient/:id/bill</code></li></ul></div>
+    <div class="module-card"><h4>13. KYC <code>kyc</code></h4><ul><li><code>POST /api/kyc/id</code></li><li><code>POST /api/kyc/phone</code></li></ul></div>
+    <div class="module-card"><h4>14. E‑commerce BaaS <code>ecommerce</code></h4><ul><li><code>POST /api/ecommerce/product</code></li><li><code>GET /api/ecommerce/products</code></li><li><code>POST /api/ecommerce/order</code></li><li><code>GET /api/ecommerce/orders</code></li><li><code>POST /api/ecommerce/payment</code></li></ul></div>
+    <div class="module-card"><h4>15. AI Tutoring <code>tutor</code></h4><ul><li><code>POST /api/tutor/chat</code></li><li><code>GET /api/tutor/curriculum</code></li></ul></div>
+    <div class="module-card"><h4>16. Local Business Discovery <code>discovery</code></h4><ul><li><code>POST /api/discovery/business</code></li><li><code>GET /api/discovery/businesses</code></li><li><code>POST /api/discovery/review</code></li><li><code>GET /api/discovery/business/:id/whatsapp</code></li></ul></div>
+  </div>
 
-  <h3>2. Invoice & ZRA Billing</h3>
-  <ul><li><code>POST /api/invoice/create</code></li><li><code>PUT /api/invoice/:id/pay</code></li><li><code>GET /api/invoice/export/csv</code></li></ul>
+  <h2 id="feedback">📝 Feedback & Waitlist</h2>
+  <div class="endpoint"><h3><span class="method free">POST</span> <span class="path">/api/feedback</span></h3><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/feedback -H "Content-Type: application/json" -d '{"name":"John","email":"john@example.com","message":"Great API!"}'</code></pre></div>
+  <div class="endpoint"><h3><span class="method free">POST</span> <span class="path">/api/waitlist</span></h3><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/waitlist -d '{"email":"user@example.com"}'</code></pre></div>
 
-  <h3>3. WhatsApp Mini E‑commerce</h3>
-  <ul><li><code>POST /api/whatsapp/product</code></li><li><code>GET /api/whatsapp/products</code></li><li><code>POST /api/whatsapp/order</code></li><li><code>GET /api/whatsapp/order/:id/checkout</code></li></ul>
-
-  <h3>4. Logistics & Delivery</h3>
-  <ul><li><code>POST /api/logistics/route</code></li><li><code>POST /api/logistics/driver/assign</code></li><li><code>GET /api/logistics/driver/:id/track</code></li></ul>
-
-  <h3>5. Agritech Marketplace</h3>
-  <ul><li><code>POST /api/agritech/farmer</code></li><li><code>GET /api/agritech/farmers</code></li><li><code>POST /api/agritech/buyer/match</code></li><li><code>GET /api/agritech/price/intelligence</code></li></ul>
-
-  <h3>6. AI Customer Support</h3>
-  <ul><li><code>POST /api/ai/chat</code></li><li><code>POST /api/ai/train</code></li></ul>
-
-  <h3>7. Micro‑Lending</h3>
-  <ul><li><code>POST /api/lending/score</code></li><li><code>POST /api/lending/eligibility</code></li></ul>
-
-  <h3>8. SME Dashboard</h3>
-  <ul><li><code>POST /api/sme/sale</code></li><li><code>POST /api/sme/expense</code></li><li><code>GET /api/sme/profit</code></li></ul>
-
-  <h3>9. Inventory & POS</h3>
-  <ul><li><code>POST /api/inventory/product</code></li><li><code>PUT /api/inventory/stock</code></li><li><code>GET /api/inventory/alerts</code></li><li><code>GET /api/inventory/products</code></li><li><code>POST /api/pos/sale</code></li></ul>
-
-  <h3>10. Social Ads</h3>
-  <ul><li><code>POST /api/social/ad/create</code></li><li><code>POST /api/social/ad/budget</code></li><li><code>GET /api/social/leads</code></li><li><code>GET /api/social/ads</code></li></ul>
-
-  <h3>11. Freelance Marketplace</h3>
-  <ul><li><code>POST /api/freelance/service</code></li><li><code>GET /api/freelance/services</code></li><li><code>POST /api/freelance/order</code></li><li><code>POST /api/freelance/escrow</code></li><li><code>GET /api/freelance/orders</code></li></ul>
-
-  <h3>12. Clinic Management</h3>
-  <ul><li><code>POST /api/clinic/patient</code></li><li><code>GET /api/clinic/patients</code></li><li><code>POST /api/clinic/appointment</code></li><li><code>GET /api/clinic/appointments</code></li><li><code>GET /api/clinic/patient/:id/bill</code></li></ul>
-
-  <h3>13. Identity Verification (KYC)</h3>
-  <ul><li><code>POST /api/kyc/id</code></li><li><code>POST /api/kyc/phone</code></li></ul>
-
-  <h3>14. E‑commerce BaaS</h3>
-  <ul><li><code>POST /api/ecommerce/product</code></li><li><code>GET /api/ecommerce/products</code></li><li><code>POST /api/ecommerce/order</code></li><li><code>GET /api/ecommerce/orders</code></li><li><code>POST /api/ecommerce/payment</code></li></ul>
-
-  <h3>15. AI Tutoring</h3>
-  <ul><li><code>POST /api/tutor/chat</code></li><li><code>GET /api/tutor/curriculum</code></li></ul>
-
-  <h3>16. Local Business Discovery</h3>
-  <ul><li><code>POST /api/discovery/business</code></li><li><code>GET /api/discovery/businesses</code></li><li><code>POST /api/discovery/review</code></li><li><code>GET /api/discovery/business/:id/whatsapp</code></li></ul>
-
-  <h2>📝 Feedback & Waitlist</h2>
-  <div class="endpoint"><h3><span class="method">POST</span> <span class="path">/api/feedback</span> <span class="badge free">Free</span></h3><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/feedback -H "Content-Type: application/json" -d '{"name":"John","email":"john@example.com","message":"Great API!"}'</code></pre></div>
-  <div class="endpoint"><h3><span class="method">POST</span> <span class="path">/api/waitlist</span> <span class="badge free">Free</span></h3><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/waitlist -d '{"email":"user@example.com"}'</code></pre></div>
-
-  <h2>❌ Error Codes</h2>
+  <h2 id="errors">❌ Error Codes</h2>
   <table>
     <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
     <tbody>
@@ -843,18 +989,27 @@ app.get('/docs', (req, res) => {
   <h2>🔧 Interactive Testing</h2>
   <p>Visit <a href="/new-features">/new-features</a> for a full UI where you can register, activate modules, and test every endpoint live.</p>
 
-  <div class="footer">
+  <footer>
     <p>Built by <strong>Bornface Kangombe Kernel</strong> – developer, creator, founder.</p>
     <p><a href="/docs">Documentation</a> · <a href="https://github.com/KernelBornie/BaKangombe">GitHub</a> · <a href="/new-features">Live Demo</a></p>
-  </div>
+  </footer>
 </div>
-<div id="toast" class="toast">✓ Copied to clipboard</div>
 <script>
   function copyToClipboard(text) {
     navigator.clipboard.writeText(text);
-    const toast = document.getElementById('toast');
-    toast.style.opacity = '1';
-    setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+    const toast = document.createElement('div');
+    toast.innerText = '✓ Copied to clipboard';
+    toast.style.position = 'fixed';
+    toast.style.bottom = '20px';
+    toast.style.right = '20px';
+    toast.style.background = '#2c5f2d';
+    toast.style.color = 'white';
+    toast.style.padding = '0.5rem 1rem';
+    toast.style.borderRadius = '2rem';
+    toast.style.fontSize = '0.8rem';
+    toast.style.zIndex = '1000';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
   }
 </script>
 </body>
@@ -1258,6 +1413,7 @@ app.get('/debug-file', (req, res) => {
     }
   });
 });
+
 // ========== ADD MODULES TO BUSINESS (for testing) ==========
 app.post('/api/business/add-modules', requireBusiness, async (req, res) => {
   const { modules } = req.body; // array of module keys to add
@@ -1273,6 +1429,7 @@ app.post('/api/business/add-modules', requireBusiness, async (req, res) => {
   `;
   res.json({ success: true, modules: newModules });
 });
+
 // ---------- SERVE NEW FEATURES TESTER PAGE ----------
 app.get('/new-features', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/new-features.html'));
