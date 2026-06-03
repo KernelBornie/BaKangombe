@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="BaKangombe – Email Validation & Enrichment API. Validate emails in real time, detect disposables, enrich company data.">
   <title>BaKangombe · Email Validation & Enrichment API</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✉️</text></svg>">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: system-ui; background: #0a0c10; color: #eef2ff; line-height: 1.5; }
@@ -80,11 +79,12 @@
     </div>
   </div>
 
-  <!-- Global Business API Key Section (optional, for registration/saving) -->
+  <!-- Global Business API Key Section -->
   <div class="api-section">
     <input type="text" id="globalApiKeyInput" placeholder="Your Business API Key (optional)">
     <button id="saveGlobalKeyBtn" class="btn btn-outline" style="background:#10b981;">💾 Save Key</button>
     <button id="registerBusinessBtn" class="btn btn-outline">🏢 Register New Business</button>
+    <button id="enableWebsiteBtn" class="btn btn-outline" style="background:#8b5cf6;">🌐 Enable Website Module</button>
     <span id="keyStatus" style="font-size:0.8rem;"></span>
   </div>
 
@@ -105,7 +105,7 @@
     <div id="validateResponse" class="response-area">Click "Validate" to see the result.</div>
   </div>
 
-  <!-- ENRICHMENT TESTER with its own API key input -->
+  <!-- ENRICHMENT TESTER (with its own key input) -->
   <div class="tester-card">
     <h3>🏢 Live API Tester – Enrichment (requires business API key + active subscription)</h3>
     <div class="tester-header">
@@ -116,7 +116,7 @@
     <div id="enrichResponse" class="response-area">Enter an email and your business API key (with active subscription).</div>
   </div>
 
-  <!-- WEBSITE BUILDER with its own API key input -->
+  <!-- WEBSITE BUILDER with its own key input -->
   <div class="cta-card" style="margin-top: 2rem;">
     <h3>🏗️ Website Builder (Premium)</h3>
     <p>Generate a simple landing page HTML. Requires business API key and 'website' module enabled.</p>
@@ -197,7 +197,6 @@
 <div id="toast" class="toast">✓ Copied to clipboard</div>
 
 <script>
-  // Global saved API key (optional, for convenience)
   let globalApiKey = localStorage.getItem('bakangombe_api_key') || '';
   const globalKeyInput = document.getElementById('globalApiKeyInput');
   const keyStatusSpan = document.getElementById('keyStatus');
@@ -241,13 +240,25 @@
         localStorage.setItem('bakangombe_api_key', data.apiKey);
         globalApiKey = data.apiKey;
         if (keyStatusSpan) keyStatusSpan.innerText = '✓ Key saved';
-        // Also prefill the enrichment and website key fields for convenience
         document.getElementById('enrichApiKey').value = data.apiKey;
         document.getElementById('websiteApiKey').value = data.apiKey;
       } else alert('Error: ' + data.error);
     } catch (err) { alert('Registration failed: ' + err.message); }
   }
   document.getElementById('registerBusinessBtn')?.addEventListener('click', registerBusiness);
+
+  // Enable website module directly
+  document.getElementById('enableWebsiteBtn')?.addEventListener('click', async () => {
+    const key = document.getElementById('enrichApiKey')?.value || globalApiKey;
+    if (!key) { alert('Save your business API key first'); return; }
+    try {
+      const res = await apiCallWithKey('/api/business/enable-module', 'POST', { moduleKey: 'website' }, key);
+      alert('Website module enabled! You can now use the website builder.');
+      location.reload();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  });
 
   function copyToClipboard(text) {
     navigator.clipboard.writeText(text);
@@ -275,7 +286,7 @@
   testValidateBtn.addEventListener('click', testValidation);
   testEmail.addEventListener('keypress', (e) => { if (e.key === 'Enter') testValidation(); });
 
-  // Enrichment tester (uses its own key field)
+  // Enrichment tester
   const enrichEmail = document.getElementById('enrichEmail');
   const enrichApiKey = document.getElementById('enrichApiKey');
   const enrichResponse = document.getElementById('enrichResponse');
@@ -295,7 +306,7 @@
   enrichEmail.addEventListener('keypress', (e) => { if (e.key === 'Enter') testEnrichment(); });
   enrichApiKey.addEventListener('keypress', (e) => { if (e.key === 'Enter') testEnrichment(); });
 
-  // Website builder (uses its own key field)
+  // Website builder
   const siteTitle = document.getElementById('siteTitle');
   const siteContent = document.getElementById('siteContent');
   const siteTemplate = document.getElementById('siteTemplate');
