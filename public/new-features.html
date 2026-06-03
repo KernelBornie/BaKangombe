@@ -45,6 +45,7 @@
   <button id="activateAllBtn" style="background:#f59e0b;">⚡ Activate All Modules (One Click)</button>
   <button id="activateSingleBtn" style="background:#10b981;">➕ Activate Single System</button>
   <button id="checkModulesBtn" style="background:#4f46e5;">🔍 Check Enabled Modules</button>
+  <button id="enableMissingBtn" style="background:#8b5cf6;">🔧 Enable All Missing Modules</button>
   <span style="font-size:0.8rem;">Use after saving your API key.</span>
 </div>
 
@@ -206,7 +207,7 @@
   }
   document.getElementById('checkModulesBtn').onclick = checkModules;
 
-  // ========== ACTIVATE ALL MODULES ==========
+  // ========== ACTIVATE ALL MODULES (via system creation) ==========
   async function activateAllModules() {
     const services = [
       'business_management', 'mobile_money', 'ecommerce', 'ai_chatbot',
@@ -239,7 +240,20 @@
     }
   };
 
-  // ========== MODULE FUNCTIONS (with validation) ==========
+  // ========== ENABLE ALL MISSING MODULES (whatsapp, logistics, lending, social_ads, kyc, tutor) ==========
+  async function enableMissingModules() {
+    const missingModules = ['whatsapp', 'logistics', 'lending', 'social_ads', 'kyc', 'tutor'];
+    try {
+      const result = await apiCall('/api/business/add-modules', 'POST', { modules: missingModules });
+      alert(`Enabled modules: ${result.modules.join(', ')}`);
+      location.reload();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  }
+  document.getElementById('enableMissingBtn').onclick = enableMissingModules;
+
+  // ========== MODULE FUNCTIONS (unchanged) ==========
   async function sendMoney() { try { const d = await apiCall('/api/momo/transfer', 'POST', { amount: mmAmount.value, phone: mmPhone.value, provider: mmProvider.value }); setRes('mmRes', d); } catch(e) { setRes('mmRes', {error: e.message}); } }
   async function requestMoney() { try { const d = await apiCall('/api/momo/request', 'POST', { amount: mmAmount.value, phone: mmPhone.value, provider: mmProvider.value }); setRes('mmRes', d); } catch(e) { setRes('mmRes', {error: e.message}); } }
   async function listMomo() { try { const d = await apiCall('/api/momo/transactions'); setRes('mmRes', d); } catch(e) { setRes('mmRes', {error: e.message}); } }

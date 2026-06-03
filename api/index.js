@@ -1100,7 +1100,21 @@ app.get('/debug-file', (req, res) => {
     }
   });
 });
-
+// ========== ADD MODULES TO BUSINESS (for testing) ==========
+app.post('/api/business/add-modules', requireBusiness, async (req, res) => {
+  const { modules } = req.body; // array of module keys to add
+  if (!modules || !Array.isArray(modules)) {
+    return res.status(400).json({ error: 'modules array required' });
+  }
+  let newModules = [...req.business.modules];
+  for (const mod of modules) {
+    if (!newModules.includes(mod)) newModules.push(mod);
+  }
+  await sql`
+    UPDATE businesses SET modules = ${newModules} WHERE id = ${req.business.id}
+  `;
+  res.json({ success: true, modules: newModules });
+});
 // ---------- SERVE NEW FEATURES TESTER PAGE ----------
 app.get('/new-features', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/new-features.html'));
