@@ -653,7 +653,7 @@ app.post('/api/website/generate', requireBusiness, async (req, res) => {
   res.json({ html, template, title });
 });
 
-// ---------- FULL WEBSITE GENERATOR (modern e‑commerce ZIP) ----------
+// ---------- FULL WEBSITE GENERATOR (Apple‑inspired, multi‑section) ----------
 app.post('/api/website/generate-full', requireBusiness, requireModule('website'), async (req, res) => {
   const { siteName, description, theme = 'modern' } = req.body;
   if (!siteName) return res.status(400).json({ error: 'siteName required' });
@@ -678,6 +678,8 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
     body { background: #f9fafb; color: #111827; }
     a { color: #3b82f6; text-decoration: none; }
     a:hover { text-decoration: underline; }
+    .product-card { transition: transform 0.2s, box-shadow 0.2s; }
+    .product-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); }
   </style>
   ${extraHead}
 </head>
@@ -694,36 +696,55 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
     </div>
   </header>
   <main>${content}</main>
-  <footer class="bg-gray-800 text-gray-300 py-8 mt-12">
-    <div class="container mx-auto px-4 text-center">
-      <p>&copy; ${new Date().getFullYear()} ${siteName}. All rights reserved.</p>
-      <p class="text-sm mt-2">Powered by BaKangombe API</p>
+  <footer class="bg-gray-800 text-gray-300 py-12 mt-16">
+    <div class="container mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
+      <div><h3 class="font-bold text-white mb-2">${siteName}</h3><p class="text-sm">Delivering quality since 2025.</p></div>
+      <div><h3 class="font-bold text-white mb-2">Support</h3><ul class="text-sm space-y-1"><li><a href="/contact.html">Contact</a></li><li><a href="#">Returns</a></li><li><a href="#">FAQ</a></li></ul></div>
+      <div><h3 class="font-bold text-white mb-2">Legal</h3><ul class="text-sm space-y-1"><li><a href="#">Privacy</a></li><li><a href="#">Terms</a></li></ul></div>
+      <div><h3 class="font-bold text-white mb-2">Follow Us</h3><div class="flex space-x-4"><a href="#">📘</a><a href="#">🐦</a><a href="#">📷</a></div></div>
+    </div>
+    <div class="container mx-auto px-4 text-center text-sm mt-8 pt-4 border-t border-gray-700">
+      &copy; ${new Date().getFullYear()} ${siteName}. All rights reserved. | Powered by BaKangombe API
     </div>
   </footer>
 </body>
 </html>`;
 
-  // Home page with hero, featured products, newsletter
+  // Home page with hero, featured, categories, new arrivals, testimonials, newsletter
   const homeScript = `
-    async function loadFeaturedProducts() {
+    let allProducts = [];
+    async function loadProducts() {
       try {
         const res = await fetch(API_BASE + '/ecommerce/products', { headers: { 'X-API-Key': API_KEY } });
         const data = await res.json();
-        const container = document.getElementById('featuredProducts');
-        if (data.products && data.products.length) {
-          container.innerHTML = data.products.slice(0, 6).map(p => \`
-            <div class="bg-white rounded-lg shadow p-4 transition hover:shadow-lg">
-              <h3 class="text-lg font-semibold">\${p.name}</h3>
-              <p class="text-gray-600">$\${p.price}</p>
-              <button onclick="buyProduct(\${p.id})" class="mt-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Buy Now</button>
-            </div>
-          \`).join('');
-        } else {
-          container.innerHTML = '<p class="col-span-full text-center">No products yet. Add some via the admin panel.</p>';
-        }
+        allProducts = data.products || [];
+        renderFeatured(allProducts.slice(0, 6));
+        renderNewArrivals(allProducts.slice(6, 12));
       } catch (err) { console.error(err); }
     }
-    async function buyProduct(id) {
+    function renderFeatured(products) {
+      const container = document.getElementById('featuredProducts');
+      if (!products.length) { container.innerHTML = '<p class="col-span-full">No products yet. Add some via admin.</p>'; return; }
+      container.innerHTML = products.map(p => \`
+        <div class="product-card bg-white rounded-xl shadow p-4">
+          <h3 class="text-lg font-semibold">\${p.name}</h3>
+          <p class="text-gray-600">$\${p.price}</p>
+          <button onclick="buy(\${p.id})" class="mt-2 bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 w-full">Buy Now</button>
+        </div>
+      \`).join('');
+    }
+    function renderNewArrivals(products) {
+      const container = document.getElementById('newArrivals');
+      if (!products.length) { container.innerHTML = '<p class="col-span-full">More products coming soon.</p>'; return; }
+      container.innerHTML = products.map(p => \`
+        <div class="product-card bg-white rounded-xl shadow p-4">
+          <h3 class="text-lg font-semibold">\${p.name}</h3>
+          <p class="text-gray-600">$\${p.price}</p>
+          <button onclick="buy(\${p.id})" class="mt-2 bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 w-full">Buy Now</button>
+        </div>
+      \`).join('');
+    }
+    async function buy(id) {
       try {
         const res = await fetch(API_BASE + '/ecommerce/order', {
           method: 'POST',
@@ -736,7 +757,7 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
     }
     async function subscribeNewsletter() {
       const email = document.getElementById('newsletterEmail').value;
-      if (!email || !email.includes('@')) { alert('Please enter a valid email'); return; }
+      if (!email || !email.includes('@')) { alert('Valid email required'); return; }
       try {
         const res = await fetch(API_BASE + '/newsletter/subscribe', {
           method: 'POST',
@@ -748,47 +769,83 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
         document.getElementById('newsletterEmail').value = '';
       } catch (err) { alert('Error: ' + err.message); }
     }
-    window.onload = loadFeaturedProducts;
+    window.onload = loadProducts;
   `;
+
   const homeContent = `
-    <section class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-20">
+    <!-- Hero -->
+    <section class="bg-gradient-to-r from-indigo-700 to-purple-800 text-white py-24">
       <div class="container mx-auto px-4 text-center">
-        <h1 class="text-5xl font-bold mb-4">${siteName}</h1>
+        <h1 class="text-5xl md:text-6xl font-extrabold mb-4">${siteName}</h1>
         <p class="text-xl max-w-2xl mx-auto">${description || 'Quality products, fast delivery, secure payments.'}</p>
-        <a href="/products.html" class="inline-block mt-6 bg-white text-blue-600 px-8 py-3 rounded-full font-semibold hover:bg-gray-100">Shop Now →</a>
+        <div class="mt-8 flex gap-4 justify-center">
+          <a href="/products.html" class="bg-white text-indigo-700 px-8 py-3 rounded-full font-semibold hover:bg-gray-100 transition">Shop Now →</a>
+          <a href="/about.html" class="border border-white px-8 py-3 rounded-full font-semibold hover:bg-white hover:text-indigo-700 transition">Learn More</a>
+        </div>
       </div>
     </section>
-    <section class="container mx-auto px-4 py-12">
-      <h2 class="text-3xl font-bold text-center mb-8">Featured Products</h2>
+
+    <!-- Featured Products -->
+    <section class="container mx-auto px-4 py-16">
+      <h2 class="text-3xl font-bold text-center mb-8">🔥 Featured Products</h2>
       <div id="featuredProducts" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">Loading...</div>
     </section>
-    <section class="bg-gray-100 py-12">
-      <div class="container mx-auto px-4 text-center">
-        <h3 class="text-2xl font-bold mb-4">Subscribe to our Newsletter</h3>
-        <div class="max-w-md mx-auto flex gap-2">
-          <input type="email" id="newsletterEmail" placeholder="Your email" class="flex-1 px-4 py-2 border rounded-l focus:outline-none">
-          <button onclick="subscribeNewsletter()" class="bg-blue-600 text-white px-6 py-2 rounded-r hover:bg-blue-700">Subscribe</button>
+
+    <!-- Categories (static example) -->
+    <section class="bg-gray-100 py-16">
+      <div class="container mx-auto px-4">
+        <h2 class="text-3xl font-bold text-center mb-8">Shop by Category</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="bg-white p-6 rounded-xl text-center shadow hover:shadow-lg transition"><h3 class="font-bold">Electronics</h3></div>
+          <div class="bg-white p-6 rounded-xl text-center shadow hover:shadow-lg transition"><h3 class="font-bold">Fashion</h3></div>
+          <div class="bg-white p-6 rounded-xl text-center shadow hover:shadow-lg transition"><h3 class="font-bold">Home</h3></div>
+          <div class="bg-white p-6 rounded-xl text-center shadow hover:shadow-lg transition"><h3 class="font-bold">Toys</h3></div>
         </div>
-        <p class="text-gray-600 text-sm mt-2">Get 10% off your first order!</p>
       </div>
     </section>
+
+    <!-- New Arrivals -->
+    <section class="container mx-auto px-4 py-16">
+      <h2 class="text-3xl font-bold text-center mb-8">✨ New Arrivals</h2>
+      <div id="newArrivals" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">Loading...</div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="bg-indigo-50 py-16">
+      <div class="container mx-auto px-4 text-center">
+        <h2 class="text-3xl font-bold mb-8">What Our Customers Say</h2>
+        <div class="grid md:grid-cols-3 gap-8">
+          <div class="bg-white p-6 rounded-xl shadow">“Amazing experience! Fast delivery and great support.” – <strong>Alice</strong></div>
+          <div class="bg-white p-6 rounded-xl shadow">“The mobile money checkout was super smooth.” – <strong>Bob</strong></div>
+          <div class="bg-white p-6 rounded-xl shadow">“I love the product variety. Will shop again.” – <strong>Carol</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Newsletter -->
+    <section class="container mx-auto px-4 py-16 text-center">
+      <h3 class="text-2xl font-bold mb-4">Subscribe to our Newsletter</h3>
+      <div class="max-w-md mx-auto flex gap-2">
+        <input type="email" id="newsletterEmail" placeholder="Your email" class="flex-1 px-4 py-2 border rounded-l focus:outline-none">
+        <button onclick="subscribeNewsletter()" class="bg-blue-600 text-white px-6 py-2 rounded-r hover:bg-blue-700">Subscribe</button>
+      </div>
+      <p class="text-gray-600 text-sm mt-2">Get 10% off your first order!</p>
+    </section>
   `;
+
   zip.addFile('index.html', Buffer.from(generatePage('Home', homeContent, '', homeScript), 'utf8'));
 
-  // Products page with search
+  // Products page (full grid + search)
   const productsScript = `
     let allProducts = [];
     function renderProducts(products) {
       const container = document.getElementById('allProducts');
-      if (!products.length) {
-        container.innerHTML = '<p class="col-span-full text-center">No products match your search.</p>';
-        return;
-      }
+      if (!products.length) { container.innerHTML = '<p class="col-span-full text-center">No products match your search.</p>'; return; }
       container.innerHTML = products.map(p => \`
-        <div class="bg-white rounded-lg shadow p-4">
+        <div class="product-card bg-white rounded-xl shadow p-4">
           <h3 class="text-lg font-semibold">\${p.name}</h3>
           <p class="text-gray-600">$\${p.price}</p>
-          <button onclick="buyProduct(\${p.id})" class="mt-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Buy Now</button>
+          <button onclick="buy(\${p.id})" class="mt-2 bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 w-full">Buy Now</button>
         </div>
       \`).join('');
     }
@@ -803,7 +860,7 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
       const filtered = allProducts.filter(p => p.name.toLowerCase().includes(query));
       renderProducts(filtered);
     }
-    async function buyProduct(id) {
+    async function buy(id) {
       try {
         const res = await fetch(API_BASE + '/ecommerce/order', {
           method: 'POST',
@@ -817,11 +874,9 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
     window.onload = loadAllProducts;
   `;
   const productsContent = `
-    <div class="container mx-auto px-4 py-8">
-      <h1 class="text-3xl font-bold mb-6">All Products</h1>
-      <div class="mb-6">
-        <input type="text" id="searchInput" placeholder="Search products..." onkeyup="filterProducts()" class="w-full md:w-1/2 px-4 py-2 border rounded focus:outline-none">
-      </div>
+    <div class="container mx-auto px-4 py-12">
+      <h1 class="text-4xl font-bold mb-6">All Products</h1>
+      <div class="mb-8"><input type="text" id="searchInput" placeholder="Search products..." onkeyup="filterProducts()" class="w-full md:w-1/2 px-4 py-3 border rounded-full focus:outline-none"></div>
       <div id="allProducts" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">Loading...</div>
     </div>
   `;
@@ -838,7 +893,7 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
   `;
   zip.addFile('about.html', Buffer.from(generatePage('About', aboutContent), 'utf8'));
 
-  // Contact page with feedback form
+  // Contact page
   const contactScript = `
     async function sendMessage() {
       const name = document.getElementById('contactName').value;
@@ -1074,12 +1129,349 @@ app.get('/api/setup/create-tables', async (req, res) => {
 });
 
 // ========== REMAINING MULTI‑TENANT FEATURES ==========
-// (All 16 module endpoints – identical to your original code, omitted for brevity but must be included)
-// For the sake of completeness, include all your existing module endpoints here.
-// Since you already have them in your code, they remain unchanged.
-// I will not repeat them to keep the answer readable, but you must keep them in your final file.
+// 1. Mobile Money
+app.post('/api/momo/transfer', requireBusiness, requireModule('momo'), async (req, res) => {
+  const { amount, phone, provider } = req.body;
+  if (!amount || !phone) return res.status(400).json({ error: 'Amount and phone required' });
+  const result = await sql`INSERT INTO momo_transactions (business_id, amount, phone, provider, status, type) VALUES (${req.business.id}, ${amount}, ${phone}, ${provider}, 'pending', 'send') RETURNING id`;
+  const id = result.rows[0].id;
+  setTimeout(async () => { await sql`UPDATE momo_transactions SET status = 'completed' WHERE id = ${id}`; }, 2000);
+  res.json({ success: true, transactionId: id, status: 'processing' });
+});
+app.post('/api/momo/request', requireBusiness, requireModule('momo'), async (req, res) => {
+  const { amount, phone, provider } = req.body;
+  const result = await sql`INSERT INTO momo_transactions (business_id, amount, phone, provider, status, type) VALUES (${req.business.id}, ${amount}, ${phone}, ${provider}, 'pending', 'request') RETURNING id`;
+  res.json({ success: true, transactionId: result.rows[0].id });
+});
+app.get('/api/momo/transactions', requireBusiness, requireModule('momo'), async (req, res) => {
+  const txs = await sql`SELECT * FROM momo_transactions WHERE business_id = ${req.business.id} ORDER BY created_at DESC`;
+  res.json({ transactions: txs.rows });
+});
 
-// ... (all your module endpoints: /api/momo/transfer, /api/invoice/create, etc.)
+// 2. Invoice
+app.post('/api/invoice/create', requireBusiness, requireModule('invoice'), async (req, res) => {
+  const { customer, amount, items } = req.body;
+  const result = await sql`INSERT INTO invoices (business_id, customer, amount, items, status) VALUES (${req.business.id}, ${customer}, ${amount}, ${items}, 'unpaid') RETURNING id, created_at`;
+  res.json({ id: result.rows[0].id, customer, amount, items, status: 'unpaid', createdAt: result.rows[0].created_at, paidAt: null });
+});
+app.get('/api/invoice/:id', requireBusiness, requireModule('invoice'), async (req, res) => {
+  const inv = await sql`SELECT * FROM invoices WHERE id = ${req.params.id} AND business_id = ${req.business.id}`;
+  if (inv.rowCount === 0) return res.status(404).json({ error: 'Not found' });
+  res.json(inv.rows[0]);
+});
+app.put('/api/invoice/:id/pay', requireBusiness, requireModule('invoice'), async (req, res) => {
+  await sql`UPDATE invoices SET status = 'paid', paid_at = NOW() WHERE id = ${req.params.id} AND business_id = ${req.business.id}`;
+  res.json({ success: true });
+});
+app.get('/api/invoice/export/csv', requireBusiness, requireModule('invoice'), async (req, res) => {
+  const invs = await sql`SELECT * FROM invoices WHERE business_id = ${req.business.id}`;
+  let csv = 'id,customer,amount,status,createdAt,paidAt\n';
+  invs.rows.forEach(i => { csv += `${i.id},${i.customer},${i.amount},${i.status},${i.created_at},${i.paid_at || ''}\n`; });
+  res.setHeader('Content-Type', 'text/csv');
+  res.send(csv);
+});
+
+// 3. WhatsApp
+app.post('/api/whatsapp/product', requireBusiness, requireModule('whatsapp'), async (req, res) => {
+  const { name, price, description } = req.body;
+  const result = await sql`INSERT INTO whatsapp_products (business_id, name, price, description) VALUES (${req.business.id}, ${name}, ${price}, ${description}) RETURNING id`;
+  res.json({ id: result.rows[0].id, name, price, description });
+});
+app.get('/api/whatsapp/products', requireBusiness, requireModule('whatsapp'), async (req, res) => {
+  const products = await sql`SELECT * FROM whatsapp_products WHERE business_id = ${req.business.id}`;
+  res.json({ products: products.rows });
+});
+app.post('/api/whatsapp/order', requireBusiness, requireModule('whatsapp'), async (req, res) => {
+  const { productId, customerPhone } = req.body;
+  const result = await sql`INSERT INTO whatsapp_orders (business_id, product_id, customer_phone, status) VALUES (${req.business.id}, ${productId}, ${customerPhone}, 'pending') RETURNING id, created_at`;
+  res.json({ id: result.rows[0].id, productId, customerPhone, status: 'pending', createdAt: result.rows[0].created_at });
+});
+app.get('/api/whatsapp/order/:id/checkout', requireBusiness, requireModule('whatsapp'), async (req, res) => {
+  const order = await sql`SELECT * FROM whatsapp_orders WHERE id = ${req.params.id} AND business_id = ${req.business.id}`;
+  if (order.rowCount === 0) return res.status(404).json({ error: 'Not found' });
+  res.json({ checkoutLink: `https://wa.me/${order.rows[0].customer_phone}?text=I%20want%20to%20pay%20for%20order%20${req.params.id}` });
+});
+
+// 4. Logistics
+app.post('/api/logistics/route', requireBusiness, requireModule('logistics'), (req, res) => { res.json({ routeId: Date.now(), stops: req.body.stops }); });
+app.post('/api/logistics/driver/assign', requireBusiness, requireModule('logistics'), (req, res) => { res.json({ success: true }); });
+app.get('/api/logistics/driver/:id/track', requireBusiness, requireModule('logistics'), (req, res) => { res.json({ location: { lat: -15.3875, lng: 28.3228 } }); });
+
+// 5. Agritech
+app.post('/api/agritech/farmer', requireBusiness, requireModule('agritech'), async (req, res) => {
+  const { name, crop, price, location } = req.body;
+  const result = await sql`INSERT INTO agritech_farmers (business_id, name, crop, price, location) VALUES (${req.business.id}, ${name}, ${crop}, ${price}, ${location}) RETURNING id`;
+  res.json({ id: result.rows[0].id, name, crop, price, location });
+});
+app.get('/api/agritech/farmers', requireBusiness, requireModule('agritech'), async (req, res) => {
+  const farmers = await sql`SELECT * FROM agritech_farmers WHERE business_id = ${req.business.id}`;
+  res.json({ farmers: farmers.rows });
+});
+app.post('/api/agritech/buyer/match', requireBusiness, requireModule('agritech'), async (req, res) => {
+  const { crop, maxPrice } = req.body;
+  const matches = await sql`SELECT * FROM agritech_farmers WHERE business_id = ${req.business.id} AND crop = ${crop} AND price <= ${maxPrice}`;
+  res.json({ matches: matches.rows });
+});
+app.get('/api/agritech/price/intelligence', requireBusiness, requireModule('agritech'), (req, res) => { res.json({ prices: { maize: 120, soy: 250, groundnuts: 300 } }); });
+
+// 6. AI Support
+app.post('/api/ai/chat', requireBusiness, requireModule('ai'), async (req, res) => {
+  const { query } = req.body;
+  const faq = await sql`SELECT answer FROM faqs WHERE business_id = ${req.business.id} AND question ILIKE ${'%' + query + '%'} LIMIT 1`;
+  let answer = "I'm still learning. Please ask your business owner.";
+  if (faq.rowCount > 0) answer = faq.rows[0].answer;
+  res.json({ response: answer });
+});
+app.post('/api/ai/train', requireBusiness, requireModule('ai'), async (req, res) => {
+  const { question, answer } = req.body;
+  await sql`INSERT INTO faqs (business_id, question, answer) VALUES (${req.business.id}, ${question}, ${answer})`;
+  res.json({ success: true });
+});
+
+// 7. Lending
+app.post('/api/lending/score', requireBusiness, requireModule('lending'), async (req, res) => {
+  const { income, debt, history } = req.body;
+  let score = 500;
+  if (income > 5000) score += 100;
+  if (debt < 1000) score += 50;
+  if (history === 'good') score += 150;
+  await sql`INSERT INTO lending_scores (business_id, income, debt, history, score) VALUES (${req.business.id}, ${income}, ${debt}, ${history}, ${score})`;
+  res.json({ score, risk: score > 600 ? 'low' : 'high' });
+});
+app.post('/api/lending/eligibility', requireBusiness, requireModule('lending'), (req, res) => {
+  const { score, requestedAmount } = req.body;
+  const eligible = score > 650 && requestedAmount <= 5000;
+  res.json({ eligible, maxAmount: eligible ? 5000 : 0 });
+});
+
+// 8. SME
+app.post('/api/sme/sale', requireBusiness, requireModule('sme'), async (req, res) => {
+  const { amount, customerId } = req.body;
+  const result = await sql`INSERT INTO sme_sales (business_id, amount, customer_id, date) VALUES (${req.business.id}, ${amount}, ${customerId}, NOW()) RETURNING id`;
+  res.json({ id: result.rows[0].id });
+});
+app.post('/api/sme/expense', requireBusiness, requireModule('sme'), async (req, res) => {
+  const { amount, category } = req.body;
+  const result = await sql`INSERT INTO sme_expenses (business_id, amount, category, date) VALUES (${req.business.id}, ${amount}, ${category}, NOW()) RETURNING id`;
+  res.json({ id: result.rows[0].id });
+});
+app.get('/api/sme/profit', requireBusiness, requireModule('sme'), async (req, res) => {
+  const sales = await sql`SELECT SUM(amount) as total FROM sme_sales WHERE business_id = ${req.business.id}`;
+  const expenses = await sql`SELECT SUM(amount) as total FROM sme_expenses WHERE business_id = ${req.business.id}`;
+  const totalSales = sales.rows[0].total || 0;
+  const totalExpenses = expenses.rows[0].total || 0;
+  res.json({ profit: totalSales - totalExpenses, revenue: totalSales, costs: totalExpenses });
+});
+
+// 9. Inventory/POS
+app.post('/api/inventory/product', requireBusiness, requireModule('inventory'), async (req, res) => {
+  const { name, price, stock } = req.body;
+  const result = await sql`INSERT INTO inventory_products (business_id, name, price, stock) VALUES (${req.business.id}, ${name}, ${price}, ${stock}) RETURNING id`;
+  res.json({ id: result.rows[0].id, name, price, stock });
+});
+app.put('/api/inventory/stock', requireBusiness, requireModule('inventory'), async (req, res) => {
+  const { productId, quantity } = req.body;
+  await sql`UPDATE inventory_products SET stock = stock + ${quantity} WHERE id = ${productId} AND business_id = ${req.business.id}`;
+  res.json({ success: true });
+});
+app.get('/api/inventory/alerts', requireBusiness, requireModule('inventory'), async (req, res) => {
+  const lowStock = await sql`SELECT * FROM inventory_products WHERE business_id = ${req.business.id} AND stock < 5`;
+  res.json({ lowStock: lowStock.rows });
+});
+app.get('/api/inventory/products', requireBusiness, requireModule('inventory'), async (req, res) => {
+  const products = await sql`SELECT * FROM inventory_products WHERE business_id = ${req.business.id}`;
+  res.json({ products: products.rows });
+});
+app.post('/api/pos/sale', requireBusiness, requireModule('inventory'), async (req, res) => {
+  const { productId, quantity, paymentMethod } = req.body;
+  const product = await sql`SELECT price, stock FROM inventory_products WHERE id = ${productId} AND business_id = ${req.business.id}`;
+  if (product.rowCount === 0) return res.status(404).json({ error: 'Product not found' });
+  if (product.rows[0].stock < quantity) return res.status(400).json({ error: 'Insufficient stock' });
+  await sql`UPDATE inventory_products SET stock = stock - ${quantity} WHERE id = ${productId}`;
+  res.json({ success: true, total: product.rows[0].price * quantity, paymentMethod });
+});
+
+// 10. Social Ads
+app.post('/api/social/ad/create', requireBusiness, requireModule('social_ads'), async (req, res) => {
+  const { name, budget, target } = req.body;
+  const result = await sql`INSERT INTO social_ads (business_id, name, budget, target, status, leads) VALUES (${req.business.id}, ${name}, ${budget}, ${target}, 'active', 0) RETURNING id`;
+  res.json({ id: result.rows[0].id, name, budget, target, status: 'active', leads: 0 });
+});
+app.post('/api/social/ad/budget', requireBusiness, requireModule('social_ads'), async (req, res) => {
+  const { adId, newBudget } = req.body;
+  await sql`UPDATE social_ads SET budget = ${newBudget} WHERE id = ${adId} AND business_id = ${req.business.id}`;
+  res.json({ success: true });
+});
+app.get('/api/social/leads', requireBusiness, requireModule('social_ads'), async (req, res) => {
+  const leads = await sql`SELECT SUM(leads) as total FROM social_ads WHERE business_id = ${req.business.id}`;
+  res.json({ leads: leads.rows[0].total || 0 });
+});
+app.get('/api/social/ads', requireBusiness, requireModule('social_ads'), async (req, res) => {
+  const ads = await sql`SELECT * FROM social_ads WHERE business_id = ${req.business.id}`;
+  res.json({ ads: ads.rows });
+});
+
+// 11. Freelance
+app.post('/api/freelance/service', requireBusiness, requireModule('freelance'), async (req, res) => {
+  const { title, price, seller } = req.body;
+  const result = await sql`INSERT INTO freelance_services (business_id, title, price, seller) VALUES (${req.business.id}, ${title}, ${price}, ${seller}) RETURNING id`;
+  res.json({ id: result.rows[0].id, title, price, seller });
+});
+app.get('/api/freelance/services', requireBusiness, requireModule('freelance'), async (req, res) => {
+  const services = await sql`SELECT * FROM freelance_services WHERE business_id = ${req.business.id}`;
+  res.json({ services: services.rows });
+});
+app.post('/api/freelance/order', requireBusiness, requireModule('freelance'), async (req, res) => {
+  const { serviceId, buyer } = req.body;
+  const result = await sql`INSERT INTO freelance_orders (business_id, service_id, buyer, status) VALUES (${req.business.id}, ${serviceId}, ${buyer}, 'escrow') RETURNING id, created_at`;
+  res.json({ id: result.rows[0].id, serviceId, buyer, status: 'escrow', createdAt: result.rows[0].created_at });
+});
+app.post('/api/freelance/escrow', requireBusiness, requireModule('freelance'), async (req, res) => {
+  const { orderId } = req.body;
+  await sql`UPDATE freelance_orders SET status = 'released' WHERE id = ${orderId} AND business_id = ${req.business.id}`;
+  res.json({ success: true });
+});
+app.get('/api/freelance/orders', requireBusiness, requireModule('freelance'), async (req, res) => {
+  const orders = await sql`SELECT * FROM freelance_orders WHERE business_id = ${req.business.id}`;
+  res.json({ orders: orders.rows });
+});
+
+// 12. Clinic
+app.post('/api/clinic/patient', requireBusiness, requireModule('clinic'), async (req, res) => {
+  const { name, phone, address } = req.body;
+  const result = await sql`INSERT INTO clinic_patients (business_id, name, phone, address) VALUES (${req.business.id}, ${name}, ${phone}, ${address}) RETURNING id`;
+  res.json({ id: result.rows[0].id, name, phone, address });
+});
+app.post('/api/clinic/appointment', requireBusiness, requireModule('clinic'), async (req, res) => {
+  const { patientId, date, reason } = req.body;
+  const result = await sql`INSERT INTO clinic_appointments (business_id, patient_id, date, reason) VALUES (${req.business.id}, ${patientId}, ${date}, ${reason}) RETURNING id`;
+  res.json({ id: result.rows[0].id, patientId, date, reason });
+});
+app.get('/api/clinic/patient/:id/bill', requireBusiness, requireModule('clinic'), async (req, res) => {
+  const patient = await sql`SELECT * FROM clinic_patients WHERE id = ${req.params.id} AND business_id = ${req.business.id}`;
+  if (patient.rowCount === 0) return res.status(404).json({ error: 'Patient not found' });
+  res.json({ patient: patient.rows[0], bill: Math.floor(Math.random() * 500) });
+});
+app.get('/api/clinic/patients', requireBusiness, requireModule('clinic'), async (req, res) => {
+  const patients = await sql`SELECT * FROM clinic_patients WHERE business_id = ${req.business.id}`;
+  res.json({ patients: patients.rows });
+});
+app.get('/api/clinic/appointments', requireBusiness, requireModule('clinic'), async (req, res) => {
+  const appointments = await sql`SELECT * FROM clinic_appointments WHERE business_id = ${req.business.id}`;
+  res.json({ appointments: appointments.rows });
+});
+
+// 13. KYC
+app.post('/api/kyc/id', requireBusiness, requireModule('kyc'), (req, res) => {
+  const { idNumber, name } = req.body;
+  res.json({ verified: idNumber && idNumber.length >= 5, message: idNumber && idNumber.length >= 5 ? 'ID verified' : 'Invalid ID' });
+});
+app.post('/api/kyc/phone', requireBusiness, requireModule('kyc'), (req, res) => {
+  const { phone } = req.body;
+  res.json({ verified: phone && phone.length === 10, message: phone && phone.length === 10 ? 'Phone verified' : 'Invalid phone' });
+});
+
+// 14. E‑commerce
+app.post('/api/ecommerce/product', requireBusiness, requireModule('ecommerce'), async (req, res) => {
+  const { name, price } = req.body;
+  const result = await sql`INSERT INTO ecommerce_products (business_id, name, price) VALUES (${req.business.id}, ${name}, ${price}) RETURNING id`;
+  res.json({ id: result.rows[0].id, name, price });
+});
+app.get('/api/ecommerce/products', requireBusiness, requireModule('ecommerce'), async (req, res) => {
+  const products = await sql`SELECT * FROM ecommerce_products WHERE business_id = ${req.business.id}`;
+  res.json({ products: products.rows });
+});
+app.post('/api/ecommerce/order', requireBusiness, requireModule('ecommerce'), async (req, res) => {
+  const { productId, quantity, customer } = req.body;
+  const result = await sql`INSERT INTO ecommerce_orders (business_id, product_id, quantity, customer, status) VALUES (${req.business.id}, ${productId}, ${quantity}, ${customer}, 'pending') RETURNING id`;
+  res.json({ id: result.rows[0].id, productId, quantity, customer, status: 'pending' });
+});
+app.post('/api/ecommerce/payment', requireBusiness, requireModule('ecommerce'), async (req, res) => {
+  const { orderId, method } = req.body;
+  await sql`UPDATE ecommerce_orders SET status = 'paid' WHERE id = ${orderId} AND business_id = ${req.business.id}`;
+  res.json({ success: true, paymentMethod: method });
+});
+app.get('/api/ecommerce/orders', requireBusiness, requireModule('ecommerce'), async (req, res) => {
+  const orders = await sql`SELECT * FROM ecommerce_orders WHERE business_id = ${req.business.id}`;
+  res.json({ orders: orders.rows });
+});
+
+// 15. AI Tutoring
+app.post('/api/tutor/chat', requireBusiness, requireModule('tutor'), (req, res) => {
+  const { question, grade } = req.body;
+  let answer = "I'm here to help with your studies.";
+  if (question.includes('algebra')) answer = "Algebra is about solving equations. Example: x + 2 = 5 → x = 3.";
+  res.json({ answer });
+});
+app.get('/api/tutor/curriculum', requireBusiness, requireModule('tutor'), (req, res) => {
+  const { grade } = req.query;
+  const curriculum = [
+    { grade: 10, subject: 'Math', topic: 'Algebra', content: 'Solving linear equations' },
+    { grade: 10, subject: 'Science', topic: 'Biology', content: 'Cell structure' }
+  ];
+  const filtered = curriculum.filter(c => c.grade == grade);
+  res.json({ curriculum: filtered });
+});
+
+// 16. Local Business Discovery
+app.post('/api/discovery/business', requireBusiness, requireModule('discovery'), async (req, res) => {
+  const { name, category, location, whatsapp } = req.body;
+  const result = await sql`INSERT INTO businesses_list (business_id, name, category, location, whatsapp) VALUES (${req.business.id}, ${name}, ${category}, ${location}, ${whatsapp}) RETURNING id`;
+  res.json({ id: result.rows[0].id, name, category, location, whatsapp });
+});
+app.get('/api/discovery/businesses', requireBusiness, requireModule('discovery'), async (req, res) => {
+  const { category } = req.query;
+  let query = sql`SELECT * FROM businesses_list WHERE business_id = ${req.business.id}`;
+  if (category) query = sql`SELECT * FROM businesses_list WHERE business_id = ${req.business.id} AND category = ${category}`;
+  const businesses = await query;
+  res.json({ businesses: businesses.rows });
+});
+app.post('/api/discovery/review', requireBusiness, requireModule('discovery'), async (req, res) => {
+  const { businessId, rating, comment } = req.body;
+  if (!businessId || !rating) return res.status(400).json({ error: 'Business ID and rating required' });
+  const listed = await sql`SELECT id FROM businesses_list WHERE id = ${businessId} AND business_id = ${req.business.id}`;
+  if (listed.rowCount === 0) return res.status(404).json({ error: 'Listed business not found' });
+  const result = await sql`
+    INSERT INTO discovery_reviews (business_list_id, reviewer_business_id, rating, comment)
+    VALUES (${businessId}, ${req.business.id}, ${rating}, ${comment})
+    RETURNING *
+  `;
+  res.json({ review: result.rows[0] });
+});
+app.get('/api/discovery/business/:id/whatsapp', requireBusiness, requireModule('discovery'), async (req, res) => {
+  const business = await sql`SELECT whatsapp FROM businesses_list WHERE id = ${req.params.id} AND business_id = ${req.business.id}`;
+  if (business.rowCount === 0) return res.status(404).json({ error: 'Business not found' });
+  res.json({ whatsappLink: `https://wa.me/${business.rows[0].whatsapp}` });
+});
+
+// ---------- DEBUG: Check if new-features.html exists ----------
+app.get('/debug-file', (req, res) => {
+  const fs = require('fs');
+  const filePath = path.join(__dirname, '../public/new-features.html');
+  fs.access(filePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      res.json({ exists: false, error: err.message, path: filePath });
+    } else {
+      res.json({ exists: true, path: filePath });
+    }
+  });
+});
+
+// ========== ADD MODULES TO BUSINESS (for testing) ==========
+app.post('/api/business/add-modules', requireBusiness, async (req, res) => {
+  const { modules } = req.body;
+  if (!modules || !Array.isArray(modules)) {
+    return res.status(400).json({ error: 'modules array required' });
+  }
+  let newModules = [...req.business.modules];
+  for (const mod of modules) {
+    if (!newModules.includes(mod)) newModules.push(mod);
+  }
+  await sql`
+    UPDATE businesses SET modules = ${newModules} WHERE id = ${req.business.id}
+  `;
+  res.json({ success: true, modules: newModules });
+});
 
 // ---------- SERVE NEW FEATURES TESTER PAGE ----------
 app.get('/new-features', (req, res) => { res.sendFile(path.join(__dirname, '../public/new-features.html')); });
