@@ -1096,7 +1096,7 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
     }
     function renderProductList() {
       const container = document.getElementById('productList');
-      if (!products.length) { container.innerHTML = '<tr><td colspan="3" class="text-center">No products. Add one below. Neutral</td></tr>'; return; }
+      if (!products.length) { container.innerHTML = '<tr><td colspan="3" class="text-center">No products. Add one below.</td></tr>'; return; }
       container.innerHTML = products.map(p => \`
         <tr class="border-b">
           <td class="p-2">\${p.name}</td>
