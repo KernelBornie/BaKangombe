@@ -1186,7 +1186,7 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
         <button onclick="addProduct()" class="bg-green-600 text-white px-4 py-2 rounded">Add Product</button>
       </div>
       <table class="w-full border">
-        <thead><tr><th>Name</th><th>Price</th><th>Actions</th></td></thead>
+        <thead><tr><th>Name</th><th>Price</th><th>Actions</th></tr></thead>
         <tbody id="productList">Loading...</tbody>
       </table>
     </div>
@@ -1349,21 +1349,575 @@ app.get('/docs', (req, res) => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BaKangombe · Complete API Documentation</title>
   <style>
-    /* ... (same as before) ... */
+    * { margin: 0; padding: 0; box-sizing: border-box; scroll-behavior: smooth; }
+    body {
+      background: #f5f2e8;
+      color: #1e1a16;
+      font-family: 'Georgia', 'Times New Roman', Times, serif;
+      line-height: 1.7;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      background: #fffef7;
+      box-shadow: 0 0 30px rgba(0,0,0,0.05);
+    }
+    .nav-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding-bottom: 1rem;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid #e2dcd0;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .logo {
+      font-size: 1.6rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #8b5a2b, #c49a6c);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .nav-links {
+      display: flex;
+      gap: 1.5rem;
+    }
+    .nav-links a {
+      text-decoration: none;
+      color: #5a3e2b;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover {
+      color: #8b5a2b;
+    }
+    .toc-container {
+      position: sticky;
+      top: 2rem;
+      float: right;
+      width: 280px;
+      margin-left: 2rem;
+      margin-bottom: 2rem;
+      background: #faf8f3;
+      border-left: 4px solid #c49a6c;
+      padding: 1rem;
+      font-family: system-ui, sans-serif;
+      font-size: 0.9rem;
+      border-radius: 0 8px 8px 0;
+    }
+    .toc-container h2 {
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    .toc-container ul {
+      list-style: none;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .toc-container li {
+      margin: 0.5rem 0;
+    }
+    .toc-container a {
+      text-decoration: none;
+      color: #5a3e2b;
+      display: block;
+      padding: 0.2rem 0;
+      transition: 0.2s;
+    }
+    .toc-container a:hover {
+      color: #8b5a2b;
+      text-decoration: underline;
+    }
+    .main-content {
+      overflow: hidden;
+    }
+    h1, h2, h3 {
+      font-weight: normal;
+      letter-spacing: -0.3px;
+      margin-top: 2rem;
+    }
+    h1 {
+      font-size: 2.8rem;
+      margin-top: 0;
+    }
+    h2 {
+      font-size: 1.8rem;
+      border-bottom: 1px solid #e2dcd0;
+      padding-bottom: 0.3rem;
+      margin-top: 2rem;
+    }
+    h3 {
+      font-size: 1.4rem;
+      margin: 1.5rem 0 0.5rem;
+      color: #4a3724;
+    }
+    .endpoint {
+      margin: 1.5rem 0;
+      padding: 1rem 1.5rem;
+      background: #fefcf8;
+      border-left: 3px solid #c49a6c;
+      border-radius: 0 8px 8px 0;
+    }
+    .method {
+      display: inline-block;
+      background: #2c5f2d;
+      color: white;
+      font-family: monospace;
+      font-size: 0.7rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      margin-right: 0.8rem;
+      vertical-align: middle;
+    }
+    .method.free { background: #2c5f2d; }
+    .method.premium { background: #b76e2e; }
+    .path {
+      font-family: 'SF Mono', monospace;
+      font-size: 1rem;
+    }
+    pre {
+      background: #2d2a24;
+      color: #f5e6d3;
+      padding: 0.8rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      margin: 0.8rem 0;
+    }
+    code {
+      font-family: 'SF Mono', monospace;
+      background: #f0ede8;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      color: #3b2a1f;
+    }
+    .copy-btn {
+      background: #e2dcd0;
+      border: none;
+      padding: 0.2rem 0.7rem;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      cursor: pointer;
+      margin-left: 0.5rem;
+    }
+    .copy-btn:hover {
+      background: #c49a6c;
+      color: white;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+    }
+    th, td {
+      border: 1px solid #e2dcd0;
+      padding: 0.5rem;
+      text-align: left;
+    }
+    th {
+      background: #faf8f3;
+      font-weight: 600;
+    }
+    footer {
+      margin-top: 3rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: #9b8a7a;
+      border-top: 1px solid #e2dcd0;
+      padding-top: 2rem;
+      clear: both;
+    }
+    @media (max-width: 900px) {
+      .toc-container {
+        float: none;
+        width: 100%;
+        margin: 0 0 2rem 0;
+        position: static;
+      }
+    }
   </style>
 </head>
-<body>...</body>
+<body>
+<div class="container">
+  <div class="nav-bar">
+    <div class="logo">BaKangombe</div>
+    <div class="nav-links">
+      <a href="/#features">Features</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/docs">Docs</a>
+      <a href="/admin">Admin</a>
+      <a href="/new-features">New Features</a>
+      <a href="https://github.com/KernelBornie/BaKangombe" target="_blank">GitHub</a>
+    </div>
+  </div>
+  <div class="toc-container">
+    <h2>📖 Contents</h2>
+    <ul>
+      <li><a href="#auth">🔐 Authentication & Rate Limits</a></li>
+      <li><a href="#email">📧 Email Validation & Enrichment</a></li>
+      <li><a href="#business">🏢 Business Management</a></li>
+      <li><a href="#modules">📦 The 16 Business Modules</a>
+        <ul style="margin-left: 1rem; list-style: circle;">
+          <li><a href="#mod1">1. Mobile Money</a></li>
+          <li><a href="#mod2">2. Invoice & ZRA Billing</a></li>
+          <li><a href="#mod3">3. WhatsApp Mini E‑commerce</a></li>
+          <li><a href="#mod4">4. Logistics & Delivery</a></li>
+          <li><a href="#mod5">5. Agritech Marketplace</a></li>
+          <li><a href="#mod6">6. AI Customer Support</a></li>
+          <li><a href="#mod7">7. Micro‑Lending</a></li>
+          <li><a href="#mod8">8. SME Dashboard</a></li>
+          <li><a href="#mod9">9. Inventory & POS</a></li>
+          <li><a href="#mod10">10. Social Ads</a></li>
+          <li><a href="#mod11">11. Freelance Marketplace</a></li>
+          <li><a href="#mod12">12. Clinic Management</a></li>
+          <li><a href="#mod13">13. Identity Verification (KYC)</a></li>
+          <li><a href="#mod14">14. E‑commerce BaaS</a></li>
+          <li><a href="#mod15">15. AI Tutoring</a></li>
+          <li><a href="#mod16">16. Local Business Discovery</a></li>
+        </ul>
+      </li>
+      <li><a href="#feedback">📝 Feedback & Waitlist</a></li>
+      <li><a href="#errors">❌ Error Codes</a></li>
+    </ul>
+  </div>
+  <div class="main-content">
+    <h1>BaKangombe API Documentation</h1>
+    <p>BaKangombe provides email validation, enrichment, and 16 ready‑to‑use business modules with multi‑tenant data isolation.</p>
+
+    <h2 id="auth">🔐 Authentication & Rate Limits</h2>
+    <p>All endpoints except <code>/api/validate</code> and <code>/api/feedback</code> require a valid <code>X-API-Key</code> header. Free tier: 100 requests/minute; premium: 10,000 requests/minute.</p>
+
+    <h2 id="email">📧 Email Validation & Enrichment</h2>
+    <div class="endpoint"><h3><span class="method free">POST</span> <span class="path">/api/validate</span></h3><p>Validate a single email address (syntax, MX, disposable detection). Returns a score 0–100.</p><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/validate -H "Content-Type: application/json" -d '{"email":"user@example.com"}'</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/validate -H \"Content-Type: application/json\" -d \'{\"email\":\"user@example.com\"}\'')">Copy</button></div>
+    <div class="endpoint"><h3><span class="method premium">POST</span> <span class="path">/api/enrich</span></h3><p>Enrich an email with company/person data (requires active premium subscription and Hunter API key configured).</p></div>
+
+    <h2 id="business">🏢 Business Management</h2>
+    <div class="endpoint"><h3><span class="method">POST</span> <span class="path">/api/business/register</span></h3><p>Register a new business and receive an API key.</p></div>
+    <div class="endpoint"><h3><span class="method">GET</span> <span class="path">/api/business/me</span></h3><p>Get the current business profile (requires API key).</p></div>
+    <div class="endpoint"><h3><span class="method">POST</span> <span class="path">/api/subscription/activate</span></h3><p>Activate a Pro subscription (valid for 30 days).</p></div>
+
+    <h2 id="modules">📦 The 16 Business Modules</h2>
+    <p>Each module must be enabled for your business (via <code>/api/system/create</code> or <code>/api/business/enable-module</code>). All endpoints require the <code>X-API-Key</code> header and the corresponding module to be enabled.</p>
+
+    <h3 id="mod1">1. Mobile Money (<code>momo</code>)</h3>
+    <ul><li><code>POST /api/momo/transfer</code> – send money</li><li><code>POST /api/momo/request</code> – request money</li><li><code>GET /api/momo/transactions</code> – list transactions</li></ul>
+    <h3 id="mod2">2. Invoice & ZRA Billing (<code>invoice</code>)</h3>
+    <ul><li><code>POST /api/invoice/create</code> – create invoice</li><li><code>PUT /api/invoice/:id/pay</code> – pay invoice</li><li><code>GET /api/invoice/export/csv</code> – export CSV</li></ul>
+    <h3 id="mod3">3. WhatsApp Mini E‑commerce (<code>whatsapp</code>)</h3>
+    <ul><li><code>POST /api/whatsapp/product</code>, <code>GET /api/whatsapp/products</code></li><li><code>POST /api/whatsapp/order</code></li><li><code>GET /api/whatsapp/order/:id/checkout</code> – get WhatsApp link</li></ul>
+    <h3 id="mod4">4. Logistics & Delivery (<code>logistics</code>)</h3>
+    <ul><li><code>POST /api/logistics/route</code>, <code>POST /api/logistics/driver/assign</code></li><li><code>GET /api/logistics/driver/:id/track</code></li></ul>
+    <h3 id="mod5">5. Agritech Marketplace (<code>agritech</code>)</h3>
+    <ul><li><code>POST /api/agritech/farmer</code>, <code>GET /api/agritech/farmers</code></li><li><code>POST /api/agritech/buyer/match</code>, <code>GET /api/agritech/price/intelligence</code></li></ul>
+    <h3 id="mod6">6. AI Customer Support (<code>ai</code>)</h3>
+    <ul><li><code>POST /api/ai/chat</code>, <code>POST /api/ai/train</code></li></ul>
+    <h3 id="mod7">7. Micro‑Lending (<code>lending</code>)</h3>
+    <ul><li><code>POST /api/lending/score</code>, <code>POST /api/lending/eligibility</code></li></ul>
+    <h3 id="mod8">8. SME Dashboard (<code>sme</code>)</h3>
+    <ul><li><code>POST /api/sme/sale</code>, <code>POST /api/sme/expense</code>, <code>GET /api/sme/profit</code></li></ul>
+    <h3 id="mod9">9. Inventory & POS (<code>inventory</code>)</h3>
+    <ul><li><code>POST /api/inventory/product</code>, <code>PUT /api/inventory/stock</code></li><li><code>GET /api/inventory/alerts</code>, <code>POST /api/pos/sale</code></li></ul>
+    <h3 id="mod10">10. Social Ads (<code>social_ads</code>)</h3>
+    <ul><li><code>POST /api/social/ad/create</code>, <code>POST /api/social/ad/budget</code></li><li><code>GET /api/social/leads</code>, <code>GET /api/social/ads</code></li></ul>
+    <h3 id="mod11">11. Freelance Marketplace (<code>freelance</code>)</h3>
+    <ul><li><code>POST /api/freelance/service</code>, <code>GET /api/freelance/services</code></li><li><code>POST /api/freelance/order</code>, <code>POST /api/freelance/escrow</code></li></ul>
+    <h3 id="mod12">12. Clinic Management (<code>clinic</code>)</h3>
+    <ul><li><code>POST /api/clinic/patient</code>, <code>GET /api/clinic/patients</code></li><li><code>POST /api/clinic/appointment</code>, <code>GET /api/clinic/patient/:id/bill</code></li></ul>
+    <h3 id="mod13">13. Identity Verification (KYC) (<code>kyc</code>)</h3>
+    <ul><li><code>POST /api/kyc/id</code>, <code>POST /api/kyc/phone</code></li></ul>
+    <h3 id="mod14">14. E‑commerce BaaS (<code>ecommerce</code>)</h3>
+    <ul><li><code>POST /api/ecommerce/product</code>, <code>GET /api/ecommerce/products</code></li><li><code>POST /api/ecommerce/order</code>, <code>POST /api/ecommerce/payment</code></li></ul>
+    <h3 id="mod15">15. AI Tutoring (<code>tutor</code>)</h3>
+    <ul><li><code>POST /api/tutor/chat</code>, <code>GET /api/tutor/curriculum</code></li></ul>
+    <h3 id="mod16">16. Local Business Discovery (<code>discovery</code>)</h3>
+    <ul><li><code>POST /api/discovery/business</code>, <code>GET /api/discovery/businesses</code></li><li><code>POST /api/discovery/review</code>, <code>GET /api/discovery/business/:id/whatsapp</code></li></ul>
+
+    <h2 id="feedback">📝 Feedback & Waitlist</h2>
+    <div class="endpoint"><h3><span class="method free">POST</span> <span class="path">/api/feedback</span></h3><p>Submit feedback – a confirmation email is sent.</p></div>
+    <div class="endpoint"><h3><span class="method free">POST</span> <span class="path">/api/waitlist</span></h3><p>Join the waitlist.</p></div>
+    <div class="endpoint"><h3><span class="method free">POST</span> <span class="path">/api/newsletter/subscribe</span></h3><p>Subscribe to the newsletter.</p></div>
+
+    <h2 id="errors">❌ Error Codes</h2>
+    <table>
+      <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>400</td><td>Bad request</td></tr>
+        <tr><td>401</td><td>Unauthorized (missing/invalid API key)</td></tr>
+        <tr><td>402</td><td>Payment required (premium feature)</td></tr>
+        <tr><td>403</td><td>Forbidden (module not enabled)</td></tr>
+        <tr><td>429</td><td>Rate limit exceeded</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <footer>
+    <p>Built by <strong>Bornface Kangombe Kernel</strong></p>
+    <p><a href="/">Home</a> · <a href="https://github.com/KernelBornie/BaKangombe">GitHub</a></p>
+  </footer>
+</div>
+<script>
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text);
+    const toast = document.createElement('div');
+    toast.innerText = '✓ Copied';
+    toast.style.position = 'fixed';
+    toast.style.bottom = '20px';
+    toast.style.right = '20px';
+    toast.style.background = '#2c5f2d';
+    toast.style.color = 'white';
+    toast.style.padding = '0.5rem 1rem';
+    toast.style.borderRadius = '2rem';
+    toast.style.fontSize = '0.8rem';
+    toast.style.zIndex = '1000';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+  }
+</script>
+</body>
 </html>`);
 });
 
 // ---------- ONE‑TIME SETUP (run once) ----------
 app.get('/api/setup/create-tables', async (req, res) => {
   try {
-    await sql`CREATE TABLE IF NOT EXISTS businesses (...);`;
-    await sql`CREATE TABLE IF NOT EXISTS site_settings (...);`;
-    // ... all other tables
+    // Businesses table
+    await sql`CREATE TABLE IF NOT EXISTS businesses (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255),
+      email VARCHAR(255) UNIQUE,
+      api_key VARCHAR(64) UNIQUE,
+      modules TEXT[] DEFAULT '{}',
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    // Mobile money transactions
+    await sql`CREATE TABLE IF NOT EXISTS momo_transactions (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      amount NUMERIC,
+      phone VARCHAR(20),
+      provider VARCHAR(10),
+      status VARCHAR(20),
+      type VARCHAR(10),
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    // Invoices
+    await sql`CREATE TABLE IF NOT EXISTS invoices (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      customer VARCHAR(255),
+      amount NUMERIC,
+      items TEXT[],
+      status VARCHAR(20),
+      created_at TIMESTAMP DEFAULT NOW(),
+      paid_at TIMESTAMP
+    )`;
+    // WhatsApp products
+    await sql`CREATE TABLE IF NOT EXISTS whatsapp_products (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      name VARCHAR(255),
+      price NUMERIC,
+      description TEXT
+    )`;
+    // WhatsApp orders
+    await sql`CREATE TABLE IF NOT EXISTS whatsapp_orders (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      product_id INTEGER,
+      customer_phone VARCHAR(20),
+      status VARCHAR(20),
+      created_at TIMESTAMP
+    )`;
+    // Logistics routes
+    await sql`CREATE TABLE IF NOT EXISTS logistics_routes (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      stops JSONB,
+      assigned_driver INTEGER
+    )`;
+    // Agritech farmers
+    await sql`CREATE TABLE IF NOT EXISTS agritech_farmers (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      name VARCHAR(255),
+      crop VARCHAR(100),
+      price NUMERIC,
+      location VARCHAR(255)
+    )`;
+    // FAQs for AI support
+    await sql`CREATE TABLE IF NOT EXISTS faqs (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      question TEXT,
+      answer TEXT
+    )`;
+    // Lending scores
+    await sql`CREATE TABLE IF NOT EXISTS lending_scores (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      income NUMERIC,
+      debt NUMERIC,
+      history VARCHAR(20),
+      score INTEGER
+    )`;
+    // SME sales
+    await sql`CREATE TABLE IF NOT EXISTS sme_sales (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      amount NUMERIC,
+      customer_id INTEGER,
+      date TIMESTAMP
+    )`;
+    // SME expenses
+    await sql`CREATE TABLE IF NOT EXISTS sme_expenses (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      amount NUMERIC,
+      category VARCHAR(100),
+      date TIMESTAMP
+    )`;
+    // Inventory products
+    await sql`CREATE TABLE IF NOT EXISTS inventory_products (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      name VARCHAR(255),
+      price NUMERIC,
+      stock INTEGER
+    )`;
+    // Social ads
+    await sql`CREATE TABLE IF NOT EXISTS social_ads (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      name VARCHAR(255),
+      budget NUMERIC,
+      target VARCHAR(255),
+      status VARCHAR(20),
+      leads INTEGER
+    )`;
+    // Freelance services
+    await sql`CREATE TABLE IF NOT EXISTS freelance_services (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      title VARCHAR(255),
+      price NUMERIC,
+      seller VARCHAR(255)
+    )`;
+    // Freelance orders
+    await sql`CREATE TABLE IF NOT EXISTS freelance_orders (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      service_id INTEGER,
+      buyer VARCHAR(255),
+      status VARCHAR(20),
+      created_at TIMESTAMP
+    )`;
+    // Clinic patients
+    await sql`CREATE TABLE IF NOT EXISTS clinic_patients (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      name VARCHAR(255),
+      phone VARCHAR(20),
+      address TEXT
+    )`;
+    // Clinic appointments
+    await sql`CREATE TABLE IF NOT EXISTS clinic_appointments (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      patient_id INTEGER,
+      date DATE,
+      reason TEXT
+    )`;
+    // E‑commerce products
+    await sql`CREATE TABLE IF NOT EXISTS ecommerce_products (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      name VARCHAR(255),
+      price NUMERIC
+    )`;
+    // E‑commerce orders
+    await sql`CREATE TABLE IF NOT EXISTS ecommerce_orders (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      product_id INTEGER,
+      quantity INTEGER,
+      customer VARCHAR(255),
+      status VARCHAR(20)
+    )`;
+    // Tutor curriculum
+    await sql`CREATE TABLE IF NOT EXISTS tutor_curriculum (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      grade INTEGER,
+      subject VARCHAR(100),
+      topic VARCHAR(255),
+      content TEXT
+    )`;
+    // Business listings for discovery
+    await sql`CREATE TABLE IF NOT EXISTS businesses_list (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      name VARCHAR(255),
+      category VARCHAR(100),
+      location VARCHAR(255),
+      whatsapp VARCHAR(20)
+    )`;
+    // Discovery reviews
+    await sql`CREATE TABLE IF NOT EXISTS discovery_reviews (
+      id SERIAL PRIMARY KEY,
+      business_list_id INTEGER REFERENCES businesses_list(id) ON DELETE CASCADE,
+      reviewer_business_id INTEGER REFERENCES businesses(id),
+      rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+      comment TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    // Subscriptions
+    await sql`CREATE TABLE IF NOT EXISTS subscriptions (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      plan VARCHAR(100),
+      status VARCHAR(30),
+      expires_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    // Business services (activated systems)
+    await sql`CREATE TABLE IF NOT EXISTS business_services (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      service_key VARCHAR(100),
+      service_name VARCHAR(255),
+      modules TEXT[],
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    // Generated systems (for the website builder)
+    await sql`CREATE TABLE IF NOT EXISTS generated_systems (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      system_name VARCHAR(255),
+      system_type VARCHAR(100),
+      dashboard_url TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    // Site settings (for customisation of generated website)
+    await sql`CREATE TABLE IF NOT EXISTS site_settings (
+      business_id INTEGER REFERENCES businesses(id) UNIQUE,
+      hero_title TEXT,
+      hero_description TEXT,
+      about_content TEXT,
+      contact_email TEXT,
+      contact_phone TEXT,
+      contact_address TEXT,
+      categories JSONB DEFAULT '["Electronics","Fashion","Home","Toys"]',
+      testimonials JSONB DEFAULT '[]',
+      updated_at TIMESTAMP DEFAULT NOW()
+    )`;
     res.json({ message: "All tables created/updated" });
   } catch (err) {
+    console.error('Table creation error:', err);
     res.status(500).json({ error: err.message });
   }
 });
