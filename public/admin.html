@@ -3,57 +3,100 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Dashboard - BaKangombe</title>
+  <title>Admin Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { background: #0a0c10; color: #eef2ff; font-family: system-ui; padding: 2rem; max-width: 1200px; margin: 0 auto; }
-    input, button, textarea, select { background: #0f1117; border: 1px solid rgba(255,255,255,0.1); color: #eef2ff; padding: 0.5rem; border-radius: 0.5rem; margin: 0.5rem 0; }
-    button { background: #4f46e5; cursor: pointer; }
-    pre { background: #0f1117; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; }
-    .card { background: rgba(255,255,255,0.03); border-radius: 1rem; padding: 1rem; margin: 1rem 0; }
-    hr { border-color: rgba(255,255,255,0.1); }
-    .feedback-item { border-left: 3px solid #4f46e5; margin-bottom: 1rem; padding: 1rem; background: rgba(255,255,255,0.02); }
-    .delete-btn { background: #dc2626; margin-left: 1rem; }
-    .replies { margin-top: 0.5rem; padding-left: 1rem; border-left: 2px solid #10b981; font-size: 0.9rem; }
-    .pagination { display: flex; gap: 1rem; margin-top: 1rem; align-items: center; }
-    .error { color: #f87171; margin-top: 0.5rem; }
+    .product-row.editing input { width: 100%; padding: 0.25rem; border: 1px solid #ccc; border-radius: 0.25rem; background: #1e293b; color: white; }
+    .product-row.editing button { margin: 0 0.2rem; }
   </style>
 </head>
-<body>
-  <h1>BaKangombe Admin Panel</h1>
-  <div id="loginSection">
-    <h2>Admin Login</h2>
-    <input type="email" id="adminEmail" placeholder="Your admin email" value="bornface.kangombe@cs.unza.zm">
-    <button onclick="login()">Login with Email</button>
-    <div id="loginResult" class="error"></div>
+<body class="bg-gray-100 p-8">
+  <div class="max-w-7xl mx-auto">
+    <h1 class="text-3xl font-bold mb-6">BaKangombe Admin Panel</h1>
+
+    <!-- Login Section -->
+    <div id="loginSection">
+      <h2 class="text-xl mb-2">Admin Login</h2>
+      <input type="email" id="adminEmail" placeholder="Your admin email" value="bornface.kangombe@cs.unza.zm" class="border p-2 rounded">
+      <button onclick="login()" class="bg-blue-600 text-white px-4 py-2 rounded ml-2">Login</button>
+      <div id="loginResult" class="text-red-500 mt-2"></div>
+    </div>
+
+    <!-- Admin Content (hidden until login) -->
+    <div id="adminContent" style="display:none;">
+      <div class="flex justify-end mb-4">
+        <button id="logoutBtn" class="bg-red-600 text-white px-4 py-2 rounded">Logout</button>
+      </div>
+
+      <!-- Products Management -->
+      <div class="bg-white p-6 rounded shadow mb-8">
+        <h2 class="text-xl font-bold mb-4">Manage Products</h2>
+        <div class="mb-4 flex gap-2">
+          <input type="text" id="prodName" placeholder="Product name" class="border p-2 rounded flex-1">
+          <input type="number" id="prodPrice" placeholder="Price" class="border p-2 rounded w-32">
+          <button id="addProductBtn" class="bg-green-600 text-white px-4 py-2 rounded">Add Product</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full border">
+            <thead>
+              <tr><th class="text-left p-2">Name</th><th class="text-left p-2">Price</th><th class="text-left p-2">Actions</th></tr>
+            </thead>
+            <tbody id="productList"><tr><td colspan="3" class="text-center p-4">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Site Settings -->
+      <div class="bg-white p-6 rounded shadow mb-8">
+        <h2 class="text-xl font-bold mb-4">Site Settings</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><label>Hero Title</label><input id="heroTitle" class="w-full border p-2 rounded"></div>
+          <div><label>Hero Description</label><input id="heroDesc" class="w-full border p-2 rounded"></div>
+          <div><label>About Content (HTML allowed)</label><textarea id="aboutContent" rows="4" class="w-full border p-2 rounded"></textarea></div>
+          <div><label>Contact Email</label><input id="contactEmail" class="w-full border p-2 rounded"></div>
+          <div><label>Contact Phone</label><input id="contactPhone" class="w-full border p-2 rounded"></div>
+          <div><label>Contact Address</label><input id="contactAddress" class="w-full border p-2 rounded"></div>
+          <div><label>Categories (comma separated)</label><input id="categories" class="w-full border p-2 rounded"></div>
+          <div><label>Testimonials (one per line: text|author)</label><textarea id="testimonials" rows="4" class="w-full border p-2 rounded"></textarea></div>
+        </div>
+        <button id="saveSettingsBtn" class="bg-blue-600 text-white px-6 py-2 rounded mt-4">Save Settings</button>
+      </div>
+
+      <!-- Feedback Management -->
+      <div class="bg-white p-6 rounded shadow">
+        <h2 class="text-xl font-bold mb-4">Feedback</h2>
+        <button id="refreshFeedbackBtn" class="bg-gray-600 text-white px-4 py-2 rounded mb-4">Refresh</button>
+        <div id="feedbackList"></div>
+        <div id="feedbackPagination" class="flex gap-2 mt-4"></div>
+
+        <h3 class="text-lg font-bold mt-6 mb-2">Reply to Feedback</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input type="number" id="replyId" placeholder="Feedback ID" class="border p-2 rounded">
+          <input type="email" id="replyUserEmail" placeholder="User email" class="border p-2 rounded">
+          <input type="text" id="replyUserName" placeholder="User name" class="border p-2 rounded">
+          <textarea id="replyMessage" rows="3" placeholder="Your reply..." class="border p-2 rounded"></textarea>
+        </div>
+        <button id="sendReplyBtn" class="bg-green-600 text-white px-4 py-2 rounded mt-2">Send Reply</button>
+        <div id="replyResult" class="mt-2 text-sm"></div>
+      </div>
+    </div>
   </div>
-  <div id="adminContent" style="display:none;">
-    <hr>
-    <button id="logoutBtn" style="background:#dc2626; margin-bottom:1rem;">🚪 Logout</button>
-    <h2>Feedback Management</h2>
-    <button onclick="loadFeedback()">Refresh Feedback</button>
-    <div id="feedbackList"></div>
-    <div class="pagination" id="pagination"></div>
-    <hr>
-    <h3>Reply to Feedback</h3>
-    <input type="number" id="replyId" placeholder="Feedback ID">
-    <input type="email" id="replyUserEmail" placeholder="User email">
-    <input type="text" id="replyUserName" placeholder="User name">
-    <textarea id="replyMessage" rows="3" placeholder="Your reply..."></textarea>
-    <button onclick="sendReply()">Send Reply</button>
-    <div id="replyResult"></div>
-  </div>
+
   <script>
+    // ---------- CONFIGURATION ----------
+    // IMPORTANT: Replace 'YOUR_API_KEY_HERE' with your actual Business API Key
+    const API_KEY = 'YOUR_API_KEY_HERE';
+    const API_BASE = 'https://ba-kangombe.vercel.app/api';
     let token = localStorage.getItem('adminToken');
     let allFeedback = [];
     let currentPage = 1;
     const pageSize = 10;
 
-    // Helper to handle API calls with token and 401 handling
+    // Helper: authenticated fetch (for admin JWT)
     async function fetchWithAuth(url, options = {}) {
       const headers = { ...options.headers, 'Authorization': 'Bearer ' + token };
       const res = await fetch(url, { ...options, headers });
       if (res.status === 401) {
-        // Token expired or invalid – logout
         localStorage.removeItem('adminToken');
         token = null;
         document.getElementById('loginSection').style.display = 'block';
@@ -64,24 +107,23 @@
       return res;
     }
 
-    if (token) { 
-      // Try to load feedback to validate token, otherwise auto‑logout
-      fetchWithAuth('/api/admin/feedback').then(res => {
-        if (res && res.ok) {
-          showAdminPanel();
-          loadFeedback();
-        } else {
-          localStorage.removeItem('adminToken');
-          token = null;
-          document.getElementById('loginSection').style.display = 'block';
-        }
-      }).catch(() => {
-        localStorage.removeItem('adminToken');
-        token = null;
-        document.getElementById('loginSection').style.display = 'block';
-      });
+    // Helper: API call with API_KEY (for product/site endpoints)
+    async function apiCall(endpoint, method = 'GET', body = null) {
+      const options = {
+        method,
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY }
+      };
+      if (body) options.body = JSON.stringify(body);
+      const res = await fetch(`${API_BASE}${endpoint}`, options);
+      if (!res.ok) {
+        let errMsg = `HTTP ${res.status}`;
+        try { const err = await res.json(); errMsg = err.error || errMsg; } catch(e) {}
+        throw new Error(errMsg);
+      }
+      return res.json();
     }
 
+    // ---------- LOGIN ----------
     async function login() {
       const email = document.getElementById('adminEmail').value;
       try {
@@ -94,54 +136,149 @@
         if (res.ok) {
           localStorage.setItem('adminToken', data.token);
           token = data.token;
-          showAdminPanel();
+          document.getElementById('loginSection').style.display = 'none';
+          document.getElementById('adminContent').style.display = 'block';
+          loadProducts();
+          loadSettings();
           loadFeedback();
         } else {
-          document.getElementById('loginResult').innerText = 'Error: ' + (data.error || 'Login failed');
+          document.getElementById('loginResult').innerText = 'Error: ' + data.error;
         }
       } catch (err) {
         document.getElementById('loginResult').innerText = 'Network error: ' + err.message;
       }
     }
 
-    function showAdminPanel() {
-      document.getElementById('loginSection').style.display = 'none';
-      document.getElementById('adminContent').style.display = 'block';
+    // ---------- PRODUCTS ----------
+    async function loadProducts() {
+      try {
+        const data = await apiCall('/ecommerce/products');
+        const products = data.products || [];
+        renderProductTable(products);
+      } catch (err) { console.error('Error loading products:', err); }
     }
 
+    function renderProductTable(products) {
+      const container = document.getElementById('productList');
+      if (!products.length) {
+        container.innerHTML = '<tr><td colspan="3" class="text-center p-4">No products yet. Add one above.</td></tr>';
+        return;
+      }
+      container.innerHTML = products.map(p => `
+        <tr data-id="${p.id}" class="border-b product-row">
+          <td class="p-2 product-name">${escapeHtml(p.name)}</td>
+          <td class="p-2 product-price">$${parseFloat(p.price).toFixed(2)}</td>
+          <td class="p-2">
+            <button class="edit-product bg-yellow-600 text-white px-3 py-1 rounded">Edit</button>
+            <button class="delete-product bg-red-600 text-white px-3 py-1 rounded ml-2">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+
+      // Attach event listeners
+      document.querySelectorAll('.edit-product').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const row = btn.closest('tr');
+          editProduct(row);
+        });
+      });
+      document.querySelectorAll('.delete-product').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const row = btn.closest('tr');
+          const id = parseInt(row.dataset.id);
+          if (confirm('Delete this product?')) {
+            try {
+              await apiCall(`/ecommerce/product/${id}`, 'DELETE');
+              await loadProducts();
+            } catch (err) { alert('Delete failed: ' + err.message); }
+          }
+        });
+      });
+    }
+
+    function editProduct(row) {
+      const nameCell = row.querySelector('.product-name');
+      const priceCell = row.querySelector('.product-price');
+      const actionsCell = row.querySelector('td:last-child');
+      const currentName = nameCell.innerText;
+      const currentPrice = parseFloat(priceCell.innerText.replace('$', ''));
+
+      nameCell.innerHTML = `<input type="text" value="${escapeHtml(currentName)}" class="edit-name w-full p-1 rounded bg-gray-800 text-white">`;
+      priceCell.innerHTML = `<input type="number" step="0.01" value="${currentPrice}" class="edit-price w-24 p-1 rounded bg-gray-800 text-white">`;
+      actionsCell.innerHTML = `
+        <button class="save-product bg-blue-600 text-white px-3 py-1 rounded">Save</button>
+        <button class="cancel-product bg-gray-500 text-white px-3 py-1 rounded ml-2">Cancel</button>
+      `;
+      row.classList.add('editing');
+
+      row.querySelector('.save-product').addEventListener('click', async () => {
+        const newName = row.querySelector('.edit-name').value;
+        const newPrice = parseFloat(row.querySelector('.edit-price').value);
+        if (!newName || isNaN(newPrice)) { alert('Invalid name or price'); return; }
+        const id = parseInt(row.dataset.id);
+        try {
+          await apiCall(`/ecommerce/product/${id}`, 'PUT', { name: newName, price: newPrice });
+          await loadProducts();
+        } catch (err) { alert('Update failed: ' + err.message); }
+      });
+      row.querySelector('.cancel-product').addEventListener('click', () => loadProducts());
+    }
+
+    document.getElementById('addProductBtn').addEventListener('click', async () => {
+      const name = document.getElementById('prodName').value.trim();
+      const price = parseFloat(document.getElementById('prodPrice').value);
+      if (!name || isNaN(price)) { alert('Product name and valid price required'); return; }
+      try {
+        await apiCall('/ecommerce/product', 'POST', { name, price });
+        document.getElementById('prodName').value = '';
+        document.getElementById('prodPrice').value = '';
+        await loadProducts();
+      } catch (err) { alert('Add failed: ' + err.message); }
+    });
+
+    // ---------- SITE SETTINGS ----------
+    async function loadSettings() {
+      try {
+        const data = await apiCall('/site/settings');
+        document.getElementById('heroTitle').value = data.hero_title || '';
+        document.getElementById('heroDesc').value = data.hero_description || '';
+        document.getElementById('aboutContent').value = data.about_content || '';
+        document.getElementById('contactEmail').value = data.contact_email || '';
+        document.getElementById('contactPhone').value = data.contact_phone || '';
+        document.getElementById('contactAddress').value = data.contact_address || '';
+        document.getElementById('categories').value = (data.categories || ['Electronics','Fashion','Home','Toys']).join(',');
+        document.getElementById('testimonials').value = (data.testimonials || []).map(t => `${t.text}|${t.author}`).join('\n');
+      } catch (err) { console.error('Failed to load settings:', err); }
+    }
+
+    document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+      const newSettings = {
+        hero_title: document.getElementById('heroTitle').value,
+        hero_description: document.getElementById('heroDesc').value,
+        about_content: document.getElementById('aboutContent').value,
+        contact_email: document.getElementById('contactEmail').value,
+        contact_phone: document.getElementById('contactPhone').value,
+        contact_address: document.getElementById('contactAddress').value,
+        categories: document.getElementById('categories').value.split(',').map(s => s.trim()),
+        testimonials: document.getElementById('testimonials').value.split('\n').filter(l => l.trim()).map(l => {
+          const [text, author] = l.split('|');
+          return { text: text.trim(), author: author ? author.trim() : 'Anonymous' };
+        })
+      };
+      try {
+        await apiCall('/site/settings', 'POST', newSettings);
+        alert('Settings saved successfully!');
+      } catch (err) { alert('Error saving settings: ' + err.message); }
+    });
+
+    // ---------- FEEDBACK ----------
     async function loadFeedback() {
       const res = await fetchWithAuth('/api/admin/feedback');
-      if (!res) return;
-      if (res.ok) {
-        const data = await res.json();
-        allFeedback = data.feedback || [];
-        currentPage = 1;
-        renderFeedback();
-      } else {
-        console.error('Failed to load feedback');
-      }
-    }
-
-    async function deleteFeedback(id) {
-      if (!confirm('Are you sure you want to delete this feedback? Replies will also be deleted.')) return;
-      const res = await fetchWithAuth(`/api/admin/feedback/${id}`, { method: 'DELETE' });
-      if (res && res.ok) {
-        loadFeedback();
-      } else {
-        alert('Delete failed');
-      }
-    }
-
-    async function viewReplies(feedbackId, elementId) {
-      const res = await fetchWithAuth(`/api/admin/feedback/${feedbackId}/responses`);
-      if (!res) return;
+      if (!res || !res.ok) return;
       const data = await res.json();
-      const repliesDiv = document.getElementById(elementId);
-      if (data.responses && data.responses.length) {
-        repliesDiv.innerHTML = '<strong>Previous replies:</strong><br>' + data.responses.map(r => `<div>📧 ${r.replied_by} (${new Date(r.created_at).toLocaleString()}): ${r.reply_message}</div>`).join('');
-      } else {
-        repliesDiv.innerHTML = '<em>No previous replies.</em>';
-      }
+      allFeedback = data.feedback || [];
+      currentPage = 1;
+      renderFeedback();
     }
 
     function renderFeedback() {
@@ -151,32 +288,67 @@
       container.innerHTML = '';
       for (let fb of pageItems) {
         const div = document.createElement('div');
-        div.className = 'feedback-item';
+        div.className = 'border p-3 mb-2 rounded';
         div.innerHTML = `
-          <strong>ID ${fb.id}</strong> - ${fb.name} (${fb.email})<br>
-          <em>${new Date(fb.created_at).toLocaleString()}</em><br>
-          Message: ${fb.message}<br>
-          <button onclick="deleteFeedback(${fb.id})" class="delete-btn">🗑 Delete</button>
-          <button onclick="viewReplies(${fb.id}, 'replies-${fb.id}')">💬 Show Replies</button>
-          <div id="replies-${fb.id}" class="replies"></div>
+          <div><strong>ID ${fb.id}</strong> - ${fb.name} (${fb.email})</div>
+          <div class="text-sm text-gray-600">${new Date(fb.created_at).toLocaleString()}</div>
+          <div class="mt-1">${fb.message}</div>
+          <div class="mt-2">
+            <button class="delete-feedback bg-red-600 text-white px-2 py-1 rounded text-sm" data-id="${fb.id}">Delete</button>
+            <button class="show-replies bg-gray-600 text-white px-2 py-1 rounded text-sm ml-2" data-id="${fb.id}">Show Replies</button>
+          </div>
+          <div id="replies-${fb.id}" class="mt-2 pl-4 border-l-2 border-gray-400 hidden"></div>
         `;
         container.appendChild(div);
       }
+      // Attach delete handlers
+      document.querySelectorAll('.delete-feedback').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const id = parseInt(btn.dataset.id);
+          if (confirm('Delete this feedback?')) {
+            const res = await fetchWithAuth(`/api/admin/feedback/${id}`, { method: 'DELETE' });
+            if (res && res.ok) loadFeedback();
+            else alert('Delete failed');
+          }
+        });
+      });
+      // Attach show replies handlers
+      document.querySelectorAll('.show-replies').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const id = parseInt(btn.dataset.id);
+          const repliesDiv = document.getElementById(`replies-${id}`);
+          if (repliesDiv.classList.contains('hidden')) {
+            const res = await fetchWithAuth(`/api/admin/feedback/${id}/responses`);
+            if (res && res.ok) {
+              const data = await res.json();
+              if (data.responses && data.responses.length) {
+                repliesDiv.innerHTML = '<strong>Previous replies:</strong><br>' + data.responses.map(r => `<div>📧 ${r.replied_by} (${new Date(r.created_at).toLocaleString()}): ${r.reply_message}</div>`).join('');
+              } else {
+                repliesDiv.innerHTML = '<em>No previous replies.</em>';
+              }
+              repliesDiv.classList.remove('hidden');
+            }
+          } else {
+            repliesDiv.classList.add('hidden');
+          }
+        });
+      });
+      // Pagination
       const totalPages = Math.ceil(allFeedback.length / pageSize);
-      const pagDiv = document.getElementById('pagination');
+      const pagDiv = document.getElementById('feedbackPagination');
       pagDiv.innerHTML = `
-        <button onclick="changePage(-1)" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>
+        <button class="bg-gray-500 text-white px-3 py-1 rounded" ${currentPage === 1 ? 'disabled' : ''} onclick="changePage(-1)">Prev</button>
         <span>Page ${currentPage} of ${totalPages || 1}</span>
-        <button onclick="changePage(1)" ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}>Next</button>
+        <button class="bg-gray-500 text-white px-3 py-1 rounded" ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''} onclick="changePage(1)">Next</button>
       `;
     }
 
-    function changePage(delta) {
+    window.changePage = (delta) => {
       currentPage += delta;
       renderFeedback();
-    }
+    };
 
-    async function sendReply() {
+    document.getElementById('sendReplyBtn').addEventListener('click', async () => {
       const feedbackId = parseInt(document.getElementById('replyId').value);
       const userEmail = document.getElementById('replyUserEmail').value;
       const userName = document.getElementById('replyUserName').value;
@@ -191,24 +363,53 @@
         body: JSON.stringify({ feedbackId, replyMessage, userEmail, userName })
       });
       if (res && res.ok) {
-        const data = await res.json();
-        document.getElementById('replyResult').innerText = JSON.stringify(data);
+        alert('Reply sent!');
         document.getElementById('replyId').value = '';
         document.getElementById('replyUserEmail').value = '';
         document.getElementById('replyUserName').value = '';
         document.getElementById('replyMessage').value = '';
         loadFeedback();
-      } else if (res) {
-        const err = await res.text();
-        document.getElementById('replyResult').innerText = 'Error: ' + err;
+      } else {
+        alert('Failed to send reply');
       }
-    }
+    });
 
-    document.getElementById('logoutBtn')?.addEventListener('click', () => {
+    document.getElementById('refreshFeedbackBtn').addEventListener('click', () => loadFeedback());
+
+    // ---------- LOGOUT ----------
+    document.getElementById('logoutBtn').addEventListener('click', () => {
       localStorage.removeItem('adminToken');
       token = null;
       location.reload();
     });
+
+    // ---------- INITIAL CHECK ----------
+    if (token) {
+      fetchWithAuth('/api/admin/feedback').then(res => {
+        if (res && res.ok) {
+          document.getElementById('loginSection').style.display = 'none';
+          document.getElementById('adminContent').style.display = 'block';
+          loadProducts();
+          loadSettings();
+          loadFeedback();
+        } else {
+          localStorage.removeItem('adminToken');
+          token = null;
+        }
+      }).catch(() => {
+        localStorage.removeItem('adminToken');
+        token = null;
+      });
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+      });
+    }
   </script>
 </body>
 </html>
