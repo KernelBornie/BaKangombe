@@ -11,8 +11,7 @@ const csv = require('csv-parser');
 const { Readable } = require('stream');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const archiver = require('archiver');      // <-- NEW for full website generator
-const fs = require('fs');                  // already used, but keep
+const fs = require('fs');   // still used by other parts
 
 const app = express();
 app.use(cors());
@@ -637,81 +636,6 @@ app.post('/api/website/generate', requireBusiness, async (req, res) => {
   res.json({ html, template, title });
 });
 
-// ---------- FULL WEBSITE GENERATOR (deployable ZIP) ----------
-app.post('/api/website/generate-full', requireBusiness, requireModule('website'), async (req, res) => {
-  const { siteName, description, theme = 'modern' } = req.body;
-  if (!siteName) return res.status(400).json({ error: 'siteName required' });
-
-  // Create a temporary directory
-  const tempDir = path.join('/tmp', `site-${Date.now()}`);
-  fs.mkdirSync(tempDir, { recursive: true });
-
-  // Generate index.html (full deployable site)
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${siteName}</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    const API_KEY = '${req.business.api_key}';
-    const API_BASE = 'https://ba-kangombe.vercel.app/api';
-  </script>
-</head>
-<body class="bg-gray-900 text-white">
-  <nav class="p-4 bg-gray-800">${siteName}</nav>
-  <main class="p-8">
-    <h1 class="text-3xl">${description || 'Welcome to ' + siteName}</h1>
-    <div id="products" class="grid grid-cols-3 gap-4 mt-8">Loading products...</div>
-  </main>
-  <script>
-    async function loadProducts() {
-      const res = await fetch(API_BASE + '/ecommerce/products', {
-        headers: { 'X-API-Key': API_KEY }
-      });
-      const data = await res.json();
-      const productsDiv = document.getElementById('products');
-      productsDiv.innerHTML = data.products.map(p => \`
-        <div class="bg-gray-800 p-4 rounded">
-          <h3>\${p.name}</h3>
-          <p>$\${p.price}</p>
-          <button onclick="buy(\${p.id})" class="bg-blue-600 px-4 py-2 rounded">Buy</button>
-        </div>
-      \`).join('');
-    }
-    async function buy(productId) {
-      const orderRes = await fetch(API_BASE + '/ecommerce/order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
-        body: JSON.stringify({ productId, quantity: 1, customer: 'Visitor' })
-      });
-      const order = await orderRes.json();
-      alert('Order created! ID: ' + order.id);
-    }
-    loadProducts();
-  </script>
-</body>
-</html>`;
-
-  fs.writeFileSync(path.join(tempDir, 'index.html'), html);
-
-  // Create zip
-  const zipPath = path.join('/tmp', `site-${Date.now()}.zip`);
-  const output = fs.createWriteStream(zipPath);
-  const archive = archiver('zip', { zlib: { level: 9 } });
-  archive.pipe(output);
-  archive.directory(tempDir, false);
-  await archive.finalize();
-
-  output.on('close', () => {
-    res.download(zipPath, `${siteName}.zip`, () => {
-      fs.rmSync(tempDir, { recursive: true, force: true });
-      fs.unlinkSync(zipPath);
-    });
-  });
-});
-
 // ---------- FEEDBACK ----------
 app.post('/api/feedback', async (req, res) => {
   const { name, email, message } = req.body;
@@ -1136,8 +1060,8 @@ app.get('/docs', (req, res) => {
     <table>
       <thead><tr><th>Plan</th><th>Requests per minute</th><th>Monthly cap</th></tr></thead>
       <tbody>
-        <tr><td>Free</td><td>100</td><td>Unlimited</td></tr>
-        <tr><td>Premium</td><td>10,000</td><td>300,000</td></tr>
+        <tr><td>Free</td><td>100</td><td>Unlimited</td> </tr>
+        <tr><td>Premium</td><td>10,000</td><td>300,000</td> </tr>
       </tbody>
     </table>
     <p>When you exceed the limit, the API returns HTTP 429 with a <code>Retry-After</code> header. We recommend implementing exponential backoff in your clients.</p>
@@ -1201,15 +1125,15 @@ app.get('/docs', (req, res) => {
 
     <h2 id="errors">❌ Error Codes</h2>
     <table>
-      <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+      <thead><tr><th>Status</th><th>Meaning</th> </tr> </thead>
       <tbody>
-        <tr><td>400</td><td>Bad request – missing or invalid JSON</td></tr>
-        <tr><td>401</td><td>Unauthorized – API key missing/invalid</td></tr>
-        <tr><td>402</td><td>Payment required – subscription needed for enrichment</td></tr>
-        <tr><td>403</td><td>Forbidden – module not enabled for this business</td></tr>
-        <tr><td>404</td><td>Not found – resource does not exist</td></tr>
-        <tr><td>429</td><td>Rate limit exceeded</td></tr>
-        <tr><td>500</td><td>Internal server error – check logs</td></tr>
+        <tr><td>400</td><td>Bad request – missing or invalid JSON</td> </tr>
+        <tr><td>401</td><td>Unauthorized – API key missing/invalid</td> </tr>
+        <tr><td>402</td><td>Payment required – subscription needed for enrichment</td> </tr>
+        <tr><td>403</td><td>Forbidden – module not enabled for this business</td> </tr>
+        <tr><td>404</td><td>Not found – resource does not exist</td> </tr>
+        <tr><td>429</td><td>Rate limit exceeded</td> </tr>
+        <tr><td>500</td><td>Internal server error – check logs</td> </tr>
       </tbody>
     </table>
 
