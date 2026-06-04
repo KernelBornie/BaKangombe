@@ -11,7 +11,6 @@ const csv = require('csv-parser');
 const { Readable } = require('stream');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const fs = require('fs');   // still used by other parts
 
 const app = express();
 app.use(cors());
@@ -87,7 +86,6 @@ async function cachedDnsResolve(domain, type, resolverFn) {
   return result;
 }
 
-// ---------- IMPROVED MX LOOKUP with timeout and fallback ----------
 async function getMxRecords(domain, timeout = 5000) {
   try {
     const mx = await Promise.race([
@@ -1060,8 +1058,8 @@ app.get('/docs', (req, res) => {
     <table>
       <thead><tr><th>Plan</th><th>Requests per minute</th><th>Monthly cap</th></tr></thead>
       <tbody>
-        <tr><td>Free</td><td>100</td><td>Unlimited</td> </tr>
-        <tr><td>Premium</td><td>10,000</td><td>300,000</td> </tr>
+        <tr><td>Free</td><td>100</td><td>Unlimited</td></tr>
+        <tr><td>Premium</td><td>10,000</td><td>300,000</td></tr>
       </tbody>
     </table>
     <p>When you exceed the limit, the API returns HTTP 429 with a <code>Retry-After</code> header. We recommend implementing exponential backoff in your clients.</p>
@@ -1125,15 +1123,15 @@ app.get('/docs', (req, res) => {
 
     <h2 id="errors">❌ Error Codes</h2>
     <table>
-      <thead><tr><th>Status</th><th>Meaning</th> </tr> </thead>
+      <thead><tr><th>Status</th><th>Meaning</th> </tr></thead>
       <tbody>
-        <tr><td>400</td><td>Bad request – missing or invalid JSON</td> </tr>
-        <tr><td>401</td><td>Unauthorized – API key missing/invalid</td> </tr>
-        <tr><td>402</td><td>Payment required – subscription needed for enrichment</td> </tr>
-        <tr><td>403</td><td>Forbidden – module not enabled for this business</td> </tr>
-        <tr><td>404</td><td>Not found – resource does not exist</td> </tr>
-        <tr><td>429</td><td>Rate limit exceeded</td> </tr>
-        <tr><td>500</td><td>Internal server error – check logs</td> </tr>
+        <tr><td>400</td><td>Bad request – missing or invalid JSON</td></tr>
+        <tr><td>401</td><td>Unauthorized – API key missing/invalid</td></tr>
+        <tr><td>402</td><td>Payment required – subscription needed for enrichment</td></tr>
+        <tr><td>403</td><td>Forbidden – module not enabled for this business</td></tr>
+        <tr><td>404</td><td>Not found – resource does not exist</td></tr>
+        <tr><td>429</td><td>Rate limit exceeded</td></tr>
+        <tr><td>500</td><td>Internal server error – check logs</td></tr>
       </tbody>
     </table>
 
@@ -1236,7 +1234,7 @@ app.get('/api/setup/create-tables', async (req, res) => {
   }
 });
 
-// ========== REMAINING MULTI‑TENANT FEATURES ==========
+// ========== REMAINING MULTI‑TENANT FEATURES (requireModule, placed after tables are ready) ==========
 // 1. Mobile Money
 app.post('/api/momo/transfer', requireBusiness, requireModule('momo'), async (req, res) => {
   const { amount, phone, provider } = req.body;
@@ -1567,7 +1565,7 @@ app.get('/debug-file', (req, res) => {
 
 // ========== ADD MODULES TO BUSINESS (for testing) ==========
 app.post('/api/business/add-modules', requireBusiness, async (req, res) => {
-  const { modules } = req.body;
+  const { modules } = req.body; // array of module keys to add
   if (!modules || !Array.isArray(modules)) {
     return res.status(400).json({ error: 'modules array required' });
   }
