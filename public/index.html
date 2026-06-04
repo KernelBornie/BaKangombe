@@ -116,10 +116,10 @@
     <div id="enrichResponse" class="response-area">Enter an email and your business API key (with active subscription).</div>
   </div>
 
-  <!-- WEBSITE BUILDER with its own key input -->
+  <!-- SIMPLE WEBSITE BUILDER (HTML snippet) -->
   <div class="cta-card" style="margin-top: 2rem;">
-    <h3>🏗️ Website Builder (Premium)</h3>
-    <p>Generate a simple landing page HTML. Requires business API key and 'website' module enabled.</p>
+    <h3>🏗️ Simple Website Builder (HTML snippet)</h3>
+    <p>Generate a single‑page HTML snippet. Requires business API key and 'website' module enabled.</p>
     <div class="input-group" style="flex-direction: column; gap: 1rem;">
       <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center;">
         <input type="text" id="siteTitle" placeholder="Site Title">
@@ -135,6 +135,19 @@
       </div>
       <pre id="websiteOutput" style="background:#0a0c10; padding:0.5rem; border-radius:0.5rem; text-align:left; white-space:pre-wrap; font-size:0.8rem;"></pre>
     </div>
+  </div>
+
+  <!-- FULL WEBSITE BUILDER (deployable ZIP) - NEW -->
+  <div class="cta-card" style="margin-top: 2rem; background: linear-gradient(135deg, rgba(79,70,229,0.2), rgba(79,70,229,0.05));">
+    <h3>🚀 Full Website Builder (ZIP – deployable)</h3>
+    <p>Generate a complete multi‑page static website (Home, About, Contact, Products) with live API integration. Download a ZIP to deploy anywhere (Vercel, Netlify, etc.).</p>
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
+      <input type="text" id="fullSiteName" placeholder="Site Name (e.g., My Business)" style="width: 250px;">
+      <input type="text" id="fullSiteDesc" placeholder="Short description" style="width: 300px;">
+      <input type="text" id="fullSiteApiKey" placeholder="Your Business API Key" style="width: 280px;">
+      <button id="generateFullSiteBtn" class="btn btn-primary">📦 Generate Full Website (ZIP)</button>
+    </div>
+    <div id="fullSiteResult" style="margin-top: 1rem; font-size: 0.9rem;"></div>
   </div>
 
   <div id="pricing">
@@ -242,6 +255,7 @@
         if (keyStatusSpan) keyStatusSpan.innerText = '✓ Key saved';
         document.getElementById('enrichApiKey').value = data.apiKey;
         document.getElementById('websiteApiKey').value = data.apiKey;
+        document.getElementById('fullSiteApiKey').value = data.apiKey;
       } else alert('Error: ' + data.error);
     } catch (err) { alert('Registration failed: ' + err.message); }
   }
@@ -306,7 +320,7 @@
   enrichEmail.addEventListener('keypress', (e) => { if (e.key === 'Enter') testEnrichment(); });
   enrichApiKey.addEventListener('keypress', (e) => { if (e.key === 'Enter') testEnrichment(); });
 
-  // Website builder
+  // Simple website builder
   const siteTitle = document.getElementById('siteTitle');
   const siteContent = document.getElementById('siteContent');
   const siteTemplate = document.getElementById('siteTemplate');
@@ -325,6 +339,42 @@
       websiteOutput.innerHTML = data.html;
     } catch (err) {
       websiteOutput.innerHTML = 'Error: ' + err.message;
+    }
+  });
+
+  // Full website generator (ZIP)
+  const fullSiteName = document.getElementById('fullSiteName');
+  const fullSiteDesc = document.getElementById('fullSiteDesc');
+  const fullSiteApiKey = document.getElementById('fullSiteApiKey');
+  const generateFullSiteBtn = document.getElementById('generateFullSiteBtn');
+  const fullSiteResult = document.getElementById('fullSiteResult');
+  generateFullSiteBtn?.addEventListener('click', async () => {
+    const siteName = fullSiteName.value.trim();
+    const description = fullSiteDesc.value.trim();
+    const apiKey = fullSiteApiKey.value.trim();
+    if (!siteName) { alert('Please enter a site name'); return; }
+    if (!apiKey) { alert('Please enter your business API key'); return; }
+    fullSiteResult.innerHTML = '<div class="spinner"></div> Generating website...';
+    try {
+      const res = await fetch('/api/website/generate-full', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+        body: JSON.stringify({ siteName, description })
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Server error');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${siteName.replace(/[^a-z0-9]/gi, '_')}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      fullSiteResult.innerHTML = '✅ Website generated and downloaded! Unzip and deploy (e.g., to Vercel or Netlify).';
+    } catch (err) {
+      fullSiteResult.innerHTML = `❌ Error: ${err.message}`;
     }
   });
 

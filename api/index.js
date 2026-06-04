@@ -11,6 +11,7 @@ const csv = require('csv-parser');
 const { Readable } = require('stream');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const AdmZip = require('adm-zip');  // for full website ZIP generation
 
 const app = express();
 app.use(cors());
@@ -632,6 +633,138 @@ app.post('/api/website/generate', requireBusiness, async (req, res) => {
     return res.status(400).json({ error: 'Invalid template' });
   }
   res.json({ html, template, title });
+});
+
+// ---------- FULL WEBSITE GENERATOR (deployable ZIP) ----------
+app.post('/api/website/generate-full', requireBusiness, requireModule('website'), async (req, res) => {
+  const { siteName, description, pages = ['home', 'about', 'contact'] } = req.body;
+  if (!siteName) return res.status(400).json({ error: 'siteName required' });
+
+  const zip = new AdmZip();
+  const apiKey = req.business.api_key;
+  const baseUrl = 'https://ba-kangombe.vercel.app/api';
+
+  // Helper: generate HTML for a page
+  const generatePage = (title, content, extraScript = '') => `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${siteName} - ${title}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    const API_KEY = '${apiKey}';
+    const API_BASE = '${baseUrl}';
+    ${extraScript}
+  </script>
+  <style>
+    body { background: #0a0c10; color: #eef2ff; }
+    a { color: #a0c4ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body class="font-sans">
+  <nav class="bg-gray-900 p-4">
+    <div class="container mx-auto flex justify-between">
+      <div class="text-xl font-bold">${siteName}</div>
+      <div class="space-x-4">
+        <a href="/">Home</a>
+        <a href="/about.html">About</a>
+        <a href="/contact.html">Contact</a>
+        <a href="/products.html">Products</a>
+      </div>
+    </div>
+  </nav>
+  <main class="container mx-auto p-8">
+    ${content}
+  </main>
+  <footer class="bg-gray-900 p-4 text-center text-sm">
+    &copy; ${new Date().getFullYear()} ${siteName} | Built with BaKangombe
+  </footer>
+</body>
+</html>`;
+
+  // Home page
+  const homeContent = `<h1 class="text-4xl mb-4">${description || `Welcome to ${siteName}`}</h1>
+    <p class="text-lg">Your one‑stop solution powered by BaKangombe API.</p>
+    <p>Manage inventory, process payments, and more – all with your API key.</p>`;
+  zip.addFile('index.html', Buffer.from(generatePage('Home', homeContent), 'utf8'));
+
+  // About page
+  const aboutContent = `<h1 class="text-3xl mb-4">About Us</h1>
+    <p>This website was generated automatically by BaKangombe’s Website Builder.</p>
+    <p>Your business data is securely stored and isolated.</p>`;
+  zip.addFile('about.html', Buffer.from(generatePage('About', aboutContent), 'utf8'));
+
+  // Contact page
+  const contactContent = `<h1 class="text-3xl mb-4">Contact</h1>
+    <form id="contactForm" class="space-y-4 max-w-md">
+      <input type="text" id="name" placeholder="Your name" class="w-full p-2 rounded bg-gray-800 border border-gray-700">
+      <input type="email" id="email" placeholder="Your email" class="w-full p-2 rounded bg-gray-800 border border-gray-700">
+      <textarea id="message" rows="4" placeholder="Message" class="w-full p-2 rounded bg-gray-800 border border-gray-700"></textarea>
+      <button type="submit" class="bg-blue-600 px-4 py-2 rounded">Send</button>
+    </form>
+    <div id="contactResult" class="mt-2"></div>
+    <script>
+      document.getElementById('contactForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('name').value;
+        const email = document.getElementById('email').value;
+        const message = document.getElementById('message').value;
+        const res = await fetch(API_BASE + '/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, message })
+        });
+        const data = await res.json();
+        document.getElementById('contactResult').innerHTML = data.success ? '✓ Message sent!' : '❌ Failed.';
+      });
+    </script>`;
+  zip.addFile('contact.html', Buffer.from(generatePage('Contact', contactContent), 'utf8'));
+
+  // Products page (dynamic from your ecommerce module)
+  const productsScript = `
+    async function loadProducts() {
+      const res = await fetch(API_BASE + '/ecommerce/products', {
+        headers: { 'X-API-Key': API_KEY }
+      });
+      const data = await res.json();
+      const container = document.getElementById('productList');
+      if (data.products && data.products.length) {
+        container.innerHTML = data.products.map(p => \`
+          <div class="bg-gray-800 p-4 rounded">
+            <h3>\${p.name}</h3>
+            <p>$\${p.price}</p>
+            <button onclick="buy(\${p.id})" class="bg-blue-600 px-3 py-1 rounded mt-2">Buy</button>
+          </div>
+        \`).join('');
+      } else {
+        container.innerHTML = '<p>No products yet. Add some via the API.</p>';
+      }
+    }
+    async function buy(productId) {
+      const res = await fetch(API_BASE + '/ecommerce/order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+        body: JSON.stringify({ productId, quantity: 1, customer: 'Visitor' })
+      });
+      const order = await res.json();
+      alert('Order created! ID: ' + order.id);
+    }
+    window.onload = loadProducts;
+  `;
+  const productsContent = `<h1 class="text-3xl mb-4">Our Products</h1>
+    <div id="productList" class="grid grid-cols-1 md:grid-cols-3 gap-4">Loading...</div>`;
+  zip.addFile('products.html', Buffer.from(generatePage('Products', productsContent, productsScript), 'utf8'));
+
+  // Optional: add a simple 404 page
+  zip.addFile('404.html', Buffer.from(`<!DOCTYPE html><html><head><title>404</title></head><body><h1>Page not found</h1><a href="/">Go home</a></body></html>`, 'utf8'));
+
+  // Send the ZIP file
+  const zipBuffer = zip.toBuffer();
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', `attachment; filename="${siteName.replace(/[^a-z0-9]/gi, '_')}.zip"`);
+  res.send(zipBuffer);
 });
 
 // ---------- FEEDBACK ----------
