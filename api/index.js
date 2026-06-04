@@ -636,6 +636,52 @@ app.post('/api/enrich', requireBusiness, async (req, res) => {
   }
 });
 
+// ---------- SITE SETTINGS (for customisation) ----------
+app.get('/api/site/settings', requireBusiness, async (req, res) => {
+  try {
+    const result = await sql`SELECT * FROM site_settings WHERE business_id = ${req.business.id}`;
+    if (result.rowCount === 0) {
+      // Return defaults
+      return res.json({
+        hero_title: null,
+        hero_description: null,
+        about_content: null,
+        contact_email: null,
+        contact_phone: null,
+        contact_address: null,
+        categories: ['Electronics', 'Fashion', 'Home', 'Toys'],
+        testimonials: []
+      });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/site/settings', requireBusiness, async (req, res) => {
+  const { hero_title, hero_description, about_content, contact_email, contact_phone, contact_address, categories, testimonials } = req.body;
+  try {
+    await sql`
+      INSERT INTO site_settings (business_id, hero_title, hero_description, about_content, contact_email, contact_phone, contact_address, categories, testimonials, updated_at)
+      VALUES (${req.business.id}, ${hero_title}, ${hero_description}, ${about_content}, ${contact_email}, ${contact_phone}, ${contact_address}, ${JSON.stringify(categories)}, ${JSON.stringify(testimonials)}, NOW())
+      ON CONFLICT (business_id) DO UPDATE SET
+        hero_title = EXCLUDED.hero_title,
+        hero_description = EXCLUDED.hero_description,
+        about_content = EXCLUDED.about_content,
+        contact_email = EXCLUDED.contact_email,
+        contact_phone = EXCLUDED.contact_phone,
+        contact_address = EXCLUDED.contact_address,
+        categories = EXCLUDED.categories,
+        testimonials = EXCLUDED.testimonials,
+        updated_at = NOW()
+    `;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ---------- WEBSITE BUILDER (simple HTML snippet) ----------
 app.post('/api/website/generate', requireBusiness, async (req, res) => {
   const { template = 'landing', title = 'My Site', content = 'Welcome!' } = req.body;
@@ -653,7 +699,7 @@ app.post('/api/website/generate', requireBusiness, async (req, res) => {
   res.json({ html, template, title });
 });
 
-// ---------- FULL WEBSITE GENERATOR (Apple‑inspired, multi‑section) ----------
+// ---------- FULL WEBSITE GENERATOR (Apple‑inspired, editable via admin) ----------
 app.post('/api/website/generate-full', requireBusiness, requireModule('website'), async (req, res) => {
   const { siteName, description, theme = 'modern' } = req.body;
   if (!siteName) return res.status(400).json({ error: 'siteName required' });
@@ -686,7 +732,7 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
 <body class="font-sans antialiased">
   <header class="bg-white shadow-md sticky top-0 z-50">
     <div class="container mx-auto px-4 py-4 flex justify-between items-center flex-wrap">
-      <div class="text-2xl font-bold text-blue-600">${siteName}</div>
+      <div class="text-2xl font-bold text-blue-600" id="siteTitle">${siteName}</div>
       <nav class="space-x-6">
         <a href="/" class="hover:text-blue-600">Home</a>
         <a href="/products.html" class="hover:text-blue-600">Products</a>
@@ -698,7 +744,7 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
   <main>${content}</main>
   <footer class="bg-gray-800 text-gray-300 py-12 mt-16">
     <div class="container mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
-      <div><h3 class="font-bold text-white mb-2">${siteName}</h3><p class="text-sm">Delivering quality since 2025.</p></div>
+      <div><h3 class="font-bold text-white mb-2" id="footerSiteName">${siteName}</h3><p class="text-sm">Delivering quality since 2025.</p></div>
       <div><h3 class="font-bold text-white mb-2">Support</h3><ul class="text-sm space-y-1"><li><a href="/contact.html">Contact</a></li><li><a href="#">Returns</a></li><li><a href="#">FAQ</a></li></ul></div>
       <div><h3 class="font-bold text-white mb-2">Legal</h3><ul class="text-sm space-y-1"><li><a href="#">Privacy</a></li><li><a href="#">Terms</a></li></ul></div>
       <div><h3 class="font-bold text-white mb-2">Follow Us</h3><div class="flex space-x-4"><a href="#">📘</a><a href="#">🐦</a><a href="#">📷</a></div></div>
@@ -707,12 +753,37 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
       &copy; ${new Date().getFullYear()} ${siteName}. All rights reserved. | Powered by BaKangombe API
     </div>
   </footer>
+  <div class="admin-btn" onclick="window.location.href='/admin.html'">⚙️ Admin</div>
 </body>
 </html>`;
 
-  // Home page with hero, featured, categories, new arrivals, testimonials, newsletter
+  // Home page with hero, featured, categories, new arrivals, testimonials, newsletter (all editable via admin)
   const homeScript = `
     let allProducts = [];
+    let settings = {};
+    async function loadSettings() {
+      try {
+        const res = await fetch(API_BASE + '/site/settings', { headers: { 'X-API-Key': API_KEY } });
+        settings = await res.json();
+        document.getElementById('heroTitle').innerText = settings.hero_title || '${siteName}';
+        document.getElementById('heroDesc').innerText = settings.hero_description || '${description || 'Quality products, fast delivery, secure payments.'}';
+        document.getElementById('featuredTitle').innerText = settings.featured_title || '🔥 Featured Products';
+        document.getElementById('newArrivalsTitle').innerText = settings.new_arrivals_title || '✨ New Arrivals';
+        document.getElementById('testimonialsTitle').innerText = settings.testimonials_title || 'What Our Customers Say';
+        const categories = settings.categories || ['Electronics','Fashion','Home','Toys'];
+        const catContainer = document.getElementById('categoriesGrid');
+        catContainer.innerHTML = categories.map(c => \`<div class="bg-white p-6 rounded-xl text-center shadow hover:shadow-lg transition"><h3 class="font-bold">\${c}</h3></div>\`).join('');
+        const testimonials = settings.testimonials || [];
+        const testContainer = document.getElementById('testimonialsGrid');
+        if (testimonials.length) {
+          testContainer.innerHTML = testimonials.map(t => \`<div class="bg-white p-6 rounded-xl shadow">“\${t.text}” – <strong>\${t.author}</strong></div>\`).join('');
+        } else {
+          testContainer.innerHTML = \`<div class="bg-white p-6 rounded-xl shadow">“Amazing experience! Fast delivery and great support.” – <strong>Alice</strong></div>
+            <div class="bg-white p-6 rounded-xl shadow">“The mobile money checkout was super smooth.” – <strong>Bob</strong></div>
+            <div class="bg-white p-6 rounded-xl shadow">“I love the product variety. Will shop again.” – <strong>Carol</strong></div>\`;
+        }
+      } catch (err) { console.error(err); }
+    }
     async function loadProducts() {
       try {
         const res = await fetch(API_BASE + '/ecommerce/products', { headers: { 'X-API-Key': API_KEY } });
@@ -769,15 +840,15 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
         document.getElementById('newsletterEmail').value = '';
       } catch (err) { alert('Error: ' + err.message); }
     }
-    window.onload = loadProducts;
+    window.onload = () => { loadSettings(); loadProducts(); };
   `;
 
   const homeContent = `
-    <!-- Hero -->
+    <!-- Hero (editable) -->
     <section class="bg-gradient-to-r from-indigo-700 to-purple-800 text-white py-24">
       <div class="container mx-auto px-4 text-center">
-        <h1 class="text-5xl md:text-6xl font-extrabold mb-4">${siteName}</h1>
-        <p class="text-xl max-w-2xl mx-auto">${description || 'Quality products, fast delivery, secure payments.'}</p>
+        <h1 id="heroTitle" class="text-5xl md:text-6xl font-extrabold mb-4">${siteName}</h1>
+        <p id="heroDesc" class="text-xl max-w-2xl mx-auto">${description || 'Quality products, fast delivery, secure payments.'}</p>
         <div class="mt-8 flex gap-4 justify-center">
           <a href="/products.html" class="bg-white text-indigo-700 px-8 py-3 rounded-full font-semibold hover:bg-gray-100 transition">Shop Now →</a>
           <a href="/about.html" class="border border-white px-8 py-3 rounded-full font-semibold hover:bg-white hover:text-indigo-700 transition">Learn More</a>
@@ -787,38 +858,29 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
 
     <!-- Featured Products -->
     <section class="container mx-auto px-4 py-16">
-      <h2 class="text-3xl font-bold text-center mb-8">🔥 Featured Products</h2>
+      <h2 id="featuredTitle" class="text-3xl font-bold text-center mb-8">🔥 Featured Products</h2>
       <div id="featuredProducts" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">Loading...</div>
     </section>
 
-    <!-- Categories (static example) -->
+    <!-- Categories (editable via admin) -->
     <section class="bg-gray-100 py-16">
       <div class="container mx-auto px-4">
         <h2 class="text-3xl font-bold text-center mb-8">Shop by Category</h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div class="bg-white p-6 rounded-xl text-center shadow hover:shadow-lg transition"><h3 class="font-bold">Electronics</h3></div>
-          <div class="bg-white p-6 rounded-xl text-center shadow hover:shadow-lg transition"><h3 class="font-bold">Fashion</h3></div>
-          <div class="bg-white p-6 rounded-xl text-center shadow hover:shadow-lg transition"><h3 class="font-bold">Home</h3></div>
-          <div class="bg-white p-6 rounded-xl text-center shadow hover:shadow-lg transition"><h3 class="font-bold">Toys</h3></div>
-        </div>
+        <div id="categoriesGrid" class="grid grid-cols-2 md:grid-cols-4 gap-4">Loading...</div>
       </div>
     </section>
 
     <!-- New Arrivals -->
     <section class="container mx-auto px-4 py-16">
-      <h2 class="text-3xl font-bold text-center mb-8">✨ New Arrivals</h2>
+      <h2 id="newArrivalsTitle" class="text-3xl font-bold text-center mb-8">✨ New Arrivals</h2>
       <div id="newArrivals" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">Loading...</div>
     </section>
 
-    <!-- Testimonials -->
+    <!-- Testimonials (editable) -->
     <section class="bg-indigo-50 py-16">
       <div class="container mx-auto px-4 text-center">
-        <h2 class="text-3xl font-bold mb-8">What Our Customers Say</h2>
-        <div class="grid md:grid-cols-3 gap-8">
-          <div class="bg-white p-6 rounded-xl shadow">“Amazing experience! Fast delivery and great support.” – <strong>Alice</strong></div>
-          <div class="bg-white p-6 rounded-xl shadow">“The mobile money checkout was super smooth.” – <strong>Bob</strong></div>
-          <div class="bg-white p-6 rounded-xl shadow">“I love the product variety. Will shop again.” – <strong>Carol</strong></div>
-        </div>
+        <h2 id="testimonialsTitle" class="text-3xl font-bold mb-8">What Our Customers Say</h2>
+        <div id="testimonialsGrid" class="grid md:grid-cols-3 gap-8">Loading...</div>
       </div>
     </section>
 
@@ -882,22 +944,39 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
   `;
   zip.addFile('products.html', Buffer.from(generatePage('Products', productsContent, '', productsScript), 'utf8'));
 
-  // About page
+  // About page (editable via admin)
+  const aboutScript = `
+    async function loadAbout() {
+      try {
+        const res = await fetch(API_BASE + '/site/settings', { headers: { 'X-API-Key': API_KEY } });
+        const data = await res.json();
+        document.getElementById('aboutContent').innerHTML = data.about_content || '<p>We are a modern e‑commerce platform dedicated to bringing you the best products at unbeatable prices.</p>';
+      } catch (err) { console.error(err); }
+    }
+    window.onload = loadAbout;
+  `;
   const aboutContent = `
     <div class="container mx-auto px-4 py-12 max-w-4xl">
       <h1 class="text-4xl font-bold mb-6">About ${siteName}</h1>
-      <p class="text-lg mb-4">We are a modern e‑commerce platform dedicated to bringing you the best products at unbeatable prices. Our mission is to provide a seamless shopping experience with secure payments and fast delivery.</p>
-      <p class="text-lg mb-4">${description || 'We leverage the power of BaKangombe API to manage inventory, process orders, and connect with customers.'}</p>
-      <p class="text-lg">Thank you for choosing us!</p>
+      <div id="aboutContent" class="text-lg">Loading...</div>
     </div>
   `;
-  zip.addFile('about.html', Buffer.from(generatePage('About', aboutContent), 'utf8'));
+  zip.addFile('about.html', Buffer.from(generatePage('About', aboutContent, '', aboutScript), 'utf8'));
 
-  // Contact page
+  // Contact page (editable via admin)
   const contactScript = `
+    async function loadContact() {
+      try {
+        const res = await fetch(API_BASE + '/site/settings', { headers: { 'X-API-Key': API_KEY } });
+        const data = await res.json();
+        document.getElementById('contactEmail').innerText = data.contact_email || 'support@${siteName.toLowerCase().replace(/ /g, '')}.com';
+        document.getElementById('contactPhone').innerText = data.contact_phone || '+260 97 123 4567';
+        document.getElementById('contactAddress').innerText = data.contact_address || 'Lusaka, Zambia';
+      } catch (err) { console.error(err); }
+    }
     async function sendMessage() {
       const name = document.getElementById('contactName').value;
-      const email = document.getElementById('contactEmail').value;
+      const email = document.getElementById('contactEmailInput').value;
       const message = document.getElementById('contactMessage').value;
       if (!name || !email || !message) { alert('Please fill all fields'); return; }
       try {
@@ -911,13 +990,19 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
         document.getElementById('contactForm').reset();
       } catch (err) { alert('Error: ' + err.message); }
     }
+    window.onload = loadContact;
   `;
   const contactContent = `
     <div class="container mx-auto px-4 py-12 max-w-2xl">
       <h1 class="text-3xl font-bold mb-6">Contact Us</h1>
+      <div class="mb-6">
+        <p><strong>Email:</strong> <span id="contactEmail"></span></p>
+        <p><strong>Phone:</strong> <span id="contactPhone"></span></p>
+        <p><strong>Address:</strong> <span id="contactAddress"></span></p>
+      </div>
       <form id="contactForm" class="space-y-4">
         <input type="text" id="contactName" placeholder="Your name" class="w-full px-4 py-2 border rounded" required>
-        <input type="email" id="contactEmail" placeholder="Your email" class="w-full px-4 py-2 border rounded" required>
+        <input type="email" id="contactEmailInput" placeholder="Your email" class="w-full px-4 py-2 border rounded" required>
         <textarea id="contactMessage" rows="5" placeholder="Your message" class="w-full px-4 py-2 border rounded" required></textarea>
         <button type="button" onclick="sendMessage()" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Send Message</button>
       </form>
@@ -925,8 +1010,161 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
   `;
   zip.addFile('contact.html', Buffer.from(generatePage('Contact', contactContent, '', contactScript), 'utf8'));
 
+  // Admin page (password protected)
+  const adminHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard – ${siteName}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    const API_KEY = '${apiKey}';
+    const API_BASE = '${baseUrl}';
+    let products = [];
+    let settings = {};
+
+    // Simple password protection (change "admin123" to your own)
+    const ADMIN_PASSWORD = 'admin123';
+    function checkAuth() {
+      if (!localStorage.getItem('admin_auth')) {
+        const pwd = prompt('Enter admin password:');
+        if (pwd !== ADMIN_PASSWORD) {
+          alert('Wrong password');
+          window.location.href = '/';
+          return false;
+        }
+        localStorage.setItem('admin_auth', 'true');
+      }
+      return true;
+    }
+    if (!checkAuth()) throw new Error('Unauthorized');
+
+    async function loadProducts() {
+      const res = await fetch(API_BASE + '/ecommerce/products', { headers: { 'X-API-Key': API_KEY } });
+      const data = await res.json();
+      products = data.products || [];
+      renderProductList();
+    }
+    function renderProductList() {
+      const container = document.getElementById('productList');
+      if (!products.length) { container.innerHTML = '<tr><td colspan="4" class="text-center">No products. Add one below.</td></tr>'; return; }
+      container.innerHTML = products.map(p => \`
+        <tr class="border-b">
+          <td class="p-2">\${p.id}</td>
+          <td class="p-2">\${p.name}</td>
+          <td class="p-2">$\${p.price}</td>
+          <td class="p-2">
+            <button onclick="editProduct(\${p.id})" class="bg-yellow-500 text-white px-2 py-1 rounded">Edit</button>
+            <button onclick="deleteProduct(\${p.id})" class="bg-red-600 text-white px-2 py-1 rounded ml-2">Delete</button>
+          </td>
+        </tr>
+      \`).join('');
+    }
+    async function addProduct() {
+      const name = document.getElementById('prodName').value;
+      const price = parseFloat(document.getElementById('prodPrice').value);
+      if (!name || isNaN(price)) { alert('Name and price required'); return; }
+      const res = await fetch(API_BASE + '/ecommerce/product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+        body: JSON.stringify({ name, price })
+      });
+      if (res.ok) {
+        alert('Product added');
+        document.getElementById('prodName').value = '';
+        document.getElementById('prodPrice').value = '';
+        loadProducts();
+      } else alert('Error');
+    }
+    async function editProduct(id) {
+      const product = products.find(p => p.id == id);
+      const newName = prompt('New name:', product.name);
+      const newPrice = prompt('New price:', product.price);
+      if (newName && newPrice) {
+        // For a full implementation, add a PUT /api/ecommerce/product/:id endpoint
+        alert('Edit not directly supported. Delete and re-add.');
+      }
+    }
+    async function deleteProduct(id) {
+      if (!confirm('Delete this product?')) return;
+      // Add a DELETE endpoint in your backend for production
+      alert('Delete not implemented in this demo. Use your backend API.');
+    }
+    async function loadSettings() {
+      const res = await fetch(API_BASE + '/site/settings', { headers: { 'X-API-Key': API_KEY } });
+      settings = await res.json();
+      document.getElementById('heroTitle').value = settings.hero_title || '';
+      document.getElementById('heroDesc').value = settings.hero_description || '';
+      document.getElementById('aboutContent').value = settings.about_content || '';
+      document.getElementById('contactEmail').value = settings.contact_email || '';
+      document.getElementById('contactPhone').value = settings.contact_phone || '';
+      document.getElementById('contactAddress').value = settings.contact_address || '';
+      document.getElementById('categories').value = (settings.categories || ['Electronics','Fashion','Home','Toys']).join(',');
+      document.getElementById('testimonials').value = (settings.testimonials || []).map(t => t.text + '|' + t.author).join('\\n');
+    }
+    async function saveSettings() {
+      const newSettings = {
+        hero_title: document.getElementById('heroTitle').value,
+        hero_description: document.getElementById('heroDesc').value,
+        about_content: document.getElementById('aboutContent').value,
+        contact_email: document.getElementById('contactEmail').value,
+        contact_phone: document.getElementById('contactPhone').value,
+        contact_address: document.getElementById('contactAddress').value,
+        categories: document.getElementById('categories').value.split(',').map(s => s.trim()),
+        testimonials: document.getElementById('testimonials').value.split('\\n').filter(l => l.trim()).map(l => {
+          const [text, author] = l.split('|');
+          return { text: text.trim(), author: author ? author.trim() : 'Anonymous' };
+        })
+      };
+      const res = await fetch(API_BASE + '/site/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+        body: JSON.stringify(newSettings)
+      });
+      if (res.ok) alert('Settings saved');
+      else alert('Error saving');
+    }
+    window.onload = () => { loadProducts(); loadSettings(); };
+  </script>
+</head>
+<body class="bg-gray-100 p-8">
+  <div class="max-w-6xl mx-auto">
+    <h1 class="text-3xl font-bold mb-6">Admin Dashboard – ${siteName}</h1>
+    <div class="bg-white p-6 rounded shadow mb-8">
+      <h2 class="text-xl font-bold mb-4">Manage Products</h2>
+      <div class="mb-4 flex gap-2">
+        <input type="text" id="prodName" placeholder="Product name" class="border p-2 rounded flex-1">
+        <input type="number" id="prodPrice" placeholder="Price" class="border p-2 rounded w-32">
+        <button onclick="addProduct()" class="bg-green-600 text-white px-4 py-2 rounded">Add Product</button>
+      </div>
+      <table class="w-full border">
+        <thead><tr><th>ID</th><th>Name</th><th>Price</th><th>Actions</th></tr></thead>
+        <tbody id="productList">Loading...</tbody>
+      </table>
+    </div>
+    <div class="bg-white p-6 rounded shadow">
+      <h2 class="text-xl font-bold mb-4">Site Settings</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div><label>Hero Title</label><input id="heroTitle" class="w-full border p-2 rounded"></div>
+        <div><label>Hero Description</label><input id="heroDesc" class="w-full border p-2 rounded"></div>
+        <div><label>About Content (HTML allowed)</label><textarea id="aboutContent" rows="4" class="w-full border p-2 rounded"></textarea></div>
+        <div><label>Contact Email</label><input id="contactEmail" class="w-full border p-2 rounded"></div>
+        <div><label>Contact Phone</label><input id="contactPhone" class="w-full border p-2 rounded"></div>
+        <div><label>Contact Address</label><input id="contactAddress" class="w-full border p-2 rounded"></div>
+        <div><label>Categories (comma separated)</label><input id="categories" class="w-full border p-2 rounded"></div>
+        <div><label>Testimonials (one per line: text|author)</label><textarea id="testimonials" rows="4" class="w-full border p-2 rounded"></textarea></div>
+      </div>
+      <button onclick="saveSettings()" class="bg-blue-600 text-white px-6 py-2 rounded mt-4">Save All Settings</button>
+    </div>
+    <div class="mt-8 text-center"><a href="/" class="text-blue-600">← Back to site</a></div>
+  </div>
+</body>
+</html>`;
+  zip.addFile('admin.html', Buffer.from(adminHtml, 'utf8'));
+
   // 404 page
-  const errorPage = `<!DOCTYPE html><html><head><title>404 - Page Not Found</title><script src="https://cdn.tailwindcss.com"></script></head><body class="bg-gray-100 flex items-center justify-center h-screen"><div class="text-center"><h1 class="text-6xl font-bold text-blue-600">404</h1><p class="text-xl mt-4">Oops! The page you're looking for doesn't exist.</p><a href="/" class="mt-6 inline-block bg-blue-600 text-white px-6 py-2 rounded">Go Home</a></div></body></html>`;
+  const errorPage = `<!DOCTYPE html><html><head><title>404</title><script src="https://cdn.tailwindcss.com"></script></head><body class="bg-gray-100 flex items-center justify-center h-screen"><div class="text-center"><h1 class="text-6xl font-bold text-blue-600">404</h1><p class="text-xl mt-4">Page not found.</p><a href="/" class="mt-6 inline-block bg-blue-600 text-white px-6 py-2 rounded">Go Home</a></div></body></html>`;
   zip.addFile('404.html', Buffer.from(errorPage, 'utf8'));
 
   const zipBuffer = zip.toBuffer();
@@ -1121,6 +1359,19 @@ app.get('/api/setup/create-tables', async (req, res) => {
       system_type VARCHAR(100),
       dashboard_url TEXT,
       created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    // Add site_settings table
+    await sql`CREATE TABLE IF NOT EXISTS site_settings (
+      business_id INTEGER REFERENCES businesses(id) UNIQUE,
+      hero_title TEXT,
+      hero_description TEXT,
+      about_content TEXT,
+      contact_email TEXT,
+      contact_phone TEXT,
+      contact_address TEXT,
+      categories JSONB DEFAULT '["Electronics","Fashion","Home","Toys"]',
+      testimonials JSONB DEFAULT '[]',
+      updated_at TIMESTAMP DEFAULT NOW()
     )`;
     res.json({ message: "All tables created/updated" });
   } catch (err) {
