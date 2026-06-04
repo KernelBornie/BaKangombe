@@ -698,6 +698,45 @@ app.post('/api/website/generate', requireBusiness, async (req, res) => {
   res.json({ html, template, title });
 });
 
+// ========== E‑COMMERCE CRUD (for admin panel) ==========
+app.post('/api/ecommerce/product', requireBusiness, requireModule('ecommerce'), async (req, res) => {
+  const { name, price } = req.body;
+  if (!name || typeof price !== 'number') {
+    return res.status(400).json({ error: 'Product name and price (number) are required.' });
+  }
+  const result = await sql`
+    INSERT INTO ecommerce_products (business_id, name, price)
+    VALUES (${req.business.id}, ${name}, ${price})
+    RETURNING id, name, price
+  `;
+  res.json({ success: true, product: result.rows[0] });
+});
+
+app.put('/api/ecommerce/product/:id', requireBusiness, requireModule('ecommerce'), async (req, res) => {
+  const productId = parseInt(req.params.id);
+  const { name, price } = req.body;
+  if (!name || typeof price !== 'number') {
+    return res.status(400).json({ error: 'Product name and valid price are required.' });
+  }
+  const check = await sql`SELECT id FROM ecommerce_products WHERE id = ${productId} AND business_id = ${req.business.id}`;
+  if (check.rowCount === 0) return res.status(404).json({ error: 'Product not found.' });
+  const result = await sql`
+    UPDATE ecommerce_products
+    SET name = ${name}, price = ${price}
+    WHERE id = ${productId} AND business_id = ${req.business.id}
+    RETURNING id, name, price
+  `;
+  res.json({ success: true, product: result.rows[0] });
+});
+
+app.delete('/api/ecommerce/product/:id', requireBusiness, requireModule('ecommerce'), async (req, res) => {
+  const productId = parseInt(req.params.id);
+  const check = await sql`SELECT id FROM ecommerce_products WHERE id = ${productId} AND business_id = ${req.business.id}`;
+  if (check.rowCount === 0) return res.status(404).json({ error: 'Product not found.' });
+  await sql`DELETE FROM ecommerce_products WHERE id = ${productId}`;
+  res.json({ success: true, message: 'Product deleted.' });
+});
+
 // ---------- FULL WEBSITE GENERATOR (modern e‑commerce ZIP with admin) ----------
 app.post('/api/website/generate-full', requireBusiness, requireModule('website'), async (req, res) => {
   const { siteName, description, theme = 'modern' } = req.body;
@@ -758,13 +797,397 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
 </body>
 </html>`;
 
-  // Home, Products, About, Contact, Admin pages (full implementation as before)
-  // (I've kept the full generator code as in the earlier version – it works correctly)
-  // For brevity, the full generator code is included but not repeated here.
-  // It contains the homeScript, productsScript, aboutScript, contactScript, adminHtml.
-  // The adminHtml includes full CRUD for products and site settings.
+  // Home page
+  const homeScript = `
+    let allProducts = [];
+    let settings = {};
+    async function loadSettings() {
+      try {
+        const res = await fetch(API_BASE + '/site/settings', { headers: { 'X-API-Key': API_KEY } });
+        settings = await res.json();
+        document.getElementById('heroTitle').innerText = settings.hero_title || '${siteName}';
+        document.getElementById('heroDesc').innerText = settings.hero_description || '${description || 'Quality products, fast delivery, secure payments.'}';
+        const categories = settings.categories || ['Electronics','Fashion','Home','Toys'];
+        const catContainer = document.getElementById('categoriesGrid');
+        catContainer.innerHTML = categories.map(c => \`<div class="bg-white p-6 rounded-xl text-center shadow hover:shadow-lg transition"><h3 class="font-bold">\${c}</h3></div>\`).join('');
+        const testimonials = settings.testimonials || [];
+        const testContainer = document.getElementById('testimonialsGrid');
+        if (testimonials.length) {
+          testContainer.innerHTML = testimonials.map(t => \`<div class="bg-white p-6 rounded-xl shadow">“\${t.text}” – <strong>\${t.author}</strong></div>\`).join('');
+        } else {
+          testContainer.innerHTML = \`<div class="bg-white p-6 rounded-xl shadow">“Amazing experience! Fast delivery and great support.” – <strong>Alice</strong></div>
+            <div class="bg-white p-6 rounded-xl shadow">“The mobile money checkout was super smooth.” – <strong>Bob</strong></div>
+            <div class="bg-white p-6 rounded-xl shadow">“I love the product variety. Will shop again.” – <strong>Carol</strong></div>\`;
+        }
+      } catch (err) { console.error(err); }
+    }
+    async function loadProducts() {
+      try {
+        const res = await fetch(API_BASE + '/ecommerce/products', { headers: { 'X-API-Key': API_KEY } });
+        const data = await res.json();
+        allProducts = data.products || [];
+        renderFeatured(allProducts.slice(0, 6));
+        renderNewArrivals(allProducts.slice(6, 12));
+      } catch (err) { console.error(err); }
+    }
+    function renderFeatured(products) {
+      const container = document.getElementById('featuredProducts');
+      if (!products.length) { container.innerHTML = '<p class="col-span-full">No products yet. Add some via admin.</p>'; return; }
+      container.innerHTML = products.map(p => \`
+        <div class="product-card bg-white rounded-xl shadow p-4">
+          <h3 class="text-lg font-semibold">\${p.name}</h3>
+          <p class="text-gray-600">$\${p.price}</p>
+          <button onclick="buy(\${p.id})" class="mt-2 bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 w-full">Buy Now</button>
+        </div>
+      \`).join('');
+    }
+    function renderNewArrivals(products) {
+      const container = document.getElementById('newArrivals');
+      if (!products.length) { container.innerHTML = '<p class="col-span-full">More products coming soon.</p>'; return; }
+      container.innerHTML = products.map(p => \`
+        <div class="product-card bg-white rounded-xl shadow p-4">
+          <h3 class="text-lg font-semibold">\${p.name}</h3>
+          <p class="text-gray-600">$\${p.price}</p>
+          <button onclick="buy(\${p.id})" class="mt-2 bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 w-full">Buy Now</button>
+        </div>
+      \`).join('');
+    }
+    async function buy(id) {
+      try {
+        const res = await fetch(API_BASE + '/ecommerce/order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+          body: JSON.stringify({ productId: id, quantity: 1, customer: 'Visitor' })
+        });
+        const order = await res.json();
+        alert('Order created! ID: ' + order.id);
+      } catch (err) { alert('Error: ' + err.message); }
+    }
+    async function subscribeNewsletter() {
+      const email = document.getElementById('newsletterEmail').value;
+      if (!email || !email.includes('@')) { alert('Valid email required'); return; }
+      try {
+        const res = await fetch(API_BASE + '/newsletter/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        alert(data.message || 'Subscribed!');
+        document.getElementById('newsletterEmail').value = '';
+      } catch (err) { alert('Error: ' + err.message); }
+    }
+    window.onload = () => { loadSettings(); loadProducts(); };
+  `;
 
-  // ... (all the page generation code from the previous version)
+  const homeContent = `
+    <section class="bg-gradient-to-r from-indigo-700 to-purple-800 text-white py-24">
+      <div class="container mx-auto px-4 text-center">
+        <h1 id="heroTitle" class="text-5xl md:text-6xl font-extrabold mb-4">${siteName}</h1>
+        <p id="heroDesc" class="text-xl max-w-2xl mx-auto">${description || 'Quality products, fast delivery, secure payments.'}</p>
+        <div class="mt-8 flex gap-4 justify-center">
+          <a href="products.html" class="bg-white text-indigo-700 px-8 py-3 rounded-full font-semibold hover:bg-gray-100 transition">Shop Now →</a>
+          <a href="about.html" class="border border-white px-8 py-3 rounded-full font-semibold hover:bg-white hover:text-indigo-700 transition">Learn More</a>
+        </div>
+      </div>
+    </section>
+    <section class="container mx-auto px-4 py-16">
+      <h2 class="text-3xl font-bold text-center mb-8">🔥 Featured Products</h2>
+      <div id="featuredProducts" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">Loading...</div>
+    </section>
+    <section class="bg-gray-100 py-16">
+      <div class="container mx-auto px-4">
+        <h2 class="text-3xl font-bold text-center mb-8">Shop by Category</h2>
+        <div id="categoriesGrid" class="grid grid-cols-2 md:grid-cols-4 gap-4">Loading...</div>
+      </div>
+    </section>
+    <section class="container mx-auto px-4 py-16">
+      <h2 class="text-3xl font-bold text-center mb-8">✨ New Arrivals</h2>
+      <div id="newArrivals" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">Loading...</div>
+    </section>
+    <section class="bg-indigo-50 py-16">
+      <div class="container mx-auto px-4 text-center">
+        <h2 class="text-3xl font-bold mb-8">What Our Customers Say</h2>
+        <div id="testimonialsGrid" class="grid md:grid-cols-3 gap-8">Loading...</div>
+      </div>
+    </section>
+    <section class="container mx-auto px-4 py-16 text-center">
+      <h3 class="text-2xl font-bold mb-4">Subscribe to our Newsletter</h3>
+      <div class="max-w-md mx-auto flex gap-2">
+        <input type="email" id="newsletterEmail" placeholder="Your email" class="flex-1 px-4 py-2 border rounded-l focus:outline-none">
+        <button onclick="subscribeNewsletter()" class="bg-blue-600 text-white px-6 py-2 rounded-r hover:bg-blue-700">Subscribe</button>
+      </div>
+      <p class="text-gray-600 text-sm mt-2">Get 10% off your first order!</p>
+    </section>
+  `;
+
+  zip.addFile('index.html', Buffer.from(generatePage('Home', homeContent, '', homeScript), 'utf8'));
+
+  // Products page
+  const productsScript = `
+    let allProducts = [];
+    function renderProducts(products) {
+      const container = document.getElementById('allProducts');
+      if (!products.length) { container.innerHTML = '<p class="col-span-full text-center">No products match your search.</p>'; return; }
+      container.innerHTML = products.map(p => \`
+        <div class="product-card bg-white rounded-xl shadow p-4">
+          <h3 class="text-lg font-semibold">\${p.name}</h3>
+          <p class="text-gray-600">$\${p.price}</p>
+          <button onclick="buy(\${p.id})" class="mt-2 bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 w-full">Buy Now</button>
+        </div>
+      \`).join('');
+    }
+    async function loadAllProducts() {
+      const res = await fetch(API_BASE + '/ecommerce/products', { headers: { 'X-API-Key': API_KEY } });
+      const data = await res.json();
+      allProducts = data.products || [];
+      renderProducts(allProducts);
+    }
+    function filterProducts() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      const filtered = allProducts.filter(p => p.name.toLowerCase().includes(query));
+      renderProducts(filtered);
+    }
+    async function buy(id) {
+      try {
+        const res = await fetch(API_BASE + '/ecommerce/order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+          body: JSON.stringify({ productId: id, quantity: 1, customer: 'Visitor' })
+        });
+        const order = await res.json();
+        alert('Order created! ID: ' + order.id);
+      } catch (err) { alert('Error: ' + err.message); }
+    }
+    window.onload = loadAllProducts;
+  `;
+  const productsContent = `
+    <div class="container mx-auto px-4 py-12">
+      <h1 class="text-4xl font-bold mb-6">All Products</h1>
+      <div class="mb-8"><input type="text" id="searchInput" placeholder="Search products..." onkeyup="filterProducts()" class="w-full md:w-1/2 px-4 py-3 border rounded-full focus:outline-none"></div>
+      <div id="allProducts" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">Loading...</div>
+    </div>
+  `;
+  zip.addFile('products.html', Buffer.from(generatePage('Products', productsContent, '', productsScript), 'utf8'));
+
+  // About page
+  const aboutScript = `
+    async function loadAbout() {
+      try {
+        const res = await fetch(API_BASE + '/site/settings', { headers: { 'X-API-Key': API_KEY } });
+        const data = await res.json();
+        document.getElementById('aboutContent').innerHTML = data.about_content || '<p>We are a modern e‑commerce platform dedicated to bringing you the best products at unbeatable prices.</p>';
+      } catch (err) { console.error(err); }
+    }
+    window.onload = loadAbout;
+  `;
+  const aboutContent = `
+    <div class="container mx-auto px-4 py-12 max-w-4xl">
+      <h1 class="text-4xl font-bold mb-6">About ${siteName}</h1>
+      <div id="aboutContent" class="text-lg">Loading...</div>
+    </div>
+  `;
+  zip.addFile('about.html', Buffer.from(generatePage('About', aboutContent, '', aboutScript), 'utf8'));
+
+  // Contact page
+  const contactScript = `
+    async function loadContact() {
+      try {
+        const res = await fetch(API_BASE + '/site/settings', { headers: { 'X-API-Key': API_KEY } });
+        const data = await res.json();
+        document.getElementById('contactEmail').innerText = data.contact_email || 'support@${siteName.toLowerCase().replace(/ /g, '')}.com';
+        document.getElementById('contactPhone').innerText = data.contact_phone || '+260 97 123 4567';
+        document.getElementById('contactAddress').innerText = data.contact_address || 'Lusaka, Zambia';
+      } catch (err) { console.error(err); }
+    }
+    async function sendMessage() {
+      const name = document.getElementById('contactName').value;
+      const email = document.getElementById('contactEmailInput').value;
+      const message = document.getElementById('contactMessage').value;
+      if (!name || !email || !message) { alert('Please fill all fields'); return; }
+      try {
+        const res = await fetch(API_BASE + '/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, message })
+        });
+        const data = await res.json();
+        alert(data.message || 'Message sent!');
+        document.getElementById('contactForm').reset();
+      } catch (err) { alert('Error: ' + err.message); }
+    }
+    window.onload = loadContact;
+  `;
+  const contactContent = `
+    <div class="container mx-auto px-4 py-12 max-w-2xl">
+      <h1 class="text-3xl font-bold mb-6">Contact Us</h1>
+      <div class="mb-6">
+        <p><strong>Email:</strong> <span id="contactEmail"></span></p>
+        <p><strong>Phone:</strong> <span id="contactPhone"></span></p>
+        <p><strong>Address:</strong> <span id="contactAddress"></span></p>
+      </div>
+      <form id="contactForm" class="space-y-4">
+        <input type="text" id="contactName" placeholder="Your name" class="w-full px-4 py-2 border rounded" required>
+        <input type="email" id="contactEmailInput" placeholder="Your email" class="w-full px-4 py-2 border rounded" required>
+        <textarea id="contactMessage" rows="5" placeholder="Your message" class="w-full px-4 py-2 border rounded" required></textarea>
+        <button type="button" onclick="sendMessage()" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Send Message</button>
+      </form>
+    </div>
+  `;
+  zip.addFile('contact.html', Buffer.from(generatePage('Contact', contactContent, '', contactScript), 'utf8'));
+
+  // Admin page
+  const adminHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard – ${siteName}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    const API_KEY = '${apiKey}';
+    const API_BASE = '${baseUrl}';
+    let products = [];
+    let settings = {};
+
+    const ADMIN_PASSWORD = 'admin123';
+    function checkAuth() {
+      if (!localStorage.getItem('admin_auth')) {
+        const pwd = prompt('Enter admin password:');
+        if (pwd !== ADMIN_PASSWORD) {
+          alert('Wrong password');
+          window.location.href = 'index.html';
+          return false;
+        }
+        localStorage.setItem('admin_auth', 'true');
+      }
+      return true;
+    }
+    if (!checkAuth()) throw new Error('Unauthorized');
+
+    async function apiCall(endpoint, method = 'GET', body = null) {
+      const options = {
+        method,
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY }
+      };
+      if (body) options.body = JSON.stringify(body);
+      const res = await fetch(API_BASE + endpoint, options);
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    async function loadProducts() {
+      const data = await apiCall('/ecommerce/products');
+      products = data.products || [];
+      renderProductList();
+    }
+    function renderProductList() {
+      const container = document.getElementById('productList');
+      if (!products.length) { container.innerHTML = '<tr><td colspan="3" class="text-center">No products. Add one below. Neutral</td></tr>'; return; }
+      container.innerHTML = products.map(p => \`
+        <tr class="border-b">
+          <td class="p-2">\${p.name}</td>
+          <td class="p-2">$\${p.price}</td>
+          <td class="p-2">
+            <button onclick="editProduct(\${p.id})" class="bg-yellow-600 text-white px-2 py-1 rounded">Edit</button>
+            <button onclick="deleteProduct(\${p.id})" class="bg-red-600 text-white px-2 py-1 rounded ml-2">Delete</button>
+          </td>
+        </tr>
+      \`).join('');
+    }
+    async function addProduct() {
+      const name = document.getElementById('prodName').value;
+      const price = parseFloat(document.getElementById('prodPrice').value);
+      if (!name || isNaN(price)) { alert('Name and price required'); return; }
+      await apiCall('/ecommerce/product', 'POST', { name, price });
+      alert('Product added');
+      document.getElementById('prodName').value = '';
+      document.getElementById('prodPrice').value = '';
+      loadProducts();
+    }
+    async function editProduct(id) {
+      const product = products.find(p => p.id == id);
+      const newName = prompt('New name:', product.name);
+      const newPrice = prompt('New price:', product.price);
+      if (newName && newPrice) {
+        await apiCall(\`/ecommerce/product/\${id}\`, 'PUT', { name: newName, price: parseFloat(newPrice) });
+        loadProducts();
+      }
+    }
+    async function deleteProduct(id) {
+      if (!confirm('Delete this product?')) return;
+      await apiCall(\`/ecommerce/product/\${id}\`, 'DELETE');
+      loadProducts();
+    }
+    async function loadSettings() {
+      const data = await apiCall('/site/settings');
+      settings = data;
+      document.getElementById('heroTitle').value = settings.hero_title || '';
+      document.getElementById('heroDesc').value = settings.hero_description || '';
+      document.getElementById('aboutContent').value = settings.about_content || '';
+      document.getElementById('contactEmail').value = settings.contact_email || '';
+      document.getElementById('contactPhone').value = settings.contact_phone || '';
+      document.getElementById('contactAddress').value = settings.contact_address || '';
+      document.getElementById('categories').value = (settings.categories || ['Electronics','Fashion','Home','Toys']).join(',');
+      document.getElementById('testimonials').value = (settings.testimonials || []).map(t => t.text + '|' + t.author).join('\\n');
+    }
+    async function saveSettings() {
+      const newSettings = {
+        hero_title: document.getElementById('heroTitle').value,
+        hero_description: document.getElementById('heroDesc').value,
+        about_content: document.getElementById('aboutContent').value,
+        contact_email: document.getElementById('contactEmail').value,
+        contact_phone: document.getElementById('contactPhone').value,
+        contact_address: document.getElementById('contactAddress').value,
+        categories: document.getElementById('categories').value.split(',').map(s => s.trim()),
+        testimonials: document.getElementById('testimonials').value.split('\\n').filter(l => l.trim()).map(l => {
+          const [text, author] = l.split('|');
+          return { text: text.trim(), author: author ? author.trim() : 'Anonymous' };
+        })
+      };
+      await apiCall('/site/settings', 'POST', newSettings);
+      alert('Settings saved');
+    }
+    window.onload = () => { loadProducts(); loadSettings(); };
+  </script>
+</head>
+<body class="bg-gray-100 p-8">
+  <div class="max-w-6xl mx-auto">
+    <h1 class="text-3xl font-bold mb-6">Admin Dashboard – ${siteName}</h1>
+    <div class="bg-white p-6 rounded shadow mb-8">
+      <h2 class="text-xl font-bold mb-4">Manage Products</h2>
+      <div class="mb-4 flex gap-2">
+        <input type="text" id="prodName" placeholder="Product name" class="border p-2 rounded flex-1">
+        <input type="number" id="prodPrice" placeholder="Price" class="border p-2 rounded w-32">
+        <button onclick="addProduct()" class="bg-green-600 text-white px-4 py-2 rounded">Add Product</button>
+      </div>
+      <table class="w-full border">
+        <thead><tr><th>Name</th><th>Price</th><th>Actions</th></tr></thead>
+        <tbody id="productList">Loading...</tbody>
+      </table>
+    </div>
+    <div class="bg-white p-6 rounded shadow">
+      <h2 class="text-xl font-bold mb-4">Site Settings</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div><label>Hero Title</label><input id="heroTitle" class="w-full border p-2 rounded"></div>
+        <div><label>Hero Description</label><input id="heroDesc" class="w-full border p-2 rounded"></div>
+        <div><label>About Content (HTML allowed)</label><textarea id="aboutContent" rows="4" class="w-full border p-2 rounded"></textarea></div>
+        <div><label>Contact Email</label><input id="contactEmail" class="w-full border p-2 rounded"></div>
+        <div><label>Contact Phone</label><input id="contactPhone" class="w-full border p-2 rounded"></div>
+        <div><label>Contact Address</label><input id="contactAddress" class="w-full border p-2 rounded"></div>
+        <div><label>Categories (comma separated)</label><input id="categories" class="w-full border p-2 rounded"></div>
+        <div><label>Testimonials (one per line: text|author)</label><textarea id="testimonials" rows="4" class="w-full border p-2 rounded"></textarea></div>
+      </div>
+      <button onclick="saveSettings()" class="bg-blue-600 text-white px-6 py-2 rounded mt-4">Save Settings</button>
+    </div>
+    <div class="mt-8 text-center"><a href="index.html" class="text-blue-600">← Back to site</a></div>
+  </div>
+</body>
+</html>`;
+  zip.addFile('admin.html', Buffer.from(adminHtml, 'utf8'));
+
+  const errorPage = `<!DOCTYPE html><html><head><title>404</title><script src="https://cdn.tailwindcss.com"></script></head><body class="bg-gray-100 flex items-center justify-center h-screen"><div class="text-center"><h1 class="text-6xl font-bold text-blue-600">404</h1><p class="text-xl mt-4">Page not found.</p><a href="index.html" class="mt-6 inline-block bg-blue-600 text-white px-6 py-2 rounded">Go Home</a></div></body></html>`;
+  zip.addFile('404.html', Buffer.from(errorPage, 'utf8'));
 
   const zipBuffer = zip.toBuffer();
   res.setHeader('Content-Type', 'application/zip');
@@ -893,7 +1316,7 @@ app.get('/success', (req, res) => {
   res.send(`<!DOCTYPE html><html><head><title>Payment Successful</title><style>body{background:#0a0c10;color:#eef2ff;font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh;text-align:center}.card{background:rgba(255,255,255,0.03);border-radius:1.5rem;padding:2rem;border:1px solid rgba(255,255,255,0.08)}h1{color:#10b981}</style></head><body><div class="card"><h1>✓ Payment Successful!</h1><p>Your premium API key will be sent to your email.</p><a href="/">← Back</a></div></body></html>`);
 });
 
-// ---------- DOCUMENTATION (proper HTML page) ----------
+// ---------- COMPREHENSIVE DOCUMENTATION (16 MODULES) ----------
 app.get('/docs', (req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="en">
@@ -1115,61 +1538,134 @@ app.get('/docs', (req, res) => {
       <li><a href="#auth">🔐 Authentication & Rate Limits</a></li>
       <li><a href="#email">📧 Email Validation & Enrichment</a></li>
       <li><a href="#business">🏢 Business Management</a></li>
-      <li><a href="#modules">📦 The 16 Business Modules</a></li>
+      <li><a href="#modules">📦 The 16 Business Modules</a>
+        <ul style="margin-left: 1rem; list-style: circle;">
+          <li><a href="#mod1">1. Mobile Money</a></li>
+          <li><a href="#mod2">2. Invoice & ZRA Billing</a></li>
+          <li><a href="#mod3">3. WhatsApp Mini E‑commerce</a></li>
+          <li><a href="#mod4">4. Logistics & Delivery</a></li>
+          <li><a href="#mod5">5. Agritech Marketplace</a></li>
+          <li><a href="#mod6">6. AI Customer Support</a></li>
+          <li><a href="#mod7">7. Micro‑Lending</a></li>
+          <li><a href="#mod8">8. SME Dashboard</a></li>
+          <li><a href="#mod9">9. Inventory & POS</a></li>
+          <li><a href="#mod10">10. Social Ads</a></li>
+          <li><a href="#mod11">11. Freelance Marketplace</a></li>
+          <li><a href="#mod12">12. Clinic Management</a></li>
+          <li><a href="#mod13">13. Identity Verification (KYC)</a></li>
+          <li><a href="#mod14">14. E‑commerce BaaS</a></li>
+          <li><a href="#mod15">15. AI Tutoring</a></li>
+          <li><a href="#mod16">16. Local Business Discovery</a></li>
+        </ul>
+      </li>
       <li><a href="#feedback">📝 Feedback & Waitlist</a></li>
       <li><a href="#errors">❌ Error Codes</a></li>
     </ul>
   </div>
   <div class="main-content">
     <h1>BaKangombe API Documentation</h1>
-    <p>BaKangombe provides email validation, enrichment, and 16 ready‑to‑use business modules (mobile money, invoices, e‑commerce, etc.) with multi‑tenant data isolation.</p>
+    <p>BaKangombe provides email validation, enrichment, and 16 ready‑to‑use business modules with multi‑tenant data isolation.</p>
 
     <h2 id="auth">🔐 Authentication & Rate Limits</h2>
-    <p>All endpoints except <code>/api/validate</code> and <code>/api/feedback</code> require a valid <code>X-API-Key</code> header. Free tier: 100 requests/minute; premium: 10,000 requests/minute.</p>
+    <p>All endpoints except <code>/api/validate</code> and <code>/api/feedback</code> require a valid <code>X-API-Key</code> header containing your business API key. Free tier: 100 requests/minute; premium: 10,000 requests/minute.</p>
 
     <h2 id="email">📧 Email Validation & Enrichment</h2>
-    <div class="endpoint"><h3><span class="method free">POST</span> <span class="path">/api/validate</span></h3><p>Validate a single email address.</p><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/validate -H "Content-Type: application/json" -d '{"email":"user@example.com"}'</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/validate -H \"Content-Type: application/json\" -d \'{\"email\":\"user@example.com\"}\'')">Copy</button></div>
-    <div class="endpoint"><h3><span class="method premium">POST</span> <span class="path">/api/enrich</span></h3><p>Enrich an email with company/person data (requires premium subscription).</p></div>
+    <div class="endpoint"><h3><span class="method free">POST</span> <span class="path">/api/validate</span></h3><p>Validate a single email address (syntax, MX, disposable detection). Returns a score 0–100.</p><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/validate -H "Content-Type: application/json" -d '{"email":"user@example.com"}'</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/validate -H \"Content-Type: application/json\" -d \'{\"email\":\"user@example.com\"}\'')">Copy</button></div>
+    <div class="endpoint"><h3><span class="method premium">POST</span> <span class="path">/api/enrich</span></h3><p>Enrich an email with company/person data (requires active premium subscription and Hunter API key configured).</p></div>
+    <div class="endpoint"><h3><span class="method premium">POST</span> <span class="path">/api/disposable</span></h3><p>Check if an email domain is disposable (e.g., mailinator.com).</p></div>
+    <div class="endpoint"><h3><span class="method premium">POST</span> <span class="path">/api/domain/score</span></h3><p>Returns SPF, DKIM, DMARC status and a security score for any domain.</p></div>
+    <div class="endpoint"><h3><span class="method premium">POST</span> <span class="path">/api/validate/batch</span></h3><p>Upload a CSV file with email addresses for batch validation.</p></div>
 
     <h2 id="business">🏢 Business Management</h2>
-    <div class="endpoint"><h3><span class="method">POST</span> <span class="path">/api/business/register</span></h3><p>Register a new business and get an API key.</p></div>
-    <div class="endpoint"><h3><span class="method">GET</span> <span class="path">/api/business/me</span></h3><p>Get current business profile (requires API key).</p></div>
-    <div class="endpoint"><h3><span class="method">POST</span> <span class="path">/api/subscription/activate</span></h3><p>Activate a subscription plan (Pro).</p></div>
+    <div class="endpoint"><h3><span class="method">POST</span> <span class="path">/api/business/register</span></h3><p>Register a new business and receive an API key.</p><pre><code>curl -X POST https://ba-kangombe.vercel.app/api/business/register -H "Content-Type: application/json" -d '{"name":"My Business","email":"admin@example.com"}'</code></pre><button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/business/register -H \"Content-Type: application/json\" -d \'{\"name\":\"My Business\",\"email\":\"admin@example.com\"}\'')">Copy</button></div>
+    <div class="endpoint"><h3><span class="method">GET</span> <span class="path">/api/business/me</span></h3><p>Get the current business profile (requires API key).</p></div>
+    <div class="endpoint"><h3><span class="method">POST</span> <span class="path">/api/subscription/activate</span></h3><p>Activate a Pro subscription (valid for 30 days).</p></div>
+    <div class="endpoint"><h3><span class="method">POST</span> <span class="path">/api/system/create</span></h3><p>Enable a system (e.g., <code>ecommerce</code>, <code>clinic</code>, <code>mobile_money</code>) which automatically enables its required modules.</p></div>
 
     <h2 id="modules">📦 The 16 Business Modules</h2>
-    <p>Enable modules via <code>/api/system/create</code> (e.g., <code>mobile_money</code>, <code>ecommerce</code>, <code>clinic</code>, <code>agritech</code>, etc.). Endpoints include:</p>
-    <ul>
-      <li><code>/api/momo/transfer</code>, <code>/api/invoice/create</code>, <code>/api/whatsapp/product</code></li>
-      <li><code>/api/ecommerce/product</code>, <code>/api/clinic/patient</code>, <code>/api/ai/chat</code></li>
-      <li><code>/api/discovery/business</code>, <code>/api/lending/score</code>, and more.</li>
-    </ul>
+    <p>Each module must be enabled for your business (via <code>/api/system/create</code> or <code>/api/business/enable-module</code>). All endpoints require the <code>X-API-Key</code> header and the corresponding module to be enabled.</p>
+
+    <h3 id="mod1">1. Mobile Money (<code>momo</code>)</h3>
+    <ul><li><code>POST /api/momo/transfer</code> – send money (amount, phone, provider)</li><li><code>POST /api/momo/request</code> – request money</li><li><code>GET /api/momo/transactions</code> – list all transactions</li></ul>
+
+    <h3 id="mod2">2. Invoice & ZRA Billing (<code>invoice</code>)</h3>
+    <ul><li><code>POST /api/invoice/create</code> – create an invoice</li><li><code>PUT /api/invoice/:id/pay</code> – mark an invoice as paid</li><li><code>GET /api/invoice/export/csv</code> – export invoices as CSV</li></ul>
+
+    <h3 id="mod3">3. WhatsApp Mini E‑commerce (<code>whatsapp</code>)</h3>
+    <ul><li><code>POST /api/whatsapp/product</code> – add a product</li><li><code>GET /api/whatsapp/products</code> – list products</li><li><code>POST /api/whatsapp/order</code> – create an order</li><li><code>GET /api/whatsapp/order/:id/checkout</code> – get WhatsApp checkout link</li></ul>
+
+    <h3 id="mod4">4. Logistics & Delivery (<code>logistics</code>)</h3>
+    <ul><li><code>POST /api/logistics/route</code> – optimize route</li><li><code>POST /api/logistics/driver/assign</code> – assign driver to a route</li><li><code>GET /api/logistics/driver/:id/track</code> – track driver location</li></ul>
+
+    <h3 id="mod5">5. Agritech Marketplace (<code>agritech</code>)</h3>
+    <ul><li><code>POST /api/agritech/farmer</code> – register a farmer</li><li><code>GET /api/agritech/farmers</code> – list farmers</li><li><code>POST /api/agritech/buyer/match</code> – match buyers with farmers</li><li><code>GET /api/agritech/price/intelligence</code> – get commodity prices</li></ul>
+
+    <h3 id="mod6">6. AI Customer Support (<code>ai</code>)</h3>
+    <ul><li><code>POST /api/ai/chat</code> – ask a question</li><li><code>POST /api/ai/train</code> – train the AI with Q&A pairs</li></ul>
+
+    <h3 id="mod7">7. Micro‑Lending (<code>lending</code>)</h3>
+    <ul><li><code>POST /api/lending/score</code> – calculate credit score</li><li><code>POST /api/lending/eligibility</code> – check loan eligibility</li></ul>
+
+    <h3 id="mod8">8. SME Dashboard (<code>sme</code>)</h3>
+    <ul><li><code>POST /api/sme/sale</code> – record a sale</li><li><code>POST /api/sme/expense</code> – record an expense</li><li><code>GET /api/sme/profit</code> – get profit, revenue, costs</li></ul>
+
+    <h3 id="mod9">9. Inventory & POS (<code>inventory</code>)</h3>
+    <ul><li><code>POST /api/inventory/product</code> – add a product to inventory</li><li><code>PUT /api/inventory/stock</code> – update stock quantity</li><li><code>GET /api/inventory/alerts</code> – get low‑stock alerts (stock <5)</li><li><code>POST /api/pos/sale</code> – record a point‑of‑sale transaction</li></ul>
+
+    <h3 id="mod10">10. Social Ads (<code>social_ads</code>)</h3>
+    <ul><li><code>POST /api/social/ad/create</code> – create an ad campaign</li><li><code>POST /api/social/ad/budget</code> – update ad budget</li><li><code>GET /api/social/leads</code> – get total leads</li><li><code>GET /api/social/ads</code> – list all ads</li></ul>
+
+    <h3 id="mod11">11. Freelance Marketplace (<code>freelance</code>)</h3>
+    <ul><li><code>POST /api/freelance/service</code> – post a service</li><li><code>GET /api/freelance/services</code> – list services</li><li><code>POST /api/freelance/order</code> – create an order (escrow)</li><li><code>POST /api/freelance/escrow</code> – release escrow payment</li></ul>
+
+    <h3 id="mod12">12. Clinic Management (<code>clinic</code>)</h3>
+    <ul><li><code>POST /api/clinic/patient</code> – add a patient</li><li><code>GET /api/clinic/patients</code> – list patients</li><li><code>POST /api/clinic/appointment</code> – schedule an appointment</li><li><code>GET /api/clinic/patient/:id/bill</code> – generate a bill (random amount)</li></ul>
+
+    <h3 id="mod13">13. Identity Verification (KYC) (<code>kyc</code>)</h3>
+    <ul><li><code>POST /api/kyc/id</code> – verify ID number (length ≥5)</li><li><code>POST /api/kyc/phone</code> – verify phone number (length ==10)</li></ul>
+
+    <h3 id="mod14">14. E‑commerce BaaS (<code>ecommerce</code>)</h3>
+    <ul><li><code>POST /api/ecommerce/product</code> – add a product</li><li><code>GET /api/ecommerce/products</code> – list products</li><li><code>POST /api/ecommerce/order</code> – create an order</li><li><code>POST /api/ecommerce/payment</code> – process payment (update order status to paid)</li></ul>
+
+    <h3 id="mod15">15. AI Tutoring (<code>tutor</code>)</h3>
+    <ul><li><code>POST /api/tutor/chat</code> – ask a tutor (e.g., algebra explanation)</li><li><code>GET /api/tutor/curriculum</code> – get curriculum for a grade</li></ul>
+
+    <h3 id="mod16">16. Local Business Discovery (<code>discovery</code>)</h3>
+    <ul><li><code>POST /api/discovery/business</code> – add a business listing</li><li><code>GET /api/discovery/businesses</code> – search businesses by category</li><li><code>POST /api/discovery/review</code> – leave a review</li><li><code>GET /api/discovery/business/:id/whatsapp</code> – get WhatsApp link for a business</li></ul>
 
     <h2 id="feedback">📝 Feedback & Waitlist</h2>
     <div class="endpoint"><h3><span class="method free">POST</span> <span class="path">/api/feedback</span></h3><p>Submit feedback – a confirmation email is sent.</p></div>
     <div class="endpoint"><h3><span class="method free">POST</span> <span class="path">/api/waitlist</span></h3><p>Join the waitlist.</p></div>
+    <div class="endpoint"><h3><span class="method free">POST</span> <span class="path">/api/newsletter/subscribe</span></h3><p>Subscribe to the newsletter (stores email).</p></div>
 
     <h2 id="errors">❌ Error Codes</h2>
     <table>
       <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
       <tbody>
-        <tr><td>400</td><td>Bad request</td></tr>
-        <tr><td>401</td><td>Unauthorized (missing/invalid API key)</td></tr>
-        <tr><td>402</td><td>Payment required (premium feature)</td></tr>
-        <tr><td>403</td><td>Forbidden (module not enabled)</td></tr>
+        <tr><td>400</td><td>Bad request – missing or invalid JSON</td></tr>
+        <tr><td>401</td><td>Unauthorized – missing/invalid API key</td></tr>
+        <tr><td>402</td><td>Payment required – premium feature requires active subscription</td></tr>
+        <tr><td>403</td><td>Forbidden – module not enabled for this business</td></tr>
+        <tr><td>404</td><td>Not found – resource does not exist</td></tr>
         <tr><td>429</td><td>Rate limit exceeded</td></tr>
+        <tr><td>500</td><td>Internal server error – check logs</td></tr>
       </tbody>
     </table>
+
+    <h2>🔧 Interactive Testing</h2>
+    <p>Visit <a href="/new-features">/new-features</a> for a full UI to test every module live.</p>
+    <p>Use the <strong>Full Website Builder</strong> on the main page to generate a deployable static e‑commerce site with an admin panel (password <code>admin123</code>).</p>
   </div>
   <footer>
-    <p>Built by <strong>Bornface Kangombe Kernel</strong></p>
-    <p><a href="/">Home</a> · <a href="https://github.com/KernelBornie/BaKangombe">GitHub</a></p>
+    <p>Built by <strong>Bornface Kangombe Kernel</strong> – developer, creator, founder.</p>
+    <p><a href="/">Home</a> · <a href="https://github.com/KernelBornie/BaKangombe">GitHub</a> · <a href="/new-features">Live Demo</a></p>
   </footer>
 </div>
 <script>
   function copyToClipboard(text) {
     navigator.clipboard.writeText(text);
     const toast = document.createElement('div');
-    toast.innerText = '✓ Copied';
+    toast.innerText = '✓ Copied to clipboard';
     toast.style.position = 'fixed';
     toast.style.bottom = '20px';
     toast.style.right = '20px';
@@ -1190,9 +1686,78 @@ app.get('/docs', (req, res) => {
 // ---------- ONE‑TIME SETUP (run once) ----------
 app.get('/api/setup/create-tables', async (req, res) => {
   try {
-    await sql`CREATE TABLE IF NOT EXISTS businesses (...)`; // full table creation as before
-    await sql`CREATE TABLE IF NOT EXISTS site_settings (... )`;
-    // ... all other tables
+    await sql`CREATE TABLE IF NOT EXISTS businesses (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255),
+      email VARCHAR(255) UNIQUE,
+      api_key VARCHAR(64) UNIQUE,
+      modules TEXT[] DEFAULT '{}',
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    await sql`CREATE TABLE IF NOT EXISTS momo_transactions ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), amount NUMERIC, phone VARCHAR(20), provider VARCHAR(10), status VARCHAR(20), type VARCHAR(10), created_at TIMESTAMP DEFAULT NOW() )`;
+    await sql`CREATE TABLE IF NOT EXISTS invoices ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), customer VARCHAR(255), amount NUMERIC, items TEXT[], status VARCHAR(20), created_at TIMESTAMP DEFAULT NOW(), paid_at TIMESTAMP )`;
+    await sql`CREATE TABLE IF NOT EXISTS whatsapp_products ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), name VARCHAR(255), price NUMERIC, description TEXT )`;
+    await sql`CREATE TABLE IF NOT EXISTS whatsapp_orders ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), product_id INTEGER, customer_phone VARCHAR(20), status VARCHAR(20), created_at TIMESTAMP )`;
+    await sql`CREATE TABLE IF NOT EXISTS logistics_routes ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), stops JSONB, assigned_driver INTEGER )`;
+    await sql`CREATE TABLE IF NOT EXISTS agritech_farmers ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), name VARCHAR(255), crop VARCHAR(100), price NUMERIC, location VARCHAR(255) )`;
+    await sql`CREATE TABLE IF NOT EXISTS faqs ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), question TEXT, answer TEXT )`;
+    await sql`CREATE TABLE IF NOT EXISTS lending_scores ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), income NUMERIC, debt NUMERIC, history VARCHAR(20), score INTEGER )`;
+    await sql`CREATE TABLE IF NOT EXISTS sme_sales ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), amount NUMERIC, customer_id INTEGER, date TIMESTAMP )`;
+    await sql`CREATE TABLE IF NOT EXISTS sme_expenses ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), amount NUMERIC, category VARCHAR(100), date TIMESTAMP )`;
+    await sql`CREATE TABLE IF NOT EXISTS inventory_products ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), name VARCHAR(255), price NUMERIC, stock INTEGER )`;
+    await sql`CREATE TABLE IF NOT EXISTS social_ads ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), name VARCHAR(255), budget NUMERIC, target VARCHAR(255), status VARCHAR(20), leads INTEGER )`;
+    await sql`CREATE TABLE IF NOT EXISTS freelance_services ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), title VARCHAR(255), price NUMERIC, seller VARCHAR(255) )`;
+    await sql`CREATE TABLE IF NOT EXISTS freelance_orders ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), service_id INTEGER, buyer VARCHAR(255), status VARCHAR(20), created_at TIMESTAMP )`;
+    await sql`CREATE TABLE IF NOT EXISTS clinic_patients ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), name VARCHAR(255), phone VARCHAR(20), address TEXT )`;
+    await sql`CREATE TABLE IF NOT EXISTS clinic_appointments ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), patient_id INTEGER, date DATE, reason TEXT )`;
+    await sql`CREATE TABLE IF NOT EXISTS ecommerce_products ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), name VARCHAR(255), price NUMERIC )`;
+    await sql`CREATE TABLE IF NOT EXISTS ecommerce_orders ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), product_id INTEGER, quantity INTEGER, customer VARCHAR(255), status VARCHAR(20) )`;
+    await sql`CREATE TABLE IF NOT EXISTS tutor_curriculum ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), grade INTEGER, subject VARCHAR(100), topic VARCHAR(255), content TEXT )`;
+    await sql`CREATE TABLE IF NOT EXISTS businesses_list ( id SERIAL PRIMARY KEY, business_id INTEGER REFERENCES businesses(id), name VARCHAR(255), category VARCHAR(100), location VARCHAR(255), whatsapp VARCHAR(20) )`;
+    await sql`CREATE TABLE IF NOT EXISTS discovery_reviews (
+      id SERIAL PRIMARY KEY,
+      business_list_id INTEGER REFERENCES businesses_list(id) ON DELETE CASCADE,
+      reviewer_business_id INTEGER REFERENCES businesses(id),
+      rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+      comment TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    await sql`CREATE TABLE IF NOT EXISTS subscriptions (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      plan VARCHAR(100),
+      status VARCHAR(30),
+      expires_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    await sql`CREATE TABLE IF NOT EXISTS business_services (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      service_key VARCHAR(100),
+      service_name VARCHAR(255),
+      modules TEXT[],
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    await sql`CREATE TABLE IF NOT EXISTS generated_systems (
+      id SERIAL PRIMARY KEY,
+      business_id INTEGER REFERENCES businesses(id),
+      system_name VARCHAR(255),
+      system_type VARCHAR(100),
+      dashboard_url TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`;
+    await sql`CREATE TABLE IF NOT EXISTS site_settings (
+      business_id INTEGER REFERENCES businesses(id) UNIQUE,
+      hero_title TEXT,
+      hero_description TEXT,
+      about_content TEXT,
+      contact_email TEXT,
+      contact_phone TEXT,
+      contact_address TEXT,
+      categories JSONB DEFAULT '["Electronics","Fashion","Home","Toys"]',
+      testimonials JSONB DEFAULT '[]',
+      updated_at TIMESTAMP DEFAULT NOW()
+    )`;
     res.json({ message: "All tables created/updated" });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1208,7 +1773,8 @@ app.get('*', (req, res) => { res.sendFile(path.join(__dirname, '../public/index.
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`🚀 BaKangombe server running on http://localhost:${PORT}`);
+    console.log(`📖 Test endpoints: http://localhost:${PORT}/api/validate`);
   });
 }
 module.exports = app;
