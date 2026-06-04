@@ -15,6 +15,7 @@
     .delete-btn { background: #dc2626; margin-left: 1rem; }
     .replies { margin-top: 0.5rem; padding-left: 1rem; border-left: 2px solid #10b981; font-size: 0.9rem; }
     .pagination { display: flex; gap: 1rem; margin-top: 1rem; align-items: center; }
+    .error { color: #f87171; margin-top: 0.5rem; }
   </style>
 </head>
 <body>
@@ -23,7 +24,7 @@
     <h2>Admin Login</h2>
     <input type="email" id="adminEmail" placeholder="Your admin email" value="bornface.kangombe@cs.unza.zm">
     <button onclick="login()">Login with Email</button>
-    <div id="loginResult"></div>
+    <div id="loginResult" class="error"></div>
   </div>
   <div id="adminContent" style="display:none;">
     <hr>
@@ -47,22 +48,59 @@
     let currentPage = 1;
     const pageSize = 10;
 
-    if (token) { showAdminPanel(); loadFeedback(); }
+    // Helper to handle API calls with token and 401 handling
+    async function fetchWithAuth(url, options = {}) {
+      const headers = { ...options.headers, 'Authorization': 'Bearer ' + token };
+      const res = await fetch(url, { ...options, headers });
+      if (res.status === 401) {
+        // Token expired or invalid – logout
+        localStorage.removeItem('adminToken');
+        token = null;
+        document.getElementById('loginSection').style.display = 'block';
+        document.getElementById('adminContent').style.display = 'none';
+        alert('Session expired. Please log in again.');
+        return null;
+      }
+      return res;
+    }
+
+    if (token) { 
+      // Try to load feedback to validate token, otherwise auto‑logout
+      fetchWithAuth('/api/admin/feedback').then(res => {
+        if (res && res.ok) {
+          showAdminPanel();
+          loadFeedback();
+        } else {
+          localStorage.removeItem('adminToken');
+          token = null;
+          document.getElementById('loginSection').style.display = 'block';
+        }
+      }).catch(() => {
+        localStorage.removeItem('adminToken');
+        token = null;
+        document.getElementById('loginSection').style.display = 'block';
+      });
+    }
 
     async function login() {
       const email = document.getElementById('adminEmail').value;
-      const res = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        localStorage.setItem('adminToken', data.token);
-        showAdminPanel();
-        loadFeedback();
-      } else {
-        document.getElementById('loginResult').innerText = 'Error: ' + data.error;
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem('adminToken', data.token);
+          token = data.token;
+          showAdminPanel();
+          loadFeedback();
+        } else {
+          document.getElementById('loginResult').innerText = 'Error: ' + (data.error || 'Login failed');
+        }
+      } catch (err) {
+        document.getElementById('loginResult').innerText = 'Network error: ' + err.message;
       }
     }
 
@@ -72,17 +110,22 @@
     }
 
     async function loadFeedback() {
-      const res = await fetch('/api/admin/feedback', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') } });
-      const data = await res.json();
-      allFeedback = data.feedback || [];
-      currentPage = 1;
-      renderFeedback();
+      const res = await fetchWithAuth('/api/admin/feedback');
+      if (!res) return;
+      if (res.ok) {
+        const data = await res.json();
+        allFeedback = data.feedback || [];
+        currentPage = 1;
+        renderFeedback();
+      } else {
+        console.error('Failed to load feedback');
+      }
     }
 
     async function deleteFeedback(id) {
       if (!confirm('Are you sure you want to delete this feedback? Replies will also be deleted.')) return;
-      const res = await fetch(`/api/admin/feedback/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') } });
-      if (res.ok) {
+      const res = await fetchWithAuth(`/api/admin/feedback/${id}`, { method: 'DELETE' });
+      if (res && res.ok) {
         loadFeedback();
       } else {
         alert('Delete failed');
@@ -90,7 +133,8 @@
     }
 
     async function viewReplies(feedbackId, elementId) {
-      const res = await fetch(`/api/admin/feedback/${feedbackId}/responses`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') } });
+      const res = await fetchWithAuth(`/api/admin/feedback/${feedbackId}/responses`);
+      if (!res) return;
       const data = await res.json();
       const repliesDiv = document.getElementById(elementId);
       if (data.responses && data.responses.length) {
@@ -133,30 +177,36 @@
     }
 
     async function sendReply() {
-      const token = localStorage.getItem('adminToken');
       const feedbackId = parseInt(document.getElementById('replyId').value);
       const userEmail = document.getElementById('replyUserEmail').value;
       const userName = document.getElementById('replyUserName').value;
       const replyMessage = document.getElementById('replyMessage').value;
-      const res = await fetch('/api/admin/respond', {
+      if (!feedbackId || !userEmail || !replyMessage) {
+        alert('Feedback ID, user email, and reply message are required.');
+        return;
+      }
+      const res = await fetchWithAuth('/api/admin/respond', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ feedbackId, replyMessage, userEmail, userName })
       });
-      const data = await res.json();
-      document.getElementById('replyResult').innerText = JSON.stringify(data);
-      if (res.ok) {
+      if (res && res.ok) {
+        const data = await res.json();
+        document.getElementById('replyResult').innerText = JSON.stringify(data);
         document.getElementById('replyId').value = '';
         document.getElementById('replyUserEmail').value = '';
         document.getElementById('replyUserName').value = '';
         document.getElementById('replyMessage').value = '';
         loadFeedback();
+      } else if (res) {
+        const err = await res.text();
+        document.getElementById('replyResult').innerText = 'Error: ' + err;
       }
     }
 
-    // Logout button
     document.getElementById('logoutBtn')?.addEventListener('click', () => {
       localStorage.removeItem('adminToken');
+      token = null;
       location.reload();
     });
   </script>
