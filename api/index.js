@@ -528,6 +528,25 @@ app.post('/api/business/register', async (req, res) => {
 
 app.get('/api/business/me', requireBusiness, (req, res) => { res.json({ business: req.business }); });
 
+// Enable a single module for a business (used by the "Enable Website Module" button)
+app.post("/api/business/enable-module", requireBusiness, async (req, res) => {
+  const { moduleKey } = req.body;
+  if (!moduleKey) {
+    return res.status(400).json({ error: "moduleKey is required" });
+  }
+  if (req.business.modules.includes(moduleKey)) {
+    return res.json({ success: true, message: "Module already enabled", modules: req.business.modules });
+  }
+  await sql`
+    UPDATE businesses 
+    SET modules = array_append(modules, ${moduleKey}) 
+    WHERE id = ${req.business.id}
+  `;
+  req.business.modules.push(moduleKey);
+  res.json({ success: true, modules: req.business.modules });
+});
+
+
 app.post('/api/subscription/activate', requireBusiness, async (req, res) => {
   const { plan } = req.body;
   const expiresAt = new Date();
