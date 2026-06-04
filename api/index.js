@@ -11,6 +11,8 @@ const csv = require('csv-parser');
 const { Readable } = require('stream');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const archiver = require('archiver');      // <-- NEW for full website generator
+const fs = require('fs');                  // already used, but keep
 
 const app = express();
 app.use(cors());
@@ -349,7 +351,7 @@ app.post('/api/waitlist', async (req, res) => {
   res.json({ message: sent ? 'Added to waitlist and welcome email sent!' : 'Added to waitlist (but email could not be sent).' });
 });
 
-// ---------- LEMON SQUEEZY CHECKOUT (MISSING – ADDED NOW) ----------
+// ---------- LEMON SQUEEZY CHECKOUT ----------
 app.post('/api/create-ls-checkout', async (req, res) => {
   const { email } = req.body;
   if (!email || !email.includes('@')) {
@@ -471,7 +473,7 @@ app.post('/api/test-webhook', async (req, res) => {
   res.json({ success: true, apiKey });
 });
 
-// ========== BUSINESS MULTI‑TENANCY (DEFINED EARLY) ==========
+// ========== BUSINESS MULTI‑TENANCY ==========
 async function requireBusiness(req, res, next) {
   const apiKey = req.headers['x-api-key'];
   if (!apiKey) return res.status(401).json({ error: 'API key required' });
@@ -546,7 +548,6 @@ app.post("/api/business/enable-module", requireBusiness, async (req, res) => {
   res.json({ success: true, modules: req.business.modules });
 });
 
-
 app.post('/api/subscription/activate', requireBusiness, async (req, res) => {
   const { plan } = req.body;
   const expiresAt = new Date();
@@ -619,7 +620,7 @@ app.post('/api/enrich', requireBusiness, async (req, res) => {
   }
 });
 
-// ---------- WEBSITE BUILDER ----------
+// ---------- WEBSITE BUILDER (simple HTML snippet) ----------
 app.post('/api/website/generate', requireBusiness, async (req, res) => {
   const { template = 'landing', title = 'My Site', content = 'Welcome!' } = req.body;
   if (!req.business.modules.includes('website')) {
@@ -634,6 +635,81 @@ app.post('/api/website/generate', requireBusiness, async (req, res) => {
     return res.status(400).json({ error: 'Invalid template' });
   }
   res.json({ html, template, title });
+});
+
+// ---------- FULL WEBSITE GENERATOR (deployable ZIP) ----------
+app.post('/api/website/generate-full', requireBusiness, requireModule('website'), async (req, res) => {
+  const { siteName, description, theme = 'modern' } = req.body;
+  if (!siteName) return res.status(400).json({ error: 'siteName required' });
+
+  // Create a temporary directory
+  const tempDir = path.join('/tmp', `site-${Date.now()}`);
+  fs.mkdirSync(tempDir, { recursive: true });
+
+  // Generate index.html (full deployable site)
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${siteName}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    const API_KEY = '${req.business.api_key}';
+    const API_BASE = 'https://ba-kangombe.vercel.app/api';
+  </script>
+</head>
+<body class="bg-gray-900 text-white">
+  <nav class="p-4 bg-gray-800">${siteName}</nav>
+  <main class="p-8">
+    <h1 class="text-3xl">${description || 'Welcome to ' + siteName}</h1>
+    <div id="products" class="grid grid-cols-3 gap-4 mt-8">Loading products...</div>
+  </main>
+  <script>
+    async function loadProducts() {
+      const res = await fetch(API_BASE + '/ecommerce/products', {
+        headers: { 'X-API-Key': API_KEY }
+      });
+      const data = await res.json();
+      const productsDiv = document.getElementById('products');
+      productsDiv.innerHTML = data.products.map(p => \`
+        <div class="bg-gray-800 p-4 rounded">
+          <h3>\${p.name}</h3>
+          <p>$\${p.price}</p>
+          <button onclick="buy(\${p.id})" class="bg-blue-600 px-4 py-2 rounded">Buy</button>
+        </div>
+      \`).join('');
+    }
+    async function buy(productId) {
+      const orderRes = await fetch(API_BASE + '/ecommerce/order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+        body: JSON.stringify({ productId, quantity: 1, customer: 'Visitor' })
+      });
+      const order = await orderRes.json();
+      alert('Order created! ID: ' + order.id);
+    }
+    loadProducts();
+  </script>
+</body>
+</html>`;
+
+  fs.writeFileSync(path.join(tempDir, 'index.html'), html);
+
+  // Create zip
+  const zipPath = path.join('/tmp', `site-${Date.now()}.zip`);
+  const output = fs.createWriteStream(zipPath);
+  const archive = archiver('zip', { zlib: { level: 9 } });
+  archive.pipe(output);
+  archive.directory(tempDir, false);
+  await archive.finalize();
+
+  output.on('close', () => {
+    res.download(zipPath, `${siteName}.zip`, () => {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+      fs.unlinkSync(zipPath);
+    });
+  });
 });
 
 // ---------- FEEDBACK ----------
@@ -1057,7 +1133,7 @@ app.get('/docs', (req, res) => {
     <pre><code>X-API-Key: your_business_api_key</code></pre>
     <p>To obtain a key, call <code>POST /api/business/register</code> or use the <a href="/new-features">interactive tester</a>. Each business owns its own data – no cross‑tenant access is possible.</p>
     <h3>Rate Limits</h3>
-    <tr>
+    <table>
       <thead><tr><th>Plan</th><th>Requests per minute</th><th>Monthly cap</th></tr></thead>
       <tbody>
         <tr><td>Free</td><td>100</td><td>Unlimited</td></tr>
@@ -1236,7 +1312,7 @@ app.get('/api/setup/create-tables', async (req, res) => {
   }
 });
 
-// ========== REMAINING MULTI‑TENANT FEATURES (requireModule, placed after tables are ready) ==========
+// ========== REMAINING MULTI‑TENANT FEATURES ==========
 // 1. Mobile Money
 app.post('/api/momo/transfer', requireBusiness, requireModule('momo'), async (req, res) => {
   const { amount, phone, provider } = req.body;
@@ -1567,7 +1643,7 @@ app.get('/debug-file', (req, res) => {
 
 // ========== ADD MODULES TO BUSINESS (for testing) ==========
 app.post('/api/business/add-modules', requireBusiness, async (req, res) => {
-  const { modules } = req.body; // array of module keys to add
+  const { modules } = req.body;
   if (!modules || !Array.isArray(modules)) {
     return res.status(400).json({ error: 'modules array required' });
   }
