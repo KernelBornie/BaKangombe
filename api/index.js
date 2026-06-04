@@ -726,6 +726,8 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
     a:hover { text-decoration: underline; }
     .product-card { transition: transform 0.2s, box-shadow 0.2s; }
     .product-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); }
+    .admin-btn { position: fixed; bottom: 20px; right: 20px; background: #1f2937; color: white; padding: 10px 15px; border-radius: 30px; cursor: pointer; z-index: 1000; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    .admin-btn:hover { background: #374151; }
   </style>
   ${extraHead}
 </head>
@@ -1048,14 +1050,12 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
     }
     function renderProductList() {
       const container = document.getElementById('productList');
-      if (!products.length) { container.innerHTML = '<tr><td colspan="4" class="text-center">No products. Add one below.</td></tr>'; return; }
+      if (!products.length) { container.innerHTML = '<tr><td colspan="3" class="text-center">No products. Add one below.</td></tr>'; return; }
       container.innerHTML = products.map(p => \`
         <tr class="border-b">
-          <td class="p-2">\${p.id}</td>
           <td class="p-2">\${p.name}</td>
           <td class="p-2">$\${p.price}</td>
           <td class="p-2">
-            <button onclick="editProduct(\${p.id})" class="bg-yellow-500 text-white px-2 py-1 rounded">Edit</button>
             <button onclick="deleteProduct(\${p.id})" class="bg-red-600 text-white px-2 py-1 rounded ml-2">Delete</button>
           </td>
         </tr>
@@ -1076,15 +1076,6 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
         document.getElementById('prodPrice').value = '';
         loadProducts();
       } else alert('Error');
-    }
-    async function editProduct(id) {
-      const product = products.find(p => p.id == id);
-      const newName = prompt('New name:', product.name);
-      const newPrice = prompt('New price:', product.price);
-      if (newName && newPrice) {
-        // For a full implementation, add a PUT /api/ecommerce/product/:id endpoint
-        alert('Edit not directly supported. Delete and re-add.');
-      }
     }
     async function deleteProduct(id) {
       if (!confirm('Delete this product?')) return;
@@ -1139,7 +1130,7 @@ app.post('/api/website/generate-full', requireBusiness, requireModule('website')
         <button onclick="addProduct()" class="bg-green-600 text-white px-4 py-2 rounded">Add Product</button>
       </div>
       <table class="w-full border">
-        <thead><tr><th>ID</th><th>Name</th><th>Price</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Name</th><th>Price</th><th>Actions</th></tr></thead>
         <tbody id="productList">Loading...</tbody>
       </table>
     </div>
