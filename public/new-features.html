@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BaKangombe – New Features (16 Modules)</title>
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: #f0f2f5;
@@ -29,14 +31,20 @@
       margin-bottom: 20px;
       flex-wrap: wrap;
     }
-    .logo { font-size: 1.8rem; font-weight: bold; color: #0066cc; }
+    .logo {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #0066cc;
+    }
     .nav a {
       margin-left: 20px;
       text-decoration: none;
       color: #334155;
       font-weight: 500;
     }
-    .nav a:hover { color: #0066cc; }
+    .nav a:hover {
+      color: #0066cc;
+    }
     .key-section {
       background: #f1f5f9;
       border-radius: 20px;
@@ -63,57 +71,79 @@
       cursor: pointer;
       font-weight: 500;
     }
-    button.secondary { background: #475569; }
+    button.secondary {
+      background: #475569;
+    }
     .module-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+      gap: 24px;
       margin-top: 20px;
     }
     .module-card {
       background: #ffffff;
       border: 1px solid #e2e8f0;
-      border-radius: 24px;
-      padding: 16px;
+      border-radius: 28px;
+      padding: 20px;
       transition: 0.2s;
     }
-    .module-card:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
+    .module-card:hover {
+      box-shadow: 0 12px 24px rgba(0,0,0,0.08);
+      transform: translateY(-2px);
+    }
     .module-title {
-      font-size: 1.2rem;
+      font-size: 1.3rem;
       font-weight: 600;
-      margin-bottom: 12px;
+      margin-bottom: 16px;
       border-left: 4px solid #0066cc;
-      padding-left: 10px;
+      padding-left: 12px;
     }
-    .endpoint-group {
-      margin-bottom: 15px;
-      border-bottom: 1px solid #eef2f6;
-      padding-bottom: 10px;
+    .action-group {
+      background: #fafcff;
+      border-radius: 20px;
+      padding: 12px;
+      margin-bottom: 16px;
+      border: 1px solid #eef2f6;
     }
-    .endpoint-buttons {
+    .action-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .action-btn {
+      background: white;
+      color: #0066cc;
+      border: 1px solid #0066cc;
+      padding: 6px 14px;
+      border-radius: 40px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: 0.2s;
+    }
+    .action-btn:hover {
+      background: #0066cc;
+      color: white;
+    }
+    .action-inputs {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin-bottom: 8px;
+      margin-top: 8px;
     }
-    .endpoint-inputs {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 5px;
-    }
-    .endpoint-inputs input {
+    .action-inputs input {
       flex: 1;
       min-width: 100px;
-      padding: 6px 10px;
-      border-radius: 30px;
+      padding: 8px 12px;
+      border-radius: 40px;
       border: 1px solid #cbd5e1;
+      font-size: 0.85rem;
     }
     .result-area {
       background: #f8fafc;
       border-radius: 16px;
-      padding: 8px;
-      font-family: monospace;
+      padding: 8px 12px;
+      font-family: 'SF Mono', monospace;
       font-size: 0.75rem;
       white-space: pre-wrap;
       word-break: break-word;
@@ -124,11 +154,19 @@
     }
     .admin-section {
       background: #fef9e3;
-      padding: 12px;
-      border-radius: 20px;
-      margin-top: 20px;
+      padding: 16px;
+      border-radius: 24px;
+      margin-top: 24px;
     }
-    .flex-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    .flex-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+    hr {
+      margin: 20px 0;
+    }
   </style>
 </head>
 <body>
@@ -139,8 +177,8 @@
       <a href="/">Home</a>
       <a href="/#pricing">Pricing</a>
       <a href="/#docs">Docs</a>
-      <a href="#">Admin</a>
-      <a href="/new-features.html" style="color:#0066cc; font-weight:bold;">New Features</a>
+      <a href="/admin">Admin</a>
+      <a href="/new-features" style="color:#0066cc; font-weight:bold;">New Features</a>
       <a href="#">GitHub</a>
     </div>
   </div>
@@ -160,7 +198,7 @@
       <button id="checkEnabledModulesBtn">🔍 Check Enabled Modules</button>
       <button id="enableMissingModulesBtn">🔧 Enable All Missing Modules</button>
     </div>
-    <p style="font-size:0.8rem;">Use after saving your API key. All endpoints require a valid API key. Save your key above, then test any module.</p>
+    <p style="font-size:0.8rem; margin-top: 10px;">Use after saving your API key. All endpoints require a valid API key. Save your key above, then test any module.</p>
   </div>
 
   <div id="modulesContainer" class="module-grid"></div>
@@ -187,89 +225,137 @@
     return await res.json();
   }
 
-  // Module definitions with endpoints and fields
+  // Define modules exactly as in the second screenshot
   const modules = [
-    { id: "mobile_money", title: "📱 1. Mobile Money", endpoints: [
+    {
+      title: "📱 1. Mobile Money",
+      actions: [
         { label: "Send Money", endpoint: "/api/mobile-money/send", fields: ["amount","phone","provider"] },
         { label: "Request Money", endpoint: "/api/mobile-money/send", fields: ["amount","phone","provider"] },
         { label: "List Transactions", endpoint: "/api/mobile-money/list", fields: [] }
-      ] },
-    { id: "invoice", title: "🧾 2. Invoice & ZRA Billing", endpoints: [
+      ]
+    },
+    {
+      title: "🧾 2. Invoice & ZRA Billing",
+      actions: [
         { label: "Create Invoice", endpoint: "/api/invoice/create", fields: ["customer","amount","items"] },
         { label: "Pay Invoice", endpoint: "/api/invoice/pay", fields: ["invoice_id"] }
-      ] },
-    { id: "whatsapp", title: "💬 3. WhatsApp Mini E‑commerce", endpoints: [
+      ]
+    },
+    {
+      title: "💬 3. WhatsApp Mini E‑commerce",
+      actions: [
         { label: "Add Product", endpoint: "/api/whatsapp/product", fields: ["name","price","description"] },
         { label: "List Products", endpoint: "/api/whatsapp/products", fields: [] },
         { label: "Create Order", endpoint: "/api/whatsapp/order", fields: ["product_id","customer_phone"] }
-      ] },
-    { id: "logistics", title: "🚚 4. Logistics & Delivery", endpoints: [
+      ]
+    },
+    {
+      title: "🚚 4. Logistics & Delivery",
+      actions: [
         { label: "Optimize Route", endpoint: "/api/logistics/route", fields: ["stops"] },
         { label: "Assign Driver", endpoint: "/api/logistics/assign", fields: ["route_id","driver_id"] },
         { label: "Track Driver", endpoint: "/api/logistics/track", fields: ["driver_id"] }
-      ] },
-    { id: "agritech", title: "🌾 5. Agritech Marketplace", endpoints: [
+      ]
+    },
+    {
+      title: "🌾 5. Agritech Marketplace",
+      actions: [
         { label: "Add Farmer", endpoint: "/api/agritech/farmer", fields: ["farmer","crop","price","location"] },
         { label: "List Farmers", endpoint: "/api/agritech/farmers", fields: [] },
         { label: "Match Buyer", endpoint: "/api/agritech/match", fields: ["crop","max_price"] }
-      ] },
-    { id: "ai_support", title: "🤖 6. AI Customer Support", endpoints: [
+      ]
+    },
+    {
+      title: "🤖 6. AI Customer Support",
+      actions: [
         { label: "Ask AI", endpoint: "/api/ai/ask", fields: ["question"] },
         { label: "Train AI", endpoint: "/api/ai/train", fields: ["question","answer"] }
-      ] },
-    { id: "lending", title: "💰 7. Micro-Lending", endpoints: [
+      ]
+    },
+    {
+      title: "💰 7. Micro-Lending",
+      actions: [
         { label: "Get Credit Score", endpoint: "/api/lending/score", fields: ["income","debt"] },
         { label: "Check Eligibility", endpoint: "/api/lending/check", fields: ["score","requested"] }
-      ] },
-    { id: "sme", title: "📊 8. SME Dashboard", endpoints: [
+      ]
+    },
+    {
+      title: "📊 8. SME Dashboard",
+      actions: [
         { label: "Record Sale", endpoint: "/api/sme/sale", fields: ["amount","customer_id"] },
         { label: "Record Expense", endpoint: "/api/sme/expense", fields: ["amount","category"] },
         { label: "Get Profit", endpoint: "/api/sme/profit", fields: [] }
-      ] },
-    { id: "inventory", title: "🏪 9. Inventory & POS", endpoints: [
+      ]
+    },
+    {
+      title: "🏪 9. Inventory & POS",
+      actions: [
         { label: "Add Product", endpoint: "/api/inventory/product", fields: ["name","price","stock"] },
         { label: "List Products", endpoint: "/api/inventory/products", fields: [] },
         { label: "Update Stock", endpoint: "/api/inventory/stock", fields: ["product_id","quantity"] },
         { label: "Record POS Sale", endpoint: "/api/inventory/sale", fields: ["product_id","quantity","method"] }
-      ] },
-    { id: "ads", title: "📢 10. Social Ads", endpoints: [
+      ]
+    },
+    {
+      title: "📢 10. Social Ads",
+      actions: [
         { label: "Create Ad", endpoint: "/api/ads/create", fields: ["name","budget","target"] },
         { label: "List Ads", endpoint: "/api/ads/list", fields: [] },
         { label: "Update Budget", endpoint: "/api/ads/budget", fields: ["ad_id","new_budget"] },
         { label: "Get Leads", endpoint: "/api/ads/leads", fields: ["ad_id"] }
-      ] },
-    { id: "freelance", title: "💼 11. Freelance Marketplace", endpoints: [
+      ]
+    },
+    {
+      title: "💼 11. Freelance Marketplace",
+      actions: [
         { label: "Post Service", endpoint: "/api/freelance/service", fields: ["title","price","seller"] },
         { label: "List Services", endpoint: "/api/freelance/services", fields: [] },
         { label: "Create Order", endpoint: "/api/freelance/order", fields: ["service_id","buyer"] },
         { label: "Release Escrow", endpoint: "/api/freelance/release", fields: ["order_id"] }
-      ] },
-    { id: "clinic", title: "🏥 12. Clinic Management", endpoints: [
+      ]
+    },
+    {
+      title: "🏥 12. Clinic Management",
+      actions: [
         { label: "Add Patient", endpoint: "/api/clinic/patient", fields: ["name","phone","address"] },
         { label: "List Patients", endpoint: "/api/clinic/patients", fields: [] },
         { label: "Schedule Appointment", endpoint: "/api/clinic/appointment", fields: ["patient_id","date","reason"] },
         { label: "Get Bill", endpoint: "/api/clinic/bill", fields: ["patient_id"] }
-      ] },
-    { id: "kyc", title: "🪪 13. Identity Verification (KYC)", endpoints: [
+      ]
+    },
+    {
+      title: "🪪 13. Identity Verification (KYC)",
+      actions: [
         { label: "Verify ID", endpoint: "/api/kyc/verify-id", fields: ["id_number","name"] },
         { label: "Verify Phone", endpoint: "/api/kyc/verify-phone", fields: ["phone"] }
-      ] },
-    { id: "ecommerce", title: "🛒 14. E‑commerce BaaS", endpoints: [
+      ]
+    },
+    {
+      title: "🛒 14. E‑commerce BaaS",
+      actions: [
         { label: "Add Product", endpoint: "/api/ecommerce/product", fields: ["name","price"] },
         { label: "List Products", endpoint: "/api/ecommerce/products", fields: [] },
         { label: "Create Order", endpoint: "/api/ecommerce/order", fields: ["product_id","quantity","customer"] },
         { label: "Process Payment", endpoint: "/api/ecommerce/pay", fields: ["order_id","method"] }
-      ] },
-    { id: "tutoring", title: "📚 15. AI Tutoring", endpoints: [
+      ]
+    },
+    {
+      title: "📚 15. AI Tutoring",
+      actions: [
         { label: "Ask Tutor", endpoint: "/api/tutoring/ask", fields: ["question","grade"] },
         { label: "Get Curriculum", endpoint: "/api/tutoring/curriculum", fields: ["grade"] }
-      ] },
-    { id: "business", title: "📍 16. Local Business Discovery", endpoints: [
+      ]
+    },
+    {
+      title: "📍 16. Local Business Discovery",
+      actions: [
         { label: "Add Business", endpoint: "/api/business/add", fields: ["name","category","location","whatsapp"] },
         { label: "Search Businesses", endpoint: "/api/business/search", fields: ["category"] },
         { label: "Add Review", endpoint: "/api/business/review", fields: ["business_id","rating","comment"] },
         { label: "Get WhatsApp Link", endpoint: "/api/business/whatsapp", fields: ["business_id"] }
-      ] }
+      ]
+    }
   ];
 
   const container = document.getElementById('modulesContainer');
@@ -277,43 +363,42 @@
     const card = document.createElement('div');
     card.className = 'module-card';
     card.innerHTML = `<div class="module-title">${mod.title}</div>`;
-    mod.endpoints.forEach(ep => {
-      const groupDiv = document.createElement('div');
-      groupDiv.className = 'endpoint-group';
-      groupDiv.innerHTML = `
-        <div class="endpoint-buttons">
-          <button class="call-endpoint" data-endpoint="${ep.endpoint}" data-fields='${JSON.stringify(ep.fields)}'>${ep.label}</button>
+    mod.actions.forEach((action, idx) => {
+      const actionDiv = document.createElement('div');
+      actionDiv.className = 'action-group';
+      actionDiv.innerHTML = `
+        <div class="action-buttons">
+          <button class="action-btn" data-endpoint="${action.endpoint}" data-fields='${JSON.stringify(action.fields)}'>${action.label}</button>
         </div>
-        <div class="endpoint-inputs" id="inputs-${mod.id}-${ep.label.replace(/ /g,'')}">
-          ${ep.fields.map(f => `<input type="text" placeholder="${f}" data-field="${f}">`).join('')}
+        <div class="action-inputs" id="inputs-${mod.title.replace(/ /g,'')}-${idx}">
+          ${action.fields.map(f => `<input type="text" placeholder="${f}" data-field="${f}">`).join('')}
         </div>
-        <div id="result-${mod.id}-${ep.label.replace(/ /g,'')}" class="result-area">Click button to see result</div>
+        <div id="result-${mod.title.replace(/ /g,'')}-${idx}" class="result-area">Click button to see result</div>
       `;
-      card.appendChild(groupDiv);
+      card.appendChild(actionDiv);
     });
     container.appendChild(card);
   });
 
-  // Attach event listeners to all "call-endpoint" buttons
+  // Global event listener for action buttons
   document.body.addEventListener('click', async (e) => {
-    if (!e.target.classList.contains('call-endpoint')) return;
+    if (!e.target.classList.contains('action-btn')) return;
     const btn = e.target;
     const endpoint = btn.dataset.endpoint;
     const fields = JSON.parse(btn.dataset.fields);
-    // Find the parent .endpoint-group to get its inputs
-    const group = btn.closest('.endpoint-group');
-    const inputs = group.querySelectorAll('.endpoint-inputs input');
+    // Find the parent .action-group
+    const group = btn.closest('.action-group');
+    const inputs = group.querySelectorAll('.action-inputs input');
     const body = {};
     inputs.forEach(input => {
       const fieldName = input.dataset.field;
       let val = input.value.trim();
-      if (val) {
-        if (['amount','price','stock','budget','rating','max_price','requested','income','debt'].includes(fieldName)) val = parseFloat(val);
-        if (['quantity','product_id','service_id','order_id','ad_id','driver_id','route_id','patient_id','business_id','invoice_id'].includes(fieldName)) val = parseInt(val);
-        body[fieldName] = val;
-      }
+      if (val === '') return;
+      // Convert types
+      if (['amount','price','stock','budget','rating','max_price','requested','income','debt'].includes(fieldName)) val = parseFloat(val);
+      if (['quantity','product_id','service_id','order_id','ad_id','driver_id','route_id','patient_id','business_id','invoice_id'].includes(fieldName)) val = parseInt(val);
+      body[fieldName] = val;
     });
-    // Find result div inside same group
     const resultDiv = group.querySelector('.result-area');
     resultDiv.innerHTML = '⏳ Calling API...';
     try {
@@ -324,7 +409,7 @@
     }
   });
 
-  // Admin buttons (simple demos)
+  // Admin buttons (demo actions)
   document.getElementById('registerBusinessBtn').onclick = async () => {
     try {
       const result = await callApi('/api/gov/company-registration', { business_name: "Demo Business", tax_id: "123456" });
