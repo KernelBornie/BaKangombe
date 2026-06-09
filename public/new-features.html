@@ -63,16 +63,10 @@
       cursor: pointer;
       font-weight: 500;
     }
-    button.secondary {
-      background: #475569;
-    }
-    button.small {
-      padding: 4px 12px;
-      font-size: 0.8rem;
-    }
+    button.secondary { background: #475569; }
     .module-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
       gap: 20px;
       margin-top: 20px;
     }
@@ -81,10 +75,9 @@
       border: 1px solid #e2e8f0;
       border-radius: 24px;
       padding: 16px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
       transition: 0.2s;
     }
-    .module-card:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.08); transform: translateY(-2px); }
+    .module-card:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
     .module-title {
       font-size: 1.2rem;
       font-weight: 600;
@@ -92,7 +85,30 @@
       border-left: 4px solid #0066cc;
       padding-left: 10px;
     }
-    .module-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+    .endpoint-group {
+      margin-bottom: 15px;
+      border-bottom: 1px solid #eef2f6;
+      padding-bottom: 10px;
+    }
+    .endpoint-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .endpoint-inputs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 5px;
+    }
+    .endpoint-inputs input {
+      flex: 1;
+      min-width: 100px;
+      padding: 6px 10px;
+      border-radius: 30px;
+      border: 1px solid #cbd5e1;
+    }
     .result-area {
       background: #f8fafc;
       border-radius: 16px;
@@ -104,15 +120,15 @@
       max-height: 150px;
       overflow-y: auto;
       border: 1px solid #e2e8f0;
-      margin-top: 10px;
+      margin-top: 8px;
     }
-    .flex-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 12px; }
     .admin-section {
       background: #fef9e3;
       padding: 12px;
       border-radius: 20px;
       margin-top: 20px;
     }
+    .flex-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
   </style>
 </head>
 <body>
@@ -167,15 +183,11 @@
       headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
       body: JSON.stringify(body)
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status} - ${await res.text()}`);
     return await res.json();
   }
 
-  function setResult(moduleId, data) {
-    const el = document.getElementById(`result_${moduleId}`);
-    if (el) el.innerHTML = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
-  }
-
+  // Module definitions with endpoints and fields
   const modules = [
     { id: "mobile_money", title: "📱 1. Mobile Money", endpoints: [
         { label: "Send Money", endpoint: "/api/mobile-money/send", fields: ["amount","phone","provider"] },
@@ -264,55 +276,64 @@
   modules.forEach(mod => {
     const card = document.createElement('div');
     card.className = 'module-card';
-    card.innerHTML = `
-      <div class="module-title">${mod.title}</div>
-      <div class="module-buttons">
-        ${mod.endpoints.map((ep, idx) => `<button class="small" data-module="${mod.id}" data-endpoint="${ep.endpoint}" data-fields='${JSON.stringify(ep.fields)}' data-label="${ep.label}">${ep.label}</button>`).join('')}
-      </div>
-      <div class="flex-row" style="margin-top:5px;">
-        ${mod.endpoints.map(ep => ep.fields.map(f => `<input type="text" placeholder="${f}" id="${mod.id}_${f}_${ep.label.replace(/ /g,'')}" style="flex:1; min-width:80px;">`).join('')).join('')}
-      </div>
-      <div id="result_${mod.id}" class="result-area">Click any button to see result</div>
-    `;
+    card.innerHTML = `<div class="module-title">${mod.title}</div>`;
+    mod.endpoints.forEach(ep => {
+      const groupDiv = document.createElement('div');
+      groupDiv.className = 'endpoint-group';
+      groupDiv.innerHTML = `
+        <div class="endpoint-buttons">
+          <button class="call-endpoint" data-endpoint="${ep.endpoint}" data-fields='${JSON.stringify(ep.fields)}'>${ep.label}</button>
+        </div>
+        <div class="endpoint-inputs" id="inputs-${mod.id}-${ep.label.replace(/ /g,'')}">
+          ${ep.fields.map(f => `<input type="text" placeholder="${f}" data-field="${f}">`).join('')}
+        </div>
+        <div id="result-${mod.id}-${ep.label.replace(/ /g,'')}" class="result-area">Click button to see result</div>
+      `;
+      card.appendChild(groupDiv);
+    });
     container.appendChild(card);
   });
 
+  // Attach event listeners to all "call-endpoint" buttons
   document.body.addEventListener('click', async (e) => {
-    if (!e.target.classList.contains('small')) return;
+    if (!e.target.classList.contains('call-endpoint')) return;
     const btn = e.target;
-    const moduleId = btn.dataset.module;
     const endpoint = btn.dataset.endpoint;
     const fields = JSON.parse(btn.dataset.fields);
-    const label = btn.dataset.label;
+    // Find the parent .endpoint-group to get its inputs
+    const group = btn.closest('.endpoint-group');
+    const inputs = group.querySelectorAll('.endpoint-inputs input');
     const body = {};
-    for (let f of fields) {
-      const inputId = `${moduleId}_${f}_${label.replace(/ /g,'')}`;
-      const inputEl = document.getElementById(inputId);
-      if (inputEl && inputEl.value) {
-        let val = inputEl.value;
-        if (['amount','price','stock','budget','rating','max_price','requested','income','debt'].includes(f)) val = parseFloat(val);
-        if (['quantity','product_id','service_id','order_id','ad_id','driver_id','route_id','patient_id','business_id'].includes(f)) val = parseInt(val);
-        body[f] = val;
+    inputs.forEach(input => {
+      const fieldName = input.dataset.field;
+      let val = input.value.trim();
+      if (val) {
+        if (['amount','price','stock','budget','rating','max_price','requested','income','debt'].includes(fieldName)) val = parseFloat(val);
+        if (['quantity','product_id','service_id','order_id','ad_id','driver_id','route_id','patient_id','business_id','invoice_id'].includes(fieldName)) val = parseInt(val);
+        body[fieldName] = val;
       }
-    }
+    });
+    // Find result div inside same group
+    const resultDiv = group.querySelector('.result-area');
+    resultDiv.innerHTML = '⏳ Calling API...';
     try {
       const result = await callApi(endpoint, body);
-      setResult(moduleId, result);
+      resultDiv.innerHTML = JSON.stringify(result, null, 2);
     } catch (err) {
-      setResult(moduleId, `Error: ${err.message}`);
+      resultDiv.innerHTML = `Error: ${err.message}`;
     }
   });
 
+  // Admin buttons (simple demos)
   document.getElementById('registerBusinessBtn').onclick = async () => {
     try {
       const result = await callApi('/api/gov/company-registration', { business_name: "Demo Business", tax_id: "123456" });
-      setResult('admin', result);
-      alert('Business registered (demo): ' + JSON.stringify(result));
+      alert('Business registered: ' + JSON.stringify(result));
     } catch(e) { alert(e); }
   };
-  document.getElementById('activateAllModulesBtn').onclick = () => alert('All modules are already active (demo)');
-  document.getElementById('activateSingleSystemBtn').onclick = () => alert('System activation placeholder – would call /api/system/create');
-  document.getElementById('checkEnabledModulesBtn').onclick = () => alert('All 16 modules are enabled (demo)');
+  document.getElementById('activateAllModulesBtn').onclick = () => alert('All modules are active (demo)');
+  document.getElementById('activateSingleSystemBtn').onclick = () => alert('System activation demo – would call /api/system/create');
+  document.getElementById('checkEnabledModulesBtn').onclick = () => alert('All 16 modules are enabled');
   document.getElementById('enableMissingModulesBtn').onclick = () => alert('No missing modules');
 </script>
 </body>
