@@ -3,400 +3,135 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="BaKangombe – Email Validation & Enrichment API. Validate emails in real time, detect disposables, enrich company data.">
-  <title>BaKangombe · Email Validation & Enrichment API</title>
+  <title>BaKangombe — Digital Infrastructure Platform</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: system-ui; background: #0a0c10; color: #eef2ff; line-height: 1.5; }
-    .bg-gradient { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at 20% 30%, rgba(79,70,229,0.08), transparent 70%); pointer-events: none; z-index: -1; }
-    .container { max-width: 1280px; margin: 0 auto; padding: 0 1.5rem; }
-    .navbar { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 0; flex-wrap: wrap; gap: 1rem; backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100; }
-    .logo { font-size: 1.6rem; font-weight: 800; background: linear-gradient(135deg, #d9a7c7, #fff0d4, #a0c4ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
-    .nav-links { display: flex; gap: 2rem; flex-wrap: wrap; }
-    .nav-links a { color: #cbd5e6; text-decoration: none; font-weight: 500; }
-    .nav-links a:hover { color: #a0c4ff; }
-    .hero { text-align: center; padding: 4rem 0 3rem; }
-    .badge { display: inline-block; background: rgba(79,70,229,0.2); padding: 0.3rem 1rem; border-radius: 2rem; font-size: 0.75rem; margin-bottom: 1.5rem; border: 1px solid rgba(79,70,229,0.4); }
-    h1 { font-size: 4rem; font-weight: 800; background: linear-gradient(135deg, #d9a7c7, #fff0d4, #a0c4ff); background-clip: text; -webkit-background-clip: text; color: transparent; margin-bottom: 1rem; }
-    .hero-sub { font-size: 1.25rem; color: #9ca3af; max-width: 700px; margin: 0 auto; }
-    .hero-cta { margin-top: 2rem; display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; }
-    .btn { display: inline-block; padding: 0.75rem 2rem; border-radius: 3rem; font-weight: 600; text-decoration: none; transition: all 0.2s; cursor: pointer; border: none; font-size: 1rem; }
-    .btn-primary { background: #4f46e5; color: white; box-shadow: 0 8px 20px rgba(79,70,229,0.4); }
-    .btn-primary:hover { background: #6366f1; transform: translateY(-2px); }
-    .btn-outline { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #eef2ff; }
-    .btn-outline:hover { background: rgba(255,255,255,0.05); border-color: #a0c4ff; }
-    .code-block { background: #0f1117; border-radius: 1rem; padding: 0.75rem 1.5rem; font-family: monospace; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 1rem; flex-wrap: wrap; justify-content: center; border: 1px solid rgba(255,255,255,0.08); margin: 1.5rem auto; }
-    .copy-btn { background: #1e293b; border: none; padding: 0.25rem 0.8rem; border-radius: 2rem; color: #a0c4ff; cursor: pointer; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; margin: 4rem 0; }
-    .card { background: rgba(255,255,255,0.02); border-radius: 1.5rem; padding: 1.8rem; border: 1px solid rgba(255,255,255,0.05); transition: 0.3s; }
-    .card:hover { border-color: rgba(79,70,229,0.5); transform: translateY(-6px); background: rgba(255,255,255,0.04); }
-    .api-section { background: rgba(79,70,229,0.15); border-radius: 1.5rem; padding: 1.5rem; margin: 2rem 0; border: 1px solid rgba(79,70,229,0.3); display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
-    .api-section input { flex: 2; background: #0f1117; border: 1px solid rgba(255,255,255,0.2); padding: 0.75rem 1.2rem; border-radius: 3rem; color: white; }
-    .tester-card { background: rgba(255,255,255,0.03); border-radius: 1.5rem; padding: 1.8rem; margin: 2rem 0; border: 1px solid rgba(255,255,255,0.08); }
-    .tester-header { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
-    .tester-header input, .tester-header button { background: #0f1117; border: 1px solid rgba(255,255,255,0.2); padding: 0.6rem 1rem; border-radius: 2rem; color: white; }
-    .response-area { background: #0a0c10; border-radius: 1rem; padding: 1rem; margin-top: 1rem; font-family: monospace; font-size: 0.8rem; max-height: 300px; overflow: auto; white-space: pre-wrap; }
-    .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #4f46e5; animation: spin 0.8s linear infinite; vertical-align: middle; margin-left: 8px; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .pricing-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 2rem; margin: 3rem 0; }
-    .pricing-card { background: rgba(255,255,255,0.03); border-radius: 1.5rem; padding: 2rem; text-align: center; flex: 1; min-width: 260px; border: 1px solid rgba(255,255,255,0.08); }
-    .pricing-card.premium { border-color: rgba(79,70,229,0.5); background: rgba(79,70,229,0.05); }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #fff;
+      color: #1d1c1e;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+    .nav-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; padding: 20px 0; border-bottom: 1px solid #e9e9ed;
+    }
+    .logo { font-size: 1.75rem; font-weight: 600; letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #1d1c1e 0%, #3a3a44 100%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .logo span { color: #0066cc; background: none; }
+    .nav-links { display: flex; gap: 2rem; }
+    .nav-links a { text-decoration: none; color: #1d1c1e; font-weight: 500; transition: color 0.2s; }
+    .nav-links a:hover { color: #0066cc; }
+    .btn {
+      display: inline-block; background-color: #0066cc; color: white;
+      padding: 0.65rem 1.4rem; border-radius: 980px; font-weight: 500;
+      text-decoration: none; font-size: 0.95rem; transition: background 0.2s;
+      border: none; cursor: pointer;
+    }
+    .btn-outline { background-color: transparent; border: 1px solid #0066cc; color: #0066cc; }
+    .btn-outline:hover { background-color: #0066cc10; }
+    .btn:hover { background-color: #004c99; }
+    .hero { text-align: center; padding: 80px 0 60px; }
+    .hero h1 { font-size: 3.5rem; font-weight: 700; letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #1d1c1e, #3a3a44);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      margin-bottom: 1rem;
+    }
+    .hero p { font-size: 1.35rem; color: #4b4a50; max-width: 750px; margin: 0 auto 2rem; }
+    .hero-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .badge {
+      background: #e8f0fe; color: #0066cc; padding: 0.2rem 0.8rem;
+      border-radius: 20px; font-size: 0.8rem; font-weight: 500; display: inline-block; margin-bottom: 1rem;
+    }
+    .card {
+      background: #ffffff; border-radius: 28px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.02);
+      border: 1px solid #f0f0f2; transition: all 0.2s ease;
+    }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 20px 30px -12px rgba(0, 0, 0, 0.08); }
+    .builder-demo { padding: 2rem; margin: 40px 0; }
+    .builder-demo h2 { font-size: 1.8rem; font-weight: 600; margin-bottom: 1rem; }
+    .selector-group { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+    .selector-btn {
+      background: #f5f5f7; border: 1px solid #e4e4e8; padding: 0.6rem 1.2rem;
+      border-radius: 40px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+    }
+    .selector-btn.active { background: #0066cc; color: white; border-color: #0066cc; }
+    .system-preview { background: #f9f9fb; border-radius: 20px; padding: 1.5rem; margin-top: 1rem; border: 1px solid #efeff1; }
+    .module-list { display: flex; flex-wrap: wrap; gap: 0.8rem; margin: 1rem 0; }
+    .module-tag { background: white; border-radius: 30px; padding: 0.3rem 1rem; border: 1px solid #d9d9df; font-size: 0.85rem; }
+    .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; margin: 60px 0; }
+    .feature-card { padding: 1.8rem; }
+    .feature-card h3 { font-size: 1.5rem; font-weight: 600; margin: 1rem 0 0.5rem; }
+    .feature-card p { color: #4b4a50; font-size: 0.95rem; }
+    .feature-icon { font-size: 2.5rem; }
+    .pricing-row { display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap; margin: 40px 0 60px; }
+    .pricing-card { flex: 1; min-width: 260px; padding: 2rem; text-align: center; }
     .price { font-size: 2.5rem; font-weight: 700; margin: 1rem 0; }
-    .cta-card { text-align: center; background: linear-gradient(135deg, rgba(79,70,229,0.15), rgba(79,70,229,0.05)); border: 1px solid rgba(79,70,229,0.3); border-radius: 2rem; padding: 2.5rem; margin: 3rem 0; }
-    .input-group { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; margin: 1.5rem 0; }
-    input, textarea { padding: 0.75rem 1.2rem; border-radius: 3rem; border: 1px solid rgba(255,255,255,0.2); background: #0f1117; color: white; width: 280px; }
-    .toast { position: fixed; bottom: 20px; right: 20px; background: #10b981; color: white; padding: 0.8rem 1.5rem; border-radius: 2rem; font-size: 0.9rem; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 1000; }
-    .footer { text-align: center; padding: 2rem 0; border-top: 1px solid rgba(255,255,255,0.05); color: #6c7a91; font-size: 0.85rem; }
-    @media (max-width: 768px) { h1 { font-size: 2.5rem; } .navbar { flex-direction: column; } .api-section { flex-direction: column; } }
+    .price small { font-size: 1rem; font-weight: normal; color: #6e6d73; }
+    .feature-list { list-style: none; margin: 1.5rem 0; text-align: left; }
+    .feature-list li { margin: 0.7rem 0; display: flex; align-items: center; gap: 8px; }
+    .footer { margin-top: 80px; background: #fafafc; border-top: 1px solid #ebebef; padding: 50px 0 30px; }
+    .footer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 2rem; margin-bottom: 2rem; }
+    .footer-col h4 { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 1rem; }
+    .footer-col a { display: block; color: #6e6d73; text-decoration: none; font-size: 0.85rem; margin-bottom: 0.6rem; }
+    .footer-col a:hover { color: #0066cc; }
+    .footer-bottom { text-align: center; font-size: 0.8rem; color: #8e8e93; border-top: 1px solid #e9e9ed; padding-top: 2rem; margin-top: 1rem; }
+    @media (max-width: 768px) { .hero h1 { font-size: 2.5rem; } .nav-bar { flex-direction: column; gap: 12px; } }
   </style>
 </head>
 <body>
-<div class="bg-gradient"></div>
-<div class="container">
-  <nav class="navbar">
-    <div class="logo">BaKangombe</div>
-    <div class="nav-links">
-      <a href="#features">Features</a>
-      <a href="#pricing">Pricing</a>
-      <a href="/docs">Docs</a>
-      <a href="/admin">Admin</a>
-      <a href="/new-features">New Features</a>
-      <a href="https://github.com/KernelBornie/BaKangombe" target="_blank">GitHub</a>
-    </div>
-  </nav>
-
-  <div class="hero">
-    <div class="badge">⚡ REAL‑TIME EMAIL VALIDATION & ENRICHMENT API</div>
-    <h1>BaKangombe</h1>
-    <p class="hero-sub">Validate emails in milliseconds, detect disposables, and enrich with company data.</p>
-    <div class="hero-cta">
-      <button class="btn btn-primary" id="subscribeBtn">Get API Key – $9/month</button>
-      <a href="#waitlist" class="btn btn-outline">Join Waitlist</a>
-    </div>
-    <div class="code-block">
-      <code>curl -X POST https://ba-kangombe.vercel.app/api/validate -H "Content-Type: application/json" -d '{"email":"user@example.com"}'</code>
-      <button class="copy-btn" onclick="copyToClipboard('curl -X POST https://ba-kangombe.vercel.app/api/validate -H \"Content-Type: application/json\" -d \'{\"email\":\"user@example.com\"}\'')">Copy</button>
-    </div>
-  </div>
-
-  <!-- Global Business API Key Section -->
-  <div class="api-section">
-    <input type="text" id="globalApiKeyInput" placeholder="Your Business API Key (optional)">
-    <button id="saveGlobalKeyBtn" class="btn btn-outline" style="background:#10b981;">💾 Save Key</button>
-    <button id="registerBusinessBtn" class="btn btn-outline">🏢 Register New Business</button>
-    <button id="enableWebsiteBtn" class="btn btn-outline" style="background:#8b5cf6;">🌐 Enable Website Module</button>
-    <span id="keyStatus" style="font-size:0.8rem;"></span>
-  </div>
-
-  <div class="grid" id="features">
-    <div class="card"><h3>✅ Syntax & MX Check</h3><p>Verifies email format and domain mail exchanger records.</p></div>
-    <div class="card"><h3>🚫 Disposable Detection</h3><p>Identifies temporary emails from Mailinator, 10minutemail, etc.</p></div>
-    <div class="card"><h3>🏢 Company Enrichment</h3><p>Get company name, logo, social profiles (premium).</p></div>
-    <div class="card"><h3>📊 Batch Validation</h3><p>Upload CSV and get results – ideal for cleaning large lists.</p></div>
-  </div>
-
-  <!-- VALIDATION TESTER (free) -->
-  <div class="tester-card">
-    <h3>🔧 Live API Tester – Email Validation</h3>
-    <div class="tester-header">
-      <input type="email" id="testEmail" placeholder="email@example.com" style="flex:1;">
-      <button class="btn btn-primary" id="testValidateBtn">Validate</button>
-    </div>
-    <div id="validateResponse" class="response-area">Click "Validate" to see the result.</div>
-  </div>
-
-  <!-- ENRICHMENT TESTER (with its own key input) -->
-  <div class="tester-card">
-    <h3>🏢 Live API Tester – Enrichment (requires business API key + active subscription)</h3>
-    <div class="tester-header">
-      <input type="email" id="enrichEmail" placeholder="email@example.com" style="flex:1;">
-      <input type="text" id="enrichApiKey" placeholder="Business API Key (for enrichment)" style="flex:1;">
-      <button class="btn btn-primary" id="testEnrichBtn">Enrich</button>
-    </div>
-    <div id="enrichResponse" class="response-area">Enter an email and your business API key (with active subscription).</div>
-  </div>
-
-  <!-- WEBSITE BUILDER with its own key input -->
-  <div class="cta-card" style="margin-top: 2rem;">
-    <h3>🏗️ Website Builder (Premium)</h3>
-    <p>Generate a simple landing page HTML. Requires business API key and 'website' module enabled.</p>
-    <div class="input-group" style="flex-direction: column; gap: 1rem;">
-      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center;">
-        <input type="text" id="siteTitle" placeholder="Site Title">
-        <input type="text" id="siteContent" placeholder="Content">
-        <select id="siteTemplate">
-          <option value="landing">Landing</option>
-          <option value="blog">Blog</option>
-        </select>
-      </div>
-      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center;">
-        <input type="text" id="websiteApiKey" placeholder="Business API Key (required)" style="width: 300px;">
-        <button id="generateWebsiteBtn" class="btn btn-primary">Generate HTML</button>
-      </div>
-      <pre id="websiteOutput" style="background:#0a0c10; padding:0.5rem; border-radius:0.5rem; text-align:left; white-space:pre-wrap; font-size:0.8rem;"></pre>
-    </div>
-  </div>
-
-  <div id="pricing">
-    <h2 style="text-align: center; margin-bottom: 1rem;">Simple, transparent pricing</h2>
-    <div class="pricing-grid">
-      <div class="pricing-card">
-        <h3>Free</h3>
-        <div class="price">$0</div>
-        <ul class="feature-list">
-          <li>✅ 100 validations / minute</li>
-          <li>✅ Syntax & MX checks</li>
-          <li>✅ Disposable detection</li>
-          <li>❌ Batch validation</li>
-          <li>❌ Company enrichment</li>
-        </ul>
-        <button class="btn btn-outline" id="freeStartBtn">Get Started →</button>
-      </div>
-      <div class="pricing-card premium">
-        <h3>Email Validation Pro</h3>
-        <div class="price">$9 <small>/ month</small></div>
-        <ul class="feature-list">
-          <li>✅ 10,000 validations / month</li>
-          <li>✅ Real‑time MX & syntax checks</li>
-          <li>✅ Disposable / temporary email detection</li>
-          <li>✅ Batch CSV validation</li>
-          <li>✅ Company enrichment (via Hunter)</li>
-          <li>✅ Priority support</li>
-        </ul>
-        <button class="btn btn-primary" id="subscribeBtn2">Subscribe Now</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Feedback and Waitlist -->
-  <div class="cta-card">
-    <h3>📝 Give Feedback (Free)</h3>
-    <form id="feedbackForm" style="display: flex; flex-direction: column; gap: 0.5rem; max-width: 400px; margin: 0 auto;">
-      <input type="text" id="feedbackName" placeholder="Your Name" required>
-      <input type="email" id="feedbackEmail" placeholder="Your Email" required>
-      <textarea id="feedbackMessage" rows="3" placeholder="Your message..." required style="background:#0f1117;border-radius:1rem;padding:0.5rem;"></textarea>
-      <button type="submit" class="btn btn-primary" style="background:#10b981;">Send Feedback</button>
-    </form>
-    <div id="feedbackResult" style="margin-top:0.5rem; font-size:0.8rem;"></div>
-  </div>
-
-  <div class="cta-card" id="waitlist">
-    <h3>📧 Join the Waitlist</h3>
-    <div class="input-group">
-      <input type="email" id="waitlist-email" placeholder="your@email.com">
-      <button id="waitlist-btn" class="btn btn-primary">Join Waitlist</button>
-    </div>
-    <p style="font-size: 0.8rem; opacity: 0.7;">Free tier: 100 validations/minute – always free, no token needed.</p>
-  </div>
-
-  <div class="footer">
-    <p>Built by <strong>Bornface Kangombe Kernel</strong> – developer, creator, founder.</p>
-    <p><a href="/docs">Documentation</a> · <a href="https://github.com/KernelBornie/BaKangombe">GitHub</a> · <a href="/new-features">Live Demo</a></p>
-  </div>
-</div>
-<div id="toast" class="toast">✓ Copied to clipboard</div>
-
+<header><div class="container"><div class="nav-bar"><div class="logo">Ba<span>Kangombe</span></div><div class="nav-links"><a href="#">Platform</a><a href="#builder">System Builder</a><a href="#gov">Government</a><a href="#pricing">Pricing</a><a href="#">Docs</a></div></div></div></header>
+<main><div class="container"><div class="hero"><div class="badge">🏛️ Digital infrastructure for institutions & governments</div><h1>Create full operational systems.<br>No code. Built‑in compliance.</h1><p>BaKangombe is a platform where governments, hospitals, companies, and cooperatives provision complete systems — with identity, payments, workflows, and government‑grade audit trails.</p><div class="hero-buttons"><a href="#builder" class="btn">Start a system →</a><a href="#pricing" class="btn btn-outline">Contact enterprise</a></div></div>
+<div id="builder" class="card builder-demo"><h2>🏗️ System Builder — assemble like LEGO</h2><p>Choose what you want to create, and we generate the full system with modules, roles, and compliance workflows.</p><div class="selector-group"><div data-type="hospital" class="selector-btn active">🏥 Hospital</div><div data-type="company" class="selector-btn">🏢 Company</div><div data-type="school" class="selector-btn">📚 School</div><div data-type="farm" class="selector-btn">🌾 Farm Cooperative</div></div><div id="systemPreview" class="system-preview"><h3>📋 Hospital Management System</h3><p>Generated modules:</p><div class="module-list" id="moduleList"></div><p><strong>Compliance workflow:</strong> Submit registration → Verify licenses → Auto‑assign facility ID → Integration with Ministry of Health (simulated)</p><button class="btn" id="generateSystemBtn">Generate this system →</button></div></div>
+<div class="feature-grid"><div class="card feature-card"><div class="feature-icon">🆔</div><h3>Identity & Compliance Engine</h3><p>KYC, business identity, TPIN‑like tax ID workflow, audit logs, and legal records. Foundation for government adoption.</p></div><div class="card feature-card"><div class="feature-icon">🧩</div><h3>No‑Code System Builder</h3><p>Modules (POS, HR, inventory, patients, students) + workflow + roles. Assemble any institution in minutes.</p></div><div class="card feature-card"><div class="feature-icon">🏛️</div><h3>Government Integration Layer</h3><p>Collect applications, validate data, submit to PACRA/ZRA/ZICTA (APIs), track status, store issued certificates.</p></div></div>
+<div id="gov" class="card builder-demo" style="margin-bottom:40px;"><h2>📜 Digital government services (G2C / G2B)</h2><p>BaKangombe acts as the front‑end workflow layer for official registrations — without overstepping legal issuance.</p><div style="display:flex; flex-wrap:wrap; gap:1.5rem; margin-top:1.5rem;"><div style="flex:1;"><h3>✅ What we do now</h3><ul style="margin-top:0.5rem; padding-left:1.2rem;"><li>Collect & validate applications</li><li>Document upload & verification queue</li><li>Submit to government APIs (ZRA, PACRA, etc.)</li><li>Track status and store issued certificates</li></ul></div><div style="flex:1;"><h3>🤝 Requires partnership</h3><ul style="margin-top:0.5rem; padding-left:1.2rem;"><li>Official issuance of TPIN / tax numbers</li><li>Legal company registration</li><li>Hospital licensing authority</li></ul><p style="margin-top:0.8rem; font-size:0.85rem; color:#0066cc;">→ We provide the digital infrastructure; government provides the legal mandate.</p></div></div></div>
+<div id="pricing"><h2 style="text-align:center; font-size:2rem; font-weight:600;">Pricing for infrastructure</h2><div class="pricing-row"><div class="card pricing-card"><h3>Starter</h3><div class="price">$49<span style="font-size:1rem;">/month</span></div><ul class="feature-list"><li>✅ System Builder (1 active system)</li><li>✅ Up to 5 modules</li><li>✅ Identity & compliance basics</li><li>✅ Email validation API (10k/mo)</li><li>❌ Government integrations</li></ul><a href="#" class="btn" style="width:100%;">Get started</a></div><div class="card pricing-card"><h3>Institution Pro</h3><div class="price">$199<span style="font-size:1rem;">/month</span></div><ul class="feature-list"><li>✅ Unlimited systems (hospitals, schools, etc.)</li><li>✅ Full module library</li><li>✅ Workflow & roles engine</li><li>✅ Government application submission</li><li>✅ Priority support & audit logs</li></ul><a href="#" class="btn" style="width:100%;">Start trial</a></div><div class="card pricing-card"><h3>Government / Enterprise</h3><div class="price">Custom</div><ul class="feature-list"><li>✅ On‑prem / private cloud</li><li>✅ Full compliance & legal integration</li><li>✅ API access to all modules</li><li>✅ SLAs + dedicated support</li></ul><a href="#" class="btn btn-outline" style="width:100%;">Contact us</a></div></div></div>
+<div class="card builder-demo"><h2>⚡ Plus: Real‑time email validation & enrichment</h2><p>Originally our core — now one of many modules. Validate emails, detect disposables, enrich company data.</p><div style="display:flex; gap:1rem; margin:1rem 0;"><input type="email" id="emailInput" placeholder="user@example.com" value="admin@google.com" style="flex:2; padding:0.7rem 1rem; border-radius:60px; border:1px solid #d9d9df;"><button id="validateBtn" class="btn">Validate</button></div><div id="result" style="background:#f9f9fb; border-radius:20px; padding:1rem; font-family:monospace;">Click "Validate" to test the API.</div></div></div></main>
+<footer class="footer"><div class="container"><div class="footer-grid"><div class="footer-col"><h4>BaKangombe</h4><a href="#">System Builder</a><a href="#">Identity & Compliance</a><a href="#">Government Services</a><a href="#">Modules Library</a></div><div class="footer-col"><h4>Resources</h4><a href="#">Documentation</a><a href="#">GitHub</a><a href="#">API Status</a><a href="#">Support</a></div><div class="footer-col"><h4>Legal</h4><a href="#">Privacy Policy</a><a href="#">Terms of Service</a><a href="#">Compliance</a></div><div class="footer-col"><h4>Connect</h4><a href="#">Twitter</a><a href="#">LinkedIn</a><a href="#">Contact Government Team</a></div></div><div class="footer-bottom"><p>Built by Bornface Kangombe Kernel — digital infrastructure for economic activity.</p><p>© 2026 BaKangombe. Not a government entity — we enable digital workflows and system creation.</p></div></div></footer>
 <script>
-  let globalApiKey = localStorage.getItem('bakangombe_api_key') || '';
-  const globalKeyInput = document.getElementById('globalApiKeyInput');
-  const keyStatusSpan = document.getElementById('keyStatus');
-  if (globalKeyInput) globalKeyInput.value = globalApiKey;
-  if (globalApiKey && keyStatusSpan) keyStatusSpan.innerText = '✓ Key saved';
-
-  document.getElementById('saveGlobalKeyBtn')?.addEventListener('click', () => {
-    const key = globalKeyInput.value.trim();
-    localStorage.setItem('bakangombe_api_key', key);
-    globalApiKey = key;
-    if (keyStatusSpan) keyStatusSpan.innerText = '✓ Key saved';
-    alert('Global API key saved (can be used in the fields below).');
-  });
-
-  async function apiCallWithKey(endpoint, method, body, apiKey) {
-    if (!apiKey) throw new Error('API key is required');
-    const opts = { method, headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey } };
-    if (body) opts.body = JSON.stringify(body);
-    const res = await fetch(endpoint, opts);
-    if (!res.ok) {
-      let errMsg = `HTTP ${res.status}`;
-      try { const err = await res.json(); errMsg = err.error || errMsg; } catch(e) {}
-      throw new Error(errMsg);
-    }
-    return await res.json();
+  const systemData = {
+    hospital: { name:"Hospital Management System", modules:["Patients registry","Appointments","Billing & Insurance","Pharmacy inventory","Staff roles","Lab results","Compliance: Health board license tracking"], workflow:"Submit facility registration → Verify MoH credentials → Auto‑assign hospital ID → Integrate with e‑health records (demo)" },
+    company: { name:"Company & Enterprise System", modules:["Company registry (simulated PACRA)","Tax/TPIN application","HR & payroll","Accounting","Inventory","CRM","Compliance: Annual returns tracking"], workflow:"Apply for business registration → Verify directors → Submit to PACRA API → Receive TPIN (simulated) → Ongoing tax filing module" },
+    school: { name:"School Management System", modules:["Student enrollment","Class scheduling","Exam records","Fee collection","Teacher portal","Parent communication","Compliance: Ministry of Education reporting"], workflow:"School registration → Document upload (certificate of incorporation) → Verification queue → Generate school code" },
+    farm: { name:"Farm Cooperative System", modules:["Member registry","Crop planning","Inventory (seeds/fertilizer)","Sales & distribution","Mobile money payouts","Compliance: Cooperative society registration"], workflow:"Register cooperative → Submit bylaws → Verification → Access to agricultural extension APIs" }
+  };
+  let currentType = "hospital";
+  function updatePreview(type) {
+    const data = systemData[type];
+    const preview = document.getElementById("systemPreview");
+    const modulesHtml = data.modules.map(m => `<span class="module-tag">${m}</span>`).join('');
+    preview.innerHTML = `<h3>📋 ${data.name}</h3><p>Generated modules:</p><div class="module-list">${modulesHtml}</div><p><strong>Compliance workflow:</strong> ${data.workflow}</p><button class="btn" id="generateSystemBtn">Generate this system →</button>`;
+    document.getElementById("generateSystemBtn")?.addEventListener("click", () => alert(`[Demo] Your ${data.name} would be provisioned with ${data.modules.length} modules, roles, and compliance workflows. In production, you'd receive a full dashboard.`));
   }
-
-  async function registerBusiness() {
-    const name = prompt("Business name:"); if (!name) return;
-    const email = prompt("Business email:"); if (!email) return;
-    try {
-      const res = await fetch('/api/business/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, modules: [] })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        alert(`Business registered! Your API key: ${data.apiKey}\nSave it now.`);
-        if (globalKeyInput) globalKeyInput.value = data.apiKey;
-        localStorage.setItem('bakangombe_api_key', data.apiKey);
-        globalApiKey = data.apiKey;
-        if (keyStatusSpan) keyStatusSpan.innerText = '✓ Key saved';
-        document.getElementById('enrichApiKey').value = data.apiKey;
-        document.getElementById('websiteApiKey').value = data.apiKey;
-      } else alert('Error: ' + data.error);
-    } catch (err) { alert('Registration failed: ' + err.message); }
-  }
-  document.getElementById('registerBusinessBtn')?.addEventListener('click', registerBusiness);
-
-  // Enable website module directly
-  document.getElementById('enableWebsiteBtn')?.addEventListener('click', async () => {
-    const key = document.getElementById('enrichApiKey')?.value || globalApiKey;
-    if (!key) { alert('Save your business API key first'); return; }
-    try {
-      const res = await apiCallWithKey('/api/business/enable-module', 'POST', { moduleKey: 'website' }, key);
-      alert('Website module enabled! You can now use the website builder.');
-      location.reload();
-    } catch (err) {
-      alert('Error: ' + err.message);
-    }
-  });
-
-  function copyToClipboard(text) {
-    navigator.clipboard.writeText(text);
-    const toast = document.getElementById('toast');
-    toast.style.opacity = '1';
-    setTimeout(() => { toast.style.opacity = '0'; }, 2000);
-  }
-
-  // Validation tester (no key)
-  const testValidateBtn = document.getElementById('testValidateBtn');
-  const testEmail = document.getElementById('testEmail');
-  const validateResponse = document.getElementById('validateResponse');
-  async function testValidation() {
-    const email = testEmail.value.trim();
-    if (!email) { validateResponse.innerHTML = 'Please enter an email address.'; return; }
-    validateResponse.innerHTML = '<div class="spinner"></div> Validating...';
-    try {
-      const opts = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) };
-      const res = await fetch('/api/validate', opts);
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      validateResponse.innerHTML = `<strong>Result:</strong>\n${JSON.stringify(data, null, 2)}`;
-    } catch (err) { validateResponse.innerHTML = `Error: ${err.message}`; }
-  }
-  testValidateBtn.addEventListener('click', testValidation);
-  testEmail.addEventListener('keypress', (e) => { if (e.key === 'Enter') testValidation(); });
-
-  // Enrichment tester
-  const enrichEmail = document.getElementById('enrichEmail');
-  const enrichApiKey = document.getElementById('enrichApiKey');
-  const enrichResponse = document.getElementById('enrichResponse');
-  const testEnrichBtn = document.getElementById('testEnrichBtn');
-  async function testEnrichment() {
-    const email = enrichEmail.value.trim();
-    const key = enrichApiKey.value.trim();
-    if (!email) { enrichResponse.innerHTML = 'Please enter an email address.'; return; }
-    if (!key) { enrichResponse.innerHTML = 'Please enter a business API key.'; return; }
-    enrichResponse.innerHTML = '<div class="spinner"></div> Enriching...';
-    try {
-      const data = await apiCallWithKey('/api/enrich', 'POST', { email }, key);
-      enrichResponse.innerHTML = `<strong>Enrichment result:</strong>\n${JSON.stringify(data, null, 2)}`;
-    } catch (err) { enrichResponse.innerHTML = `Error: ${err.message}`; }
-  }
-  testEnrichBtn.addEventListener('click', testEnrichment);
-  enrichEmail.addEventListener('keypress', (e) => { if (e.key === 'Enter') testEnrichment(); });
-  enrichApiKey.addEventListener('keypress', (e) => { if (e.key === 'Enter') testEnrichment(); });
-
-  // Website builder
-  const siteTitle = document.getElementById('siteTitle');
-  const siteContent = document.getElementById('siteContent');
-  const siteTemplate = document.getElementById('siteTemplate');
-  const websiteApiKey = document.getElementById('websiteApiKey');
-  const generateWebsiteBtn = document.getElementById('generateWebsiteBtn');
-  const websiteOutput = document.getElementById('websiteOutput');
-  generateWebsiteBtn.addEventListener('click', async () => {
-    const title = siteTitle.value;
-    const content = siteContent.value;
-    const template = siteTemplate.value;
-    const key = websiteApiKey.value.trim();
-    if (!key) { alert('Please enter a business API key'); return; }
-    websiteOutput.innerHTML = '<div class="spinner"></div> Generating...';
-    try {
-      const data = await apiCallWithKey('/api/website/generate', 'POST', { title, content, template }, key);
-      websiteOutput.innerHTML = data.html;
-    } catch (err) {
-      websiteOutput.innerHTML = 'Error: ' + err.message;
-    }
-  });
-
-  // Feedback form
-  document.getElementById('feedbackForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = document.getElementById('feedbackName').value;
-    const email = document.getElementById('feedbackEmail').value;
-    const message = document.getElementById('feedbackMessage').value;
-    const res = await fetch('/api/feedback', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, message })
+  document.querySelectorAll(".selector-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".selector-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentType = btn.getAttribute("data-type");
+      updatePreview(currentType);
     });
-    const data = await res.json();
-    document.getElementById('feedbackResult').innerHTML = data.success ? '✓ Thank you for your feedback!' : '❌ Error sending feedback.';
-    if (data.success) document.getElementById('feedbackForm').reset();
   });
-
-  // Lemon Squeezy checkout
-  async function startCheckout(email) {
+  updatePreview("hospital");
+  const API_URL = '/api/validate';
+  document.getElementById("validateBtn")?.addEventListener("click", async () => {
+    const email = document.getElementById("emailInput").value.trim();
+    const resultDiv = document.getElementById("result");
+    if(!email){ resultDiv.textContent = "Please enter an email."; return; }
+    resultDiv.innerHTML = "⏳ Validating...";
     try {
-      const response = await fetch('/api/create-ls-checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
-      if (!response.ok) throw new Error(`Server error (${response.status})`);
-      const data = await response.json();
-      if (data.url) window.location.href = data.url;
-      else alert('Error creating checkout: ' + (data.error || 'Unknown'));
-    } catch (err) { alert('Failed to connect to checkout service.'); }
-  }
-  function promptAndSubscribe() {
-    let email = prompt('Enter your email for the subscription receipt:');
-    if (email && email.includes('@')) startCheckout(email);
-    else alert('Please enter a valid email address.');
-  }
-  document.getElementById('subscribeBtn')?.addEventListener('click', promptAndSubscribe);
-  document.getElementById('subscribeBtn2')?.addEventListener('click', promptAndSubscribe);
-
-  // Waitlist
-  const emailInput = document.getElementById('waitlist-email');
-  const waitlistBtn = document.getElementById('waitlist-btn');
-  async function submitWaitlist(email) {
-    waitlistBtn.disabled = true;
-    waitlistBtn.textContent = 'Submitting...';
-    try {
-      const response = await fetch('/api/waitlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
-      const data = await response.json();
-      alert(`Thank you, ${email}! ${data.message || 'You are now on the waitlist.'}`);
-      emailInput.value = '';
-    } catch (err) { alert('Network error. Please try again.'); } finally {
-      waitlistBtn.disabled = false;
-      waitlistBtn.textContent = 'Join Waitlist';
+      const res = await fetch(API_URL, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({email}) });
+      const data = await res.json();
+      resultDiv.innerHTML = JSON.stringify(data, null, 2);
+    } catch(err) {
+      resultDiv.innerHTML = `Error: ${err.message}. Make sure the API is reachable.`;
     }
-  }
-  waitlistBtn?.addEventListener('click', () => {
-    const email = emailInput.value.trim();
-    if (!email || !email.includes('@')) { alert('Please enter a valid email address.'); return; }
-    submitWaitlist(email);
-  });
-
-  const freeStartBtn = document.getElementById('freeStartBtn');
-  freeStartBtn?.addEventListener('click', () => {
-    document.getElementById('features').scrollIntoView({ behavior: 'smooth' });
-    alert('🎉 Use the "Live API Tester" above to try the email validation API instantly!');
   });
 </script>
 </body>
 </html>
+
