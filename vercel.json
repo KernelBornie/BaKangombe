@@ -1,29 +1,11 @@
 {
   "functions": {
     "api/index.js": {
-      "maxDuration": 60
+      "includeFiles": "db.js"
     }
   },
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index.js"
-    },
-    {
-      "source": "/new-features",
-      "destination": "/api/index.js"
-    },
-    {
-      "source": "/docs",
-      "destination": "/api/index.js"
-    },
-    {
-      "source": "/admin",
-      "destination": "/api/index.js"
-    },
-    {
-      "source": "/success",
-      "destination": "/api/index.js"
-    }
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/index.js" },
+    { "src": "/(.*)", "dest": "/public/$1" }
   ]
 }
