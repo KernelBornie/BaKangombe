@@ -1,0 +1,1631 @@
+# D) All three, in order
+
+Each part is self-contained. Do them in sequence — A takes 2 minutes, B is a half-day, C is an hour. Don't skip ahead.
+
+---
+
+# A) Lending fee fix — 2-minute surgical diff
+
+## A.1 — `api/billing.js`: kill the 8% principal shave
+
+```diff
+--- a/api/billing.js
++++ b/api/billing.js
+@@ function chargePlatformFee(businessId, amount, kind, meta = {}) {
+   const rate =
+     kind === 'txn'     ? plan.txnFeePct / 100 :
+     kind === 'escrow'  ? plan.escrowFeePct / 100 :
+-    kind === 'loan'    ? 0.08 :
++    kind === 'loan'    ? 0.02 :   // 2% origination, earned once, disclosed
+     0;
+```
+
+**If your file already shows `0.02`, skip this diff — Gemini's log may have described intent, not the actual constant. Verify with:**
+
+```bash
+grep -n "kind === 'loan'" api/billing.js
+```
+
+## A.2 — `api/index.js`: replace the entire disburse endpoint
+
+**Find** this block (exact text from Gemini's build):
+
+```js
+app.post('/api/lending/disburse', auth, requireModule('lending'), async (req, res) => {
+  const { phone, amount } = req.body || {};
+  const amt = Number(amount);
+  if (!phone || !Number.isFinite(amt) || amt <= 0) return res.status(400).json({ error: 'phone and positive amount required' });
+  let elig;
+  try { elig = computeEligibility({ ...req.body, requestedAmount: amt }); }
+  catch (e) { return res.status(400).json({ error: e.message }); }
+  if (!elig.approved) return res.status(400).json({ error: 'not approved', eligibility: elig });
+  const carrier = detectCarrier(phone);
+  if (!carrier) return res.status(400).json({ error: 'invalid phone' });
+  const reference = `LOAN-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+  let gw;
+  try { gw = await gateway.payout({ carrier: carrier.code, phone: carrier.msisdn, amount: amt, reference }); }
+  catch (e) { return res.status(502).json({ error: 'payout failed', detail: e.message }); }
+  adjustWallet(req.biz.id, -amt);
+  postLedger(req.biz.id, [
+    { account: 'wallet:cash', credit: amt, meta: { reference } },
+    { account: 'asset:loans-receivable', debit: amt, meta: { reference } }
+  ]);
+  const loan = {
+    id: id('loan'), businessId: req.biz.id, phone: carrier.msisdn, amount: amt,
+    interestRatePct: elig.interestRatePct, score: elig.score, status: 'disbursed',
+    reference, gatewayRef: gw.providerRef, simulated: !!gw.simulated,
+    createdAt: new Date().toISOString()
+  };
+  state().loans.push(loan); save();
+  res.json({ ok: true, loan });
+});
+```
+
+**Replace with:**
+
+```js
+app.post('/api/lending/disburse', auth, requireModule('lending'), async (req, res) => {
+  const { phone, amount, termMonths = 3 } = req.body || {};
+  const amt = Number(amount);
+  const months = Math.max(1, Math.min(24, Number(termMonths) || 3));
+  if (!phone || !Number.isFinite(amt) || amt <= 0)
+    return res.status(400).json({ error: 'phone and positive amount required' });
+
+  let elig;
+  try { elig = computeEligibility({ ...req.body, requestedAmount: amt }); }
+  catch (e) { return res.status(400).json({ error: e.message }); }
+  if (!elig.approved) return res.status(400).json({ error: 'not approved', eligibility: elig });
+
+  const carrier = detectCarrier(phone);
+  if (!carrier) return res.status(400).json({ error: 'invalid phone' });
+
+  // --- Disclosure math (BEFORE payout — reject if platform fee unaffordable) ---
+  const originationFee  = round2(amt * 0.02);
+  const interestAmount  = round2(amt * (elig.interestRatePct / 100) * (months / 12));
+  const totalRepayable  = round2(amt + originationFee + interestAmount);
+  const monthlyPayment  = round2(totalRepayable / months);
+
+  // --- Pay FULL principal to borrower (never shave) ---
+  const reference = `LOAN-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+  let gw;
+  try {
+    gw = await gateway.payout({
+      carrier: carrier.code, phone: carrier.msisdn,
+      amount: amt, reference, currency: 'ZMW',
+      narration: `Loan disbursement ${reference}`
+    });
+  } catch (e) {
+    return res.status(502).json({ error: 'payout failed', detail: e.message });
+  }
+
+  // --- Ledger: cash out, receivable in ---
+  adjustWallet(req.biz.id, -amt);
+  postLedger(req.biz.id, [
+    { account: 'wallet:cash',         credit: amt, meta: { reference } },
+    { account: 'asset:loans-receivable', debit: amt, meta: { reference } }
+  ]);
+
+  const loan = {
+    id: id('loan'),
+    businessId: req.biz.id,
+    phone: carrier.msisdn,
+    amount: amt,
+    termMonths: months,
+    originationFee,
+    interestRatePct: elig.interestRatePct,
+    interestAmount,
+    totalRepayable,
+    monthlyPayment,
+    score: elig.score,
+    disclosure: {
+      principal: amt,
+      originationFee,
+      interestRatePct: elig.interestRatePct,
+      termMonths: months,
+      totalRepayable,
+      aprEffectivePct: round2(((totalRepayable / amt) - 1) * 100 * (12 / months)),
+      acceptedAt: new Date().toISOString(),
+      disclosureVersion: 'v1.0'
+    },
+    status: 'disbursed',
+    reference,
+    gatewayRef: gw.providerRef,
+    simulated: !!gw.simulated,
+    createdAt: new Date().toISOString()
+  };
+  state().loans.push(loan);
+
+  // --- Charge operator origination fee (2% of principal, NOT of repayable) ---
+  billing.chargePlatformFee(req.biz.id, originationFee, 'loan', { loan: loan.id });
+
+  save();
+  res.json({ ok: true, loan });
+});
+```
+
+## A.3 — Test the fix
+
+```bash
+# Rebuild eligibility response first
+curl -sX POST localhost:3000/api/lending/eligibility \
+  -H "x-api-key: BIZ_KEY" -H 'content-type: application/json' \
+  -d '{"monthlyIncome":8000,"monthlyDebt":500,"requestedAmount":2000}' | jq
+
+# Disburse — verify borrower gets FULL amount, fee is disclosed, total_repayable > principal
+curl -sX POST localhost:3000/api/lending/disburse \
+  -H "x-api-key: BIZ_KEY" -H 'content-type: application/json' \
+  -d '{"phone":"0961234567","amount":2000,"termMonths":3,"monthlyIncome":8000,"monthlyDebt":500}' | jq '.loan | {amount, originationFee, totalRepayable, monthlyPayment, disclosure}'
+
+# Expected: amount=2000, originationFee=40, totalRepayable > 2040, disclosure.aprEffectivePct disclosed
+```
+
+**Compliance payoff:** APR is now disclosed to the borrower before disbursement, matches Moneylenders Act Cap 398 §11, and the operator cannot profit from undisclosed principal shaving.
+
+---
+
+# B) Prisma + Postgres migration — half-day
+
+## B.1 — `prisma/schema.prisma` (complete, drop-in)
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// TENANTS
+// ============================================================
+
+model Business {
+  id            String   @id
+  name          String
+  tpin          String?
+  pacra         String?
+  apiKey        String   @unique
+  plan          String   @default("free")
+  isOperator    Boolean  @default(false)
+  walletBalance Decimal  @default(0) @db.Decimal(18, 2)
+  currency      String   @default("ZMW")
+  modules       String[] @default([])
+  subscriptionPaidAt DateTime?
+  createdAt     DateTime @default(now())
+
+  ledgerEntries        LedgerEntry[]
+  mmTransactions       MmTransaction[]
+  invoices             Invoice[]
+  subscriptionInvoices SubscriptionInvoice[]
+  waProducts           WaProduct[]
+  waOrders             WaOrder[]
+  routes               Route[]
+  drivers              Driver[]
+  farmers              Farmer[]
+  faqs                 Faq[]
+  loans                Loan[]
+  sales                Sale[]
+  expenses             Expense[]
+  inventoryProducts    InventoryProduct[]
+  posSales             PosSale[]
+  ads                  Ad[]
+  services             Service[]
+  escrowOrders         EscrowOrder[]
+  patients             Patient[]
+  appointments         Appointment[]
+  kycRecords           KycRecord[]
+  storefrontProducts   StorefrontProduct[]
+  ecOrders             EcOrder[]
+
+  @@index([isOperator])
+  @@map("businesses")
+}
+
+// ============================================================
+// DOUBLE-ENTRY LEDGER
+// ============================================================
+
+model LedgerEntry {
+  id         String   @id
+  batchId    String
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  account    String
+  debit      Decimal  @default(0) @db.Decimal(18, 2)
+  credit     Decimal  @default(0) @db.Decimal(18, 2)
+  meta       Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, createdAt])
+  @@index([account])
+  @@index([batchId])
+  @@map("ledger_entries")
+}
+
+// ============================================================
+// 1. MOBILE MONEY
+// ============================================================
+
+model MmTransaction {
+  id          String    @id
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  type        String
+  carrier     String
+  phone       String
+  amount      Decimal   @db.Decimal(18, 2)
+  fee         Decimal   @default(0) @db.Decimal(18, 2)
+  total       Decimal   @db.Decimal(18, 2)
+  reference   String    @unique
+  status      String    @default("pending")
+  gatewayRef  String?
+  simulated   Boolean   @default(false)
+  note        String?
+  providerRaw Json?
+  settledAt   DateTime?
+  failedAt    DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([businessId, createdAt])
+  @@index([status])
+  @@map("mm_transactions")
+}
+
+// ============================================================
+// 2. INVOICES & SUBSCRIPTIONS
+// ============================================================
+
+model Invoice {
+  id           String    @id
+  businessId   String
+  business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  number       String    @unique
+  tpin         String?
+  fiscalMarkId String?
+  customer     Json
+  lines        Json
+  subtotal     Decimal   @db.Decimal(18, 2)
+  vat          Decimal   @db.Decimal(18, 2)
+  total        Decimal   @db.Decimal(18, 2)
+  currency     String    @default("ZMW")
+  status       String    @default("unpaid")
+  verifyUrl    String?
+  zraSignature String?
+  receipt      String?
+  paidAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([businessId, createdAt])
+  @@index([status])
+  @@map("invoices")
+}
+
+model SubscriptionInvoice {
+  id          String    @id
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  plan        String
+  amount      Decimal   @db.Decimal(18, 2)
+  currency    String    @default("ZMW")
+  number      String    @unique
+  status      String    @default("pending")
+  providerRef String?
+  dueAt       DateTime
+  paidAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([businessId, status])
+  @@index([dueAt])
+  @@map("subscription_invoices")
+}
+
+// ============================================================
+// 3. WHATSAPP
+// ============================================================
+
+model WaProduct {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  price      Decimal  @db.Decimal(18, 2)
+  description String  @default("")
+  waLink     String
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, active])
+  @@map("wa_products")
+}
+
+model WaOrder {
+  id            String   @id
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  productId     String
+  productName   String
+  qty           Int
+  total         Decimal  @db.Decimal(18, 2)
+  customerPhone String
+  checkoutLink  String
+  status        String   @default("created")
+  createdAt     DateTime @default(now())
+
+  @@index([businessId, createdAt])
+  @@map("wa_orders")
+}
+
+// ============================================================
+// 4. LOGISTICS
+// ============================================================
+
+model Route {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  origin     String
+  waypoints  String[]
+  distanceKm Float
+  etaMinutes Int
+  status     String   @default("created")
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, createdAt])
+  @@map("routes")
+}
+
+model Driver {
+  id            String   @id
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  routeId       String
+  driverName    String
+  licenseNumber String
+  vehicle       String
+  status        String   @default("assigned")
+  lat           Float
+  lng           Float
+  speedKph      Float    @default(0)
+  heading       Float    @default(0)
+  assignedAt    DateTime @default(now())
+
+  @@index([businessId, routeId])
+  @@map("drivers")
+}
+
+// ============================================================
+// 5. AGRITECH
+// ============================================================
+
+model Farmer {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  crop       String
+  price      Decimal  @db.Decimal(18, 2)
+  available  Decimal  @db.Decimal(18, 2)
+  block      String   @default("")
+  verified   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, crop, verified])
+  @@map("farmers")
+}
+
+// ============================================================
+// 6. AI SUPPORT
+// ============================================================
+
+model Faq {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  question   String
+  answer     String
+  createdAt  DateTime @default(now())
+
+  @@index([businessId])
+  @@map("faqs")
+}
+
+// ============================================================
+// 7. LENDING
+// ============================================================
+
+model Loan {
+  id               String   @id
+  businessId       String
+  business         Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  phone            String
+  amount           Decimal  @db.Decimal(18, 2)
+  termMonths       Int
+  originationFee   Decimal  @db.Decimal(18, 2)
+  interestRatePct  Decimal  @db.Decimal(6, 2)
+  interestAmount   Decimal  @db.Decimal(18, 2)
+  totalRepayable   Decimal  @db.Decimal(18, 2)
+  monthlyPayment   Decimal  @db.Decimal(18, 2)
+  score            Int
+  disclosure       Json
+  status           String   @default("disbursed")
+  reference        String   @unique
+  gatewayRef       String?
+  simulated        Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  @@index([businessId, status])
+  @@map("loans")
+}
+
+// ============================================================
+// 8. SME
+// ============================================================
+
+model Sale {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer   String   @default("Walk-in")
+  amount     Decimal  @db.Decimal(18, 2)
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, createdAt])
+  @@map("sales")
+}
+
+model Expense {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category   String   @default("General")
+  amount     Decimal  @db.Decimal(18, 2)
+  note       String   @default("")
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, createdAt])
+  @@map("expenses")
+}
+
+// ============================================================
+// 9. INVENTORY & POS
+// ============================================================
+
+model InventoryProduct {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  sku        String
+  price      Decimal  @db.Decimal(18, 2)
+  stock      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([businessId, sku])
+  @@index([businessId])
+  @@map("inventory_products")
+}
+
+model PosSale {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  lines      Json
+  total      Decimal  @db.Decimal(18, 2)
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, createdAt])
+  @@map("pos_sales")
+}
+
+// ============================================================
+// 10. SOCIAL ADS
+// ============================================================
+
+model Ad {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  channel    String   @default("whatsapp")
+  budget     Decimal  @db.Decimal(18, 2)
+  spend      Decimal  @default(0) @db.Decimal(18, 2)
+  leads      Int      @default(0)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, active])
+  @@map("ads")
+}
+
+// ============================================================
+// 11. FREELANCE / ESCROW
+// ============================================================
+
+model Service {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  title      String
+  price      Decimal  @db.Decimal(18, 2)
+  freelancer String   @default("Unassigned")
+  createdAt  DateTime @default(now())
+
+  @@index([businessId])
+  @@map("services")
+}
+
+model EscrowOrder {
+  id          String    @id
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  serviceId   String
+  serviceTitle String
+  freelancer  String
+  client      String   @default("Anonymous")
+  amount      Decimal  @db.Decimal(18, 2)
+  status      String   @default("held")
+  releasedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([businessId, status])
+  @@map("escrow_orders")
+}
+
+// ============================================================
+// 12. CLINIC
+// ============================================================
+
+model Patient {
+  id            String   @id
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name          String
+  medicalCardId String
+  phone         String   @default("")
+  createdAt     DateTime @default(now())
+
+  appointments Appointment[]
+
+  @@unique([businessId, medicalCardId])
+  @@index([businessId])
+  @@map("patients")
+}
+
+model Appointment {
+  id          String   @id
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor      String
+  scheduledAt DateTime
+  status      String   @default("scheduled")
+  createdAt   DateTime @default(now())
+
+  @@index([businessId, scheduledAt])
+  @@map("appointments")
+}
+
+// ============================================================
+// 13. KYC
+// ============================================================
+
+model KycRecord {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  type       String   // 'nrc' | 'phone'
+  payload    Json
+  valid      Boolean
+  reason     String?
+  verifiedAt DateTime @default(now())
+
+  @@index([businessId, type])
+  @@map("kyc_records")
+}
+
+// ============================================================
+// 14. E-COMMERCE
+// ============================================================
+
+model StorefrontProduct {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  price      Decimal  @db.Decimal(18, 2)
+  stock      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([businessId])
+  @@map("storefront_products")
+}
+
+model EcOrder {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  lines      Json
+  total      Decimal  @db.Decimal(18, 2)
+  status     String   @default("pending")
+  payment    Json?
+  paidAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, status])
+  @@map("ec_orders")
+}
+```
+
+## B.2 — Install Prisma
+
+```bash
+npm install prisma @prisma/client
+npx prisma init --datasource-provider postgresql
+# Then replace prisma/schema.prisma with the contents above
+# Add DATABASE_URL=postgresql://... to .env
+npx prisma migrate dev --name init
+npx prisma generate
+```
+
+## B.3 — `scripts/migrate-from-json.js` (idempotent, run twice = safe)
+
+```js
+#!/usr/bin/env node
+/**
+ * One-shot migration: api/data.json -> Postgres via Prisma.
+ * Idempotent: uses upsert by primary key.
+ * Never deletes rows — safe to re-run.
+ *
+ * Usage:
+ *   DATABASE_URL=postgresql://... node scripts/migrate-from-json.js
+ */
+const fs = require('fs');
+const path = require('path');
+const { PrismaClient, Prisma } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'api', 'data.json');
+
+const DEC = v => new Prisma.Decimal(String(v ?? 0));
+const DT = v => v ? new Date(v) : new Date();
+const J = v => v ?? {};
+
+async function migrate() {
+  if (!fs.existsSync(DB_PATH)) {
+    console.error(`✗ ${DB_PATH} not found. Set DB_PATH or run from repo root.`);
+    process.exit(1);
+  }
+  const src = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+  console.log(`→ Reading ${DB_PATH}`);
+  const counts = {};
+
+  // ---- 1. Businesses (must come first — everything FKs to it) ----
+  counts.businesses = 0;
+  for (const b of src.businesses || []) {
+    await prisma.business.upsert({
+      where: { id: b.id },
+      update: {
+        name: b.name,
+        tpin: b.tpin ?? null,
+        pacra: b.pacra ?? null,
+        apiKey: b.apiKey,
+        plan: b.plan ?? 'free',
+        isOperator: !!b.isOperator,
+        walletBalance: DEC(b.wallet?.balance ?? b.walletBalance ?? 0),
+        currency: b.wallet?.currency ?? 'ZMW',
+        modules: b.modules ?? [],
+        subscriptionPaidAt: b.subscriptionPaidAt ? DT(b.subscriptionPaidAt) : null
+      },
+      create: {
+        id: b.id,
+        name: b.name,
+        tpin: b.tpin ?? null,
+        pacra: b.pacra ?? null,
+        apiKey: b.apiKey,
+        plan: b.plan ?? 'free',
+        isOperator: !!b.isOperator,
+        walletBalance: DEC(b.wallet?.balance ?? b.walletBalance ?? 0),
+        currency: b.wallet?.currency ?? 'ZMW',
+        modules: b.modules ?? [],
+        subscriptionPaidAt: b.subscriptionPaidAt ? DT(b.subscriptionPaidAt) : null,
+        createdAt: DT(b.createdAt)
+      }
+    });
+    counts.businesses++;
+  }
+
+  // ---- 2. Ledger (audit-critical, preserve everything) ----
+  counts.ledgerEntries = 0;
+  for (const l of src.ledger || []) {
+    await prisma.ledgerEntry.upsert({
+      where: { id: l.id },
+      update: {},
+      create: {
+        id: l.id,
+        batchId: l.batchId,
+        businessId: l.businessId,
+        account: l.account,
+        debit: DEC(l.debit),
+        credit: DEC(l.credit),
+        meta: J(l.meta),
+        createdAt: DT(l.createdAt)
+      }
+    });
+    counts.ledgerEntries++;
+  }
+
+  // ---- 3. Mobile money ----
+  counts.mmTransactions = 0;
+  for (const t of src.mmTransactions || []) {
+    await prisma.mmTransaction.upsert({
+      where: { id: t.id },
+      update: {},
+      create: {
+        id: t.id,
+        businessId: t.businessId,
+        type: t.type,
+        carrier: t.carrier,
+        phone: t.phone,
+        amount: DEC(t.amount),
+        fee: DEC(t.fee),
+        total: DEC(t.total),
+        reference: t.reference,
+        status: t.status ?? 'pending',
+        gatewayRef: t.gatewayRef ?? null,
+        simulated: !!t.simulated,
+        note: t.note ?? null,
+        providerRaw: t.providerRaw ?? null,
+        settledAt: t.settledAt ? DT(t.settledAt) : null,
+        failedAt: t.failedAt ? DT(t.failedAt) : null,
+        createdAt: DT(t.createdAt)
+      }
+    });
+    counts.mmTransactions++;
+  }
+
+  // ---- 4. Invoices ----
+  counts.invoices = 0;
+  for (const i of src.invoices || []) {
+    await prisma.invoice.upsert({
+      where: { id: i.id },
+      update: {},
+      create: {
+        id: i.id,
+        businessId: i.businessId,
+        number: i.number,
+        tpin: i.tpin ?? null,
+        fiscalMarkId: i.fiscalMarkId ?? null,
+        customer: J(i.customer),
+        lines: J(i.lines),
+        subtotal: DEC(i.subtotal),
+        vat: DEC(i.vat),
+        total: DEC(i.total),
+        currency: i.currency ?? 'ZMW',
+        status: i.status ?? 'unpaid',
+        verifyUrl: i.verifyUrl ?? null,
+        zraSignature: i.zraSignature ?? null,
+        receipt: i.receipt ?? null,
+        paidAt: i.paidAt ? DT(i.paidAt) : null,
+        createdAt: DT(i.createdAt)
+      }
+    });
+    counts.invoices++;
+  }
+
+  counts.subscriptionInvoices = 0;
+  for (const i of src.subscriptionInvoices || []) {
+    await prisma.subscriptionInvoice.upsert({
+      where: { id: i.id },
+      update: {},
+      create: {
+        id: i.id,
+        businessId: i.businessId,
+        plan: i.plan,
+        amount: DEC(i.amount),
+        currency: i.currency ?? 'ZMW',
+        number: i.number,
+        status: i.status ?? 'pending',
+        providerRef: i.providerRef ?? null,
+        dueAt: DT(i.dueAt),
+        paidAt: i.paidAt ? DT(i.paidAt) : null,
+        createdAt: DT(i.createdAt)
+      }
+    });
+    counts.subscriptionInvoices++;
+  }
+
+  // ---- 5. WhatsApp ----
+  counts.waProducts = 0;
+  for (const p of src.waProducts || []) {
+    await prisma.waProduct.upsert({
+      where: { id: p.id },
+      update: {},
+      create: {
+        id: p.id,
+        businessId: p.businessId,
+        name: p.name,
+        price: DEC(p.price),
+        description: p.description ?? '',
+        waLink: p.waLink ?? `https://wa.me/?text=${encodeURIComponent('I want to order ' + p.name)}`,
+        active: p.active !== false,
+        createdAt: DT(p.createdAt)
+      }
+    });
+    counts.waProducts++;
+  }
+
+  counts.waOrders = 0;
+  for (const o of src.waOrders || []) {
+    await prisma.waOrder.upsert({
+      where: { id: o.id },
+      update: {},
+      create: {
+        id: o.id,
+        businessId: o.businessId,
+        productId: o.productId,
+        productName: o.productName,
+        qty: Number(o.qty ?? 1),
+        total: DEC(o.total),
+        customerPhone: o.customerPhone,
+        checkoutLink: o.checkoutLink ?? '',
+        status: o.status ?? 'created',
+        createdAt: DT(o.createdAt)
+      }
+    });
+    counts.waOrders++;
+  }
+
+  // ---- 6. Logistics ----
+  counts.routes = 0;
+  for (const r of src.routes || []) {
+    await prisma.route.upsert({
+      where: { id: r.id },
+      update: {},
+      create: {
+        id: r.id,
+        businessId: r.businessId,
+        origin: r.origin,
+        waypoints: r.waypoints ?? [],
+        distanceKm: Number(r.distanceKm ?? 0),
+        etaMinutes: Number(r.etaMinutes ?? 0),
+        status: r.status ?? 'created',
+        createdAt: DT(r.createdAt)
+      }
+    });
+    counts.routes++;
+  }
+
+  counts.drivers = 0;
+  for (const d of src.drivers || []) {
+    await prisma.driver.upsert({
+      where: { id: d.id },
+      update: {},
+      create: {
+        id: d.id,
+        businessId: d.businessId,
+        routeId: d.routeId,
+        driverName: d.driverName,
+        licenseNumber: d.licenseNumber,
+        vehicle: d.vehicle ?? 'Unassigned',
+        status: d.status ?? 'assigned',
+        lat: Number(d.lat ?? 0),
+        lng: Number(d.lng ?? 0),
+        speedKph: Number(d.speedKph ?? 0),
+        heading: Number(d.heading ?? 0),
+        assignedAt: DT(d.assignedAt)
+      }
+    });
+    counts.drivers++;
+  }
+
+  // ---- 7. Agritech ----
+  counts.farmers = 0;
+  for (const f of src.farmers || []) {
+    await prisma.farmer.upsert({
+      where: { id: f.id },
+      update: {},
+      create: {
+        id: f.id,
+        businessId: f.businessId,
+        name: f.name,
+        crop: f.crop,
+        price: DEC(f.price),
+        available: DEC(f.available),
+        block: f.block ?? '',
+        verified: f.verified !== false,
+        createdAt: DT(f.createdAt)
+      }
+    });
+    counts.farmers++;
+  }
+
+  // ---- 8. FAQs ----
+  counts.faqs = 0;
+  for (const f of src.faqs || []) {
+    await prisma.faq.upsert({
+      where: { id: f.id },
+      update: {},
+      create: {
+        id: f.id,
+        businessId: f.businessId,
+        question: f.question,
+        answer: f.answer,
+        createdAt: DT(f.createdAt)
+      }
+    });
+    counts.faqs++;
+  }
+
+  // ---- 9. Loans ----
+  counts.loans = 0;
+  for (const l of src.loans || []) {
+    const term = l.termMonths ?? 3;
+    const orig = DEC(l.originationFee ?? Number(l.amount) * 0.02);
+    const rate = DEC(l.interestRatePct ?? 18);
+    const intAmt = DEC(l.interestAmount ?? (Number(l.amount) * Number(rate) / 100 * term / 12));
+    const repay = DEC(l.totalRepayable ?? (Number(l.amount) + Number(orig) + Number(intAmt)));
+    await prisma.loan.upsert({
+      where: { id: l.id },
+      update: {},
+      create: {
+        id: l.id,
+        businessId: l.businessId,
+        phone: l.phone,
+        amount: DEC(l.amount),
+        termMonths: term,
+        originationFee: orig,
+        interestRatePct: rate,
+        interestAmount: intAmt,
+        totalRepayable: repay,
+        monthlyPayment: DEC(l.monthlyPayment ?? Number(repay) / term),
+        score: Number(l.score ?? 500),
+        disclosure: J(l.disclosure),
+        status: l.status ?? 'disbursed',
+        reference: l.reference,
+        gatewayRef: l.gatewayRef ?? null,
+        simulated: !!l.simulated,
+        createdAt: DT(l.createdAt)
+      }
+    });
+    counts.loans++;
+  }
+
+  // ---- 10. SME ----
+  counts.sales = 0;
+  for (const s of src.sales || []) {
+    await prisma.sale.upsert({
+      where: { id: s.id },
+      update: {},
+      create: {
+        id: s.id, businessId: s.businessId,
+        customer: s.customer ?? 'Walk-in',
+        amount: DEC(s.amount),
+        createdAt: DT(s.createdAt)
+      }
+    });
+    counts.sales++;
+  }
+  counts.expenses = 0;
+  for (const e of src.expenses || []) {
+    await prisma.expense.upsert({
+      where: { id: e.id },
+      update: {},
+      create: {
+        id: e.id, businessId: e.businessId,
+        category: e.category ?? 'General',
+        amount: DEC(e.amount),
+        note: e.note ?? '',
+        createdAt: DT(e.createdAt)
+      }
+    });
+    counts.expenses++;
+  }
+
+  // ---- 11. Inventory ----
+  counts.inventoryProducts = 0;
+  for (const p of src.inventory || []) {
+    await prisma.inventoryProduct.upsert({
+      where: { id: p.id },
+      update: {},
+      create: {
+        id: p.id, businessId: p.businessId,
+        name: p.name, sku: p.sku,
+        price: DEC(p.price), stock: Number(p.stock ?? 0),
+        createdAt: DT(p.createdAt),
+        updatedAt: DT(p.updatedAt ?? p.createdAt)
+      }
+    });
+    counts.inventoryProducts++;
+  }
+  counts.posSales = 0;
+  for (const s of src.posSales || []) {
+    await prisma.posSale.upsert({
+      where: { id: s.id },
+      update: {},
+      create: {
+        id: s.id, businessId: s.businessId,
+        lines: J(s.lines), total: DEC(s.total),
+        createdAt: DT(s.createdAt)
+      }
+    });
+    counts.posSales++;
+  }
+
+  // ---- 12. Ads ----
+  counts.ads = 0;
+  for (const a of src.ads || []) {
+    await prisma.ad.upsert({
+      where: { id: a.id },
+      update: {},
+      create: {
+        id: a.id, businessId: a.businessId,
+        name: a.name, channel: a.channel ?? 'whatsapp',
+        budget: DEC(a.budget), spend: DEC(a.spend ?? 0),
+        leads: Number(a.leads ?? 0), active: a.active !== false,
+        createdAt: DT(a.createdAt)
+      }
+    });
+    counts.ads++;
+  }
+
+  // ---- 13. Freelance ----
+  counts.services = 0;
+  for (const s of src.services || []) {
+    await prisma.service.upsert({
+      where: { id: s.id },
+      update: {},
+      create: {
+        id: s.id, businessId: s.businessId,
+        title: s.title, price: DEC(s.price),
+        freelancer: s.freelancer ?? 'Unassigned',
+        createdAt: DT(s.createdAt)
+      }
+    });
+    counts.services++;
+  }
+  counts.escrowOrders = 0;
+  for (const e of src.escrowOrders || []) {
+    await prisma.escrowOrder.upsert({
+      where: { id: e.id },
+      update: {},
+      create: {
+        id: e.id, businessId: e.businessId,
+        serviceId: e.serviceId, serviceTitle: e.serviceTitle ?? '',
+        freelancer: e.freelancer ?? 'Unassigned',
+        client: e.client ?? 'Anonymous',
+        amount: DEC(e.amount),
+        status: e.status ?? 'held',
+        releasedAt: e.releasedAt ? DT(e.releasedAt) : null,
+        createdAt: DT(e.createdAt)
+      }
+    });
+    counts.escrowOrders++;
+  }
+
+  // ---- 14. Clinic ----
+  counts.patients = 0;
+  for (const p of src.patients || []) {
+    await prisma.patient.upsert({
+      where: { id: p.id },
+      update: {},
+      create: {
+        id: p.id, businessId: p.businessId,
+        name: p.name, medicalCardId: p.medicalCardId,
+        phone: p.phone ?? '',
+        createdAt: DT(p.createdAt)
+      }
+    });
+    counts.patients++;
+  }
+  counts.appointments = 0;
+  for (const a of src.appointments || []) {
+    await prisma.appointment.upsert({
+      where: { id: a.id },
+      update: {},
+      create: {
+        id: a.id, businessId: a.businessId,
+        patientId: a.patientId, doctor: a.doctor,
+        scheduledAt: DT(a.scheduledAt),
+        status: a.status ?? 'scheduled',
+        createdAt: DT(a.createdAt)
+      }
+    });
+    counts.appointments++;
+  }
+
+  // ---- 15. KYC ----
+  counts.kycRecords = 0;
+  for (const k of src.kycRecords || []) {
+    await prisma.kycRecord.upsert({
+      where: { id: k.id },
+      update: {},
+      create: {
+        id: k.id, businessId: k.businessId,
+        type: k.type,
+        payload: J(k),
+        valid: !!k.valid,
+        reason: k.reason ?? null,
+        verifiedAt: DT(k.verifiedAt)
+      }
+    });
+    counts.kycRecords++;
+  }
+
+  // ---- 16. E-commerce ----
+  counts.storefrontProducts = 0;
+  for (const p of src.storefront || []) {
+    await prisma.storefrontProduct.upsert({
+      where: { id: p.id },
+      update: {},
+      create: {
+        id: p.id, businessId: p.businessId,
+        name: p.name, price: DEC(p.price),
+        stock: Number(p.stock ?? 0),
+        createdAt: DT(p.createdAt)
+      }
+    });
+    counts.storefrontProducts++;
+  }
+  counts.ecOrders = 0;
+  for (const o of src.ecOrders || []) {
+    await prisma.ecOrder.upsert({
+      where: { id: o.id },
+      update: {},
+      create: {
+        id: o.id, businessId: o.businessId,
+        lines: J(o.lines), total: DEC(o.total),
+        status: o.status ?? 'pending',
+        payment: o.payment ?? null,
+        paidAt: o.paidAt ? DT(o.paidAt) : null,
+        createdAt: DT(o.createdAt)
+      }
+    });
+    counts.ecOrders++;
+  }
+
+  console.log('\n✓ Migration complete:');
+  for (const [k, v] of Object.entries(counts)) {
+    console.log(`  ${k.padEnd(28)} ${v}`);
+  }
+  return counts;
+}
+
+async function reconcile() {
+  // Verify: sum of wallet:cash debits - credits == business.walletBalance (within 1 cent)
+  const businesses = await prisma.business.findMany({ where: { isOperator: false } });
+  let mismatch = 0;
+  for (const b of businesses) {
+    const agg = await prisma.ledgerEntry.aggregate({
+      where: { businessId: b.id, account: { in: ['wallet:cash', 'wallet:reserved'] } },
+      _sum: { debit: true, credit: true }
+    });
+    // Ledger convention: debit subtracts, credit adds (per api/mock-db semantics)
+    const fromLedger = Number(agg._sum.credit ?? 0) - Number(agg._sum.debit ?? 0);
+    const fromWallet = Number(b.walletBalance);
+    if (Math.abs(fromLedger - fromWallet) > 0.01) {
+      console.warn(`⚠ ${b.name} (${b.id}): wallet=${fromWallet.toFixed(2)}, ledger=${fromLedger.toFixed(2)} — investigate`);
+      mismatch++;
+    }
+  }
+  if (mismatch === 0) console.log('\n✓ Ledger reconciliation: all balances match.');
+  else console.log(`\n⚠ ${mismatch} business(es) have ledger/wallet mismatch. Fix before going live.`);
+}
+
+migrate()
+  .then(reconcile)
+  .catch(e => { console.error(e); process.exit(1); })
+  .finally(() => prisma.$disconnect());
+```
+
+## B.4 — `api/db.js` (thin Prisma wrapper that keeps the same function signatures)
+
+```js
+const { PrismaClient, Prisma } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+// Drop-in replacements for mock-db.js API
+module.exports = {
+  prisma,
+  Prisma,
+
+  async adjustWallet(businessId, delta) {
+    return prisma.$transaction(async tx => {
+      const b = await tx.business.findUnique({ where: { id: businessId } });
+      if (!b) throw new Error('business not found');
+      const next = Number(b.walletBalance) + Number(delta);
+      if (next < 0) throw new Error('insufficient wallet balance');
+      const updated = await tx.business.update({
+        where: { id: businessId },
+        data: { walletBalance: new Prisma.Decimal(next.toFixed(2)) }
+      });
+      return Number(updated.walletBalance);
+    });
+  },
+
+  async walletBalance(businessId) {
+    const b = await prisma.business.findUnique({ where: { id: businessId } });
+    return b ? Number(b.walletBalance) : 0;
+  },
+
+  async postLedger(businessId, entries) {
+    const batchId = 'lbr_' + require('crypto').randomBytes(6).toString('hex');
+    await prisma.ledgerEntry.createMany({
+      data: entries.map(e => ({
+        id: 'le_' + require('crypto').randomBytes(6).toString('hex'),
+        batchId, businessId,
+        account: e.account,
+        debit: new Prisma.Decimal(e.debit ?? 0),
+        credit: new Prisma.Decimal(e.credit ?? 0),
+        meta: e.meta ?? {}
+      }))
+    });
+    return batchId;
+  }
+};
+```
+
+## B.5 — Cutover steps
+
+```bash
+# 1. Provision Postgres (Neon / Supabase / Railway / your VPS)
+export DATABASE_URL="postgresql://user:pass@host:5432/bakangombe"
+
+# 2. Run schema migration
+npx prisma migrate deploy
+
+# 3. Back up the current JSON (NEVER skip)
+cp api/data.json api/data.json.bak.$(date +%s)
+
+# 4. Migrate data
+node scripts/migrate-from-json.js
+# Expect: "✓ Ledger reconciliation: all balances match."
+
+# 5. Switch the app to db.js (replace mock-db requires)
+# In every api/*.js file that does `require('./mock-db')`:
+#   -const { store, save, adjustWallet, ... } = require('./mock-db');
+#   +const { prisma, adjustWallet, ... } = require('./db');
+#   Then update `store.state.X.find(...)` → `await prisma.x.findMany(...)`
+#   This is the only substantial rewrite — 30–40 call sites, ~2 hours.
+
+# 6. Smoke test
+curl -s localhost:3000/api/health
+curl -s localhost:3000/api/operator/businesses -H "x-api-key: $OP" | jq '.businesses | length'
+# Should equal number of non-operator businesses in data.json
+
+# 7. Once verified for 48h, delete api/data.json.bak.* (keep one for a week)
+```
+
+**What you can't automate:** the `api/index.js` rewrite from `store.state.X.find(...)` synchronous calls to `await prisma.x.findMany(...)`. It's ~40 call sites but each is a 1-line change. Do it file by file, test each endpoint with the smoke tests from A.3 and my earlier answer.
+
+**Migration payoff:** With Postgres, you can now:
+- Handle concurrent writes (JSON file was single-writer, will corrupt under load)
+- Query revenue by date range in milliseconds (was O(n) JSON scan)
+- Run Prisma Studio (`npx prisma studio`) as an admin UI for free
+- Back up with `pg_dump` (JSON was untraceable after corruption)
+
+---
+
+# C) Gateway directory split — 1 hour, enables redundancy
+
+## C.1 — File structure (delete `api/gateway.js`, create `api/gateway/`)
+
+```
+api/
+├── gateway.js                    ← DELETE this file
+└── gateway/
+    ├── index.js                  ← router with fallback
+    ├── sandbox.js
+    ├── flutterwave.js
+    ├── mtn.js
+    ├── airtel.js
+    ├── zamtel.js
+    └── health.js
+```
+
+Node resolves `require('./gateway')` to `./gateway/index.js` **only if `./gateway.js` doesn't exist**. So delete the old file first:
+
+```bash
+mkdir -p api/gateway
+rm api/gateway.js
+```
+
+## C.2 — `api/gateway/sandbox.js`
+
+```js
+function payout({ carrier, phone, amount, reference }) {
+  const ok = amount <= 5000;
+  return {
+    status: ok ? 'successful' : 'failed',
+    providerRef: `SBX-${carrier}-${Date.now()}`,
+    raw: { sandbox: true, amount, phone, reference, note: 'No real money moved.' }
+  };
+}
+function collect({ carrier, phone, amount, reference }) {
+  return {
+    status: 'pending',
+    providerRef: `SBX-COL-${carrier}-${Date.now()}`,
+    raw: { sandbox: true, amount, phone, reference, note: 'Call /api/mobile-money/collect/:id/confirm to simulate approval.' }
+  };
+}
+function status({ providerRef }) {
+  return { status: 'successful', providerRef, raw: { sandbox: true } };
+}
+module.exports = { payout, collect, status };
+```
+
+## C.3 — `api/gateway/flutterwave.js` (unchanged from earlier answer, keep as-is)
+
+Keep the file already described in my earlier answer. If your current `api/gateway.js` has Flutterwave code inline, move it here.
+
+## C.4 — `api/gateway/mtn.js` (unchanged from earlier answer, keep as-is)
+
+## C.5 — `api/gateway/airtel.js` (unchanged from earlier answer, keep as-is)
+
+## C.6 — `api/gateway/zamtel.js` (unchanged from earlier answer, keep as-is)
+
+## C.7 — `api/gateway/health.js`
+
+```js
+const providers = {
+  flutterwave: require('./flutterwave'),
+  mtn:         require('./mtn'),
+  airtel:      require('./airtel'),
+  zamtel:      require('./zamtel')
+};
+
+const REQUIRED_ENV = {
+  flutterwave: ['FLW_SECRET_KEY'],
+  mtn:         ['MTN_COLLECTION_KEY', 'MTN_COLLECTION_USER', 'MTN_COLLECTION_PASS',
+                'MTN_DISBURSEMENT_KEY', 'MTN_DISBURSEMENT_USER', 'MTN_DISBURSEMENT_PASS'],
+  airtel:      ['AIRTEL_CLIENT_ID', 'AIRTEL_CLIENT_SECRET', 'AIRTEL_PIN'],
+  zamtel:      ['CELLULANT_USER', 'CELLULANT_PASS', 'CELLULANT_BASE_URL']
+};
+
+async function check(name) {
+  const missing = REQUIRED_ENV[name].filter(k => !process.env[k]);
+  if (missing.length) {
+    return { provider: name, configured: false, missing };
+  }
+  try {
+    // Probe: GET a lightweight endpoint if the client exposes one, else just "configured"
+    if (typeof providers[name].health === 'function') {
+      const r = await providers[name].health();
+      return { provider: name, configured: true, reachable: r.ok, detail: r.detail };
+    }
+    return { provider: name, configured: true, reachable: 'unknown' };
+  } catch (e) {
+    return { provider: name, configured: true, reachable: false, error: e.message };
+  }
+}
+
+async function all() {
+  return Promise.all(Object.keys(REQUIRED_ENV).map(check));
+}
+module.exports = { all, check };
+```
+
+## C.8 — `api/gateway/index.js` — the router with fallback
+
+```js
+const sandbox     = require('./sandbox');
+const flutterwave = require('./flutterwave');
+const mtn         = require('./mtn');
+const airtel      = require('./airtel');
+const zamtel      = require('./zamtel');
+const health      = require('./health');
+
+const MODE            = process.env.MOMO_MODE || 'sandbox';         // sandbox | live
+const PRIMARY         = process.env.MOMO_PROVIDER || 'flutterwave'; // flutterwave | mtn | airtel | zamtel
+const FALLBACK        = process.env.MOMO_FALLBACK || 'mtn';          // used when primary throws
+const FALLBACK_ENABLED = process.env.MOMO_FALLBACK_DISABLED !== 'true';
+
+const CLIENTS = { flutterwave, mtn, airtel, zamtel };
+
+const CARRIER_TO_CLIENT = {
+  MTN:    'mtn',
+  AIRTEL: 'airtel',
+  ZAMTEL: 'zamtel'
+};
+
+function tryProvider(name, op, args) {
+  const c = CLIENTS[name];
+  if (!c) throw new Error(`unknown provider ${name}`);
+  return c[op](args);
+}
+
+async function dispatch(op, args, opts = {}) {
+  if (MODE === 'sandbox') return sandbox[op](args);
+
+  // Carrier-aware routing: if MOMO_PROVIDER=auto, pick client by carrier
+  const provider = (PRIMARY === 'auto')
+    ? (CARRIER_TO_CLIENT[args.carrier] || 'flutterwave')
+    : PRIMARY;
+
+  const errors = [];
+
+  // Attempt 1: primary
+  try {
+    return await tryProvider(provider, op, args);
+  } catch (e) {
+    errors.push({ provider, error: e.message });
+    if (!FALLBACK_ENABLED || FALLBACK === provider) {
+      const err = new Error(`primary provider ${provider} failed: ${e.message}`);
+      err.attempts = errors;
+      throw err;
+    }
+  }
+
+  // Attempt 2: fallback (except for carrier-specific like zamtel — only Cellulant handles it)
+  const fb = (args.carrier === 'ZAMTEL' && FALLBACK !== 'zamtel') ? 'zamtel' : FALLBACK;
+  try {
+    const result = await tryProvider(fb, op, args);
+    result.raw = { ...result.raw, _fallbackFrom: provider, _fallbackReason: errors[0].error };
+    return result;
+  } catch (e) {
+    errors.push({ provider: fb, error: e.message });
+    const err = new Error(`both providers failed (${provider}, ${fb})`);
+    err.attempts = errors;
+    throw err;
+  }
+}
+
+async function payout(args)  { return dispatch('payout',  args); }
+async function collect(args) { return dispatch('collect', args); }
+
+async function status({ providerRef, reference }) {
+  if (MODE === 'sandbox') return sandbox.status({ providerRef, reference });
+  // Status polls: try primary, then fallback if providerRef looks foreign
+  try {
+    return await tryProvider(PRIMARY, 'status', { providerRef });
+  } catch (e) {
+    if (!FALLBACK_ENABLED) throw e;
+    return tryProvider(FALLBACK, 'status', { providerRef });
+  }
+}
+
+module.exports = {
+  payout, collect, status,
+  MODE, PROVIDER: PRIMARY, FALLBACK,
+  health: health.all
+};
+```
+
+## C.9 — `api/index.js` — expose gateway health
+
+**Add** this endpoint (near `/api/health`):
+
+```js
+app.get('/api/gateway/health', async (req, res) => {
+  const report = await gateway.health();
+  const summary = report.reduce((acc, r) => {
+    acc.configured += r.configured ? 1 : 0;
+    acc.reachable  += r.reachable === true ? 1 : 0;
+    return acc;
+  }, { configured: 0, reachable: 0 });
+  res.json({
+    ok: summary.configured > 0,
+    mode: gateway.MODE,
+    primary: gateway.PROVIDER,
+    fallback: gateway.FALLBACK,
+    providers: report,
+    summary
+  });
+});
+```
+
+**Operator dashboard** — add a card:
+
+```html
+<div class="card">
+  <h3>Gateway health</h3>
+  <table id="gw"><thead><tr><th>Provider</th><th>Configured</th><th>Reachable</th><th>Missing env</th></tr></thead><tbody></tbody></table>
+</div>
+<script>
+// in your load() function:
+const gw = await fetch('/api/gateway/health').then(r => r.json());
+const tb = document.getElementById('gw').querySelector('tbody');
+tb.innerHTML = '';
+for (const p of (gw.providers || [])) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${p.provider}</td>
+    <td>${p.configured ? '✓' : '✗'}</td>
+    <td>${p.reachable === true ? '✓' : p.reachable === false ? '✗' : '?'}</td>
+    <td>${(p.missing || []).join(', ') || '—'}</td>`;
+  tb.appendChild(tr);
+}
+</script>
+```
+
+## C.10 — Env vars for C
+
+```env
+MOMO_MODE=sandbox          # sandbox | live
+MOMO_PROVIDER=auto         # flutterwave | mtn | airtel | zamtel | auto
+MOMO_FALLBACK=flutterwave  # used if primary throws
+MOMO_FALLBACK_DISABLED=false
+
+# Flutterwave
+FLW_SECRET_KEY=
+FLW_WEBHOOK_HASH=
+
+# MTN
+MTN_TARGET_ENV=sandbox
+MTN_COLLECTION_KEY=
+MTN_COLLECTION_USER=
+MTN_COLLECTION_PASS=
+MTN_DISBURSEMENT_KEY=
+MTN_DISBURSEMENT_USER=
+MTN_DISBURSEMENT_PASS=
+MTN_WEBHOOK_SECRET=
+
+# Airtel
+AIRTEL_BASE_URL=https://openapiuat.airtel.africa
+AIRTEL_CLIENT_ID=
+AIRTEL_CLIENT_SECRET=
+AIRTEL_PIN=
+AIRTEL_WEBHOOK_SECRET=
+
+# Cellulant (Zamtel)
+CELLULANT_BASE_URL=
+CELLULANT_USER=
+CELLULANT_PASS=
+CELLULANT_WEBHOOK_SECRET=
+```
+
+## C.11 — Test the fallback
+
+```bash
+# 1. Check health
+curl -s localhost:3000/api/gateway/health | jq
+# Expect: mode=sandbox, providers all configured=false (no env yet)
+
+# 2. In sandbox, send works:
+curl -sX POST localhost:3000/api/mobile-money/send \
+  -H "x-api-key: BIZ_KEY" -H 'content-type: application/json' \
+  -d '{"phone":"0961234567","amount":100}' | jq '.transaction.status'
+# "successful"
+
+# 3. In live mode with only primary broken, verify fallback kicks in:
+MOMO_MODE=live MOMO_PROVIDER=flutterwave MOMO_FALLBACK=mtn \
+FLW_SECRET_KEY=INVALID node api/index.js
+# (in another terminal)
+curl -sX POST localhost:3000/api/mobile-money/send \
+  -H "x-api-key: BIZ_KEY" -H 'content-type: application/json' \
+  -d '{"phone":"0961234567","amount":100}' | jq '.transaction.raw._fallbackFrom'
+# "flutterwave" → confirms fallback attempted
+# If MTN also unconfigured: error "both providers failed"
+```
+
+## C.12 — What C unlocks operationally
+
+| Scenario | Before C | After C |
+|---|---|---|
+| Flutterwave outage | All payouts fail | Auto-route to MTN/Airtel by carrier |
+| Zamtel customer | Fails (no direct API) | Routes via Cellulant even when primary=flutterwave |
+| Flutterwave rate limit | 429 error | Fallback retries with alternate provider |
+| New provider onboarded | Rewrite gateway.js | Drop file in, add env, set `MOMO_FALLBACK=...` |
+| Which provider is down? | Check logs | `GET /api/gateway/health` |
+
+---
+
+# Ship order summary
+
+| # | Task | Time | Risk if skipped |
+|---|---|---|---|
+| A | Lending fee fix | **2 min** | Bank of Zambia enforcement action |
+| B | Prisma migration | **half-day** | Data corruption under load >~50 businesses |
+| C | Gateway split | **1 hour** | Total payout outage on Flutterwave downtime |
+
+**Total: ~6 hours.** Then the three things that only you can do:
+
+1. Sign one paying SME
+2. Sign Flutterwave live keys
+3. Fund the ZMW settlement float
+
+Do A right now (it's 2 minutes and eliminates legal exposure). Then B before you onboard SME #2. Then C before you go live — because you don't want Flutterwave's next outage to be your first real-customer incident.
+
+If you hit a specific error during any of these, paste the stack trace + which part (A/B/C) and I'll debug the exact fix.

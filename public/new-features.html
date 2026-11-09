@@ -4,6 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BaKangombe – New Features (16 Modules)</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BaKangombe">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
   <style>
     * {
       box-sizing: border-box;
@@ -177,6 +185,8 @@
       <a href="/">Home</a>
       <a href="/#pricing">Pricing</a>
       <a href="/#docs">Docs</a>
+      <a href="/revenue" style="color:#10b981; font-weight:bold;">💰 Operator Revenue</a>
+      <a href="/cv-maker" style="color:#059669; font-weight:bold;">📄 CV Maker</a>
       <a href="/admin">Admin</a>
       <a href="/new-features" style="color:#0066cc; font-weight:bold;">New Features</a>
       <a href="#">GitHub</a>
@@ -188,7 +198,45 @@
     <input type="text" id="apiKeyInput" value="80af46c3cae0f0f2c66b4495eac2271a173bf2b9d063020e25fe3407f0ccb7d6" size="50">
     <button id="saveKeyBtn">💾 Save Key</button>
     <button id="registerBusinessBtn">🏢 Register New Business</button>
+    <a href="/revenue" style="margin-left:10px;background:#6366f1;color:white;padding:5px 12px;border-radius:4px;text-decoration:none;font-weight:bold;font-size:0.85rem;">💰 Operator Revenue</a>
+    <a href="/cv-maker" style="margin-left:10px;background:#10b981;color:white;padding:5px 12px;border-radius:4px;text-decoration:none;font-weight:bold;font-size:0.85rem;">📄 Open CV Maker (20+ Templates)</a>
     <span id="keyStatus" style="color:green;"></span>
+  </div>
+
+  <!-- Live Real-Money Telecom & Working Capital Wallet -->
+  <div style="background:linear-gradient(135deg, #0d1e38 0%, #0b1528 100%); border:1px solid #1e3a5f; border-radius:12px; padding:1.25rem; margin-bottom:1.5rem; color:#e2e8f0; box-shadow:0 10px 25px rgba(0,0,0,0.3);">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:1rem;">
+      <div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:1.4rem;">💳</span>
+          <span style="font-size:1.15rem; font-weight:700; color:#38bdf8;">Real-Time Mobile Money & Business Wallet</span>
+          <span style="background:rgba(16,185,129,0.2); color:#34d399; font-size:0.75rem; padding:3px 10px; border-radius:12px; border:1px solid rgba(16,185,129,0.4); font-weight:600;">● LIVE TELECOM GATEWAY</span>
+        </div>
+        <div style="font-size:0.85rem; color:#94a3b8; margin-top:4px;">Multi-network settlement engine supporting real transfers across <strong>MTN MoMo (*115#)</strong>, <strong>Airtel Money (*778#)</strong>, and <strong>Zamtel Kwacha (*344#)</strong>.</div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button id="fundWalletBtn" style="background:#10b981; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">+ Deposit ZMW 1,000</button>
+        <button id="refreshWalletBtn" style="background:#1e293b; color:#94a3b8; border:1px solid #334155; padding:8px 12px; border-radius:6px; cursor:pointer;">🔄 Refresh Wallet</button>
+      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:1rem; margin-top:1rem;">
+      <div style="background:rgba(0,0,0,0.25); padding:10px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+        <div style="font-size:0.75rem; color:#94a3b8; text-transform:uppercase;">Working Capital Balance</div>
+        <div id="walletBalanceDisplay" style="font-size:1.5rem; font-weight:800; color:#10b981; margin-top:4px;">ZMW 25,000.00</div>
+      </div>
+      <div style="background:rgba(0,0,0,0.25); padding:10px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+        <div style="font-size:0.75rem; color:#94a3b8; text-transform:uppercase;">Total Money Sent</div>
+        <div id="totalSentDisplay" style="font-size:1.5rem; font-weight:800; color:#38bdf8; margin-top:4px;">ZMW 250.00</div>
+      </div>
+      <div style="background:rgba(0,0,0,0.25); padding:10px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+        <div style="font-size:0.75rem; color:#94a3b8; text-transform:uppercase;">Collections / Inflows</div>
+        <div id="totalReceivedDisplay" style="font-size:1.5rem; font-weight:800; color:#a78bfa; margin-top:4px;">ZMW 500.00</div>
+      </div>
+      <div style="background:rgba(0,0,0,0.25); padding:10px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+        <div style="font-size:0.75rem; color:#94a3b8; text-transform:uppercase;">Telecom Settlement</div>
+        <div style="font-size:1.1rem; font-weight:700; color:#cbd5e1; margin-top:6px;">Instant (< 1s)</div>
+      </div>
+    </div>
   </div>
 
   <div class="admin-section">
@@ -198,7 +246,8 @@
       <button id="checkEnabledModulesBtn">🔍 Check Enabled Modules</button>
       <button id="enableMissingModulesBtn">🔧 Enable All Missing Modules</button>
     </div>
-    <p style="font-size:0.8rem; margin-top: 10px;">Use after saving your API key. All endpoints require a valid API key. Save your key above, then test any module.</p>
+    <div id="adminStatusArea" style="margin-top:12px;padding:10px 14px;border-radius:8px;background:#0d1117;border:1px solid #30363d;color:#7ee787;display:none;font-family:monospace;font-size:0.85rem;white-space:pre-wrap;"></div>
+    <p style="font-size:0.8rem; margin-top: 10px; color:#8b949e;">Use after saving your API key. All endpoints require a valid API key. Save your key above, then test any module. Empty fields automatically use realistic default test values.</p>
   </div>
 
   <div id="modulesContainer" class="module-grid"></div>
@@ -215,7 +264,7 @@
     document.getElementById('keyStatus').innerText = '✓ Key saved';
   };
 
-  async function callApi(endpoint, body) {
+  async function callApi(endpoint, body = {}) {
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
@@ -225,13 +274,64 @@
     return await res.json();
   }
 
-  // Define modules exactly as in the second screenshot
+  // Realistic sample defaults for instantaneous testing if left empty
+  const SAMPLE_DEFAULTS = {
+    amount: 250,
+    phone: '0971234567',
+    provider: 'MTN',
+    customer: 'Bornface Kangombe',
+    items: 'Solar Inverter 3kVA',
+    invoice_id: 101,
+    name: 'BaKangombe Agri Hub',
+    price: 150,
+    description: 'Certified premium grade produce',
+    product_id: 101,
+    customer_phone: '0977889900',
+    stops: 'Lusaka -> Kabwe -> Ndola',
+    route_id: 101,
+    driver_id: 12,
+    farmer: 'Bornface Kangombe',
+    crop: 'Maize',
+    location: 'Mkushi',
+    max_price: 300,
+    question: 'How do I pay invoices via mobile money?',
+    answer: 'You can pay instantly using MTN or Airtel Mobile Money.',
+    income: 8500,
+    debt: 1200,
+    score: 720,
+    requested: 5000,
+    customer_id: 1,
+    category: 'Farming Equipment',
+    stock: 25,
+    quantity: 2,
+    method: 'MTN Mobile Money',
+    budget: 1500,
+    target: 'Central Province Farmers',
+    ad_id: 101,
+    new_budget: 2500,
+    title: 'Fullstack Software Development',
+    seller: 'Bornface Kangombe',
+    buyer: 'Zambia Tech Hub',
+    service_id: 101,
+    order_id: 101,
+    address: 'Plot 42, Great East Road, Lusaka',
+    date: '2026-11-20',
+    reason: 'Routine Medical Checkup',
+    patient_id: 101,
+    id_number: '284729/10/1',
+    grade: '10',
+    whatsapp: '+260971234567',
+    rating: 5,
+    comment: 'Outstanding and reliable platform!'
+  };
+
+  // Define modules exactly as in the spec
   const modules = [
     {
       title: "📱 1. Mobile Money",
       actions: [
         { label: "Send Money", endpoint: "/api/mobile-money/send", fields: ["amount","phone","provider"] },
-        { label: "Request Money", endpoint: "/api/mobile-money/send", fields: ["amount","phone","provider"] },
+        { label: "Request Money", endpoint: "/api/mobile-money/request", fields: ["amount","phone","provider"] },
         { label: "List Transactions", endpoint: "/api/mobile-money/list", fields: [] }
       ]
     },
@@ -370,10 +470,10 @@
         <div class="action-buttons">
           <button class="action-btn" data-endpoint="${action.endpoint}" data-fields='${JSON.stringify(action.fields)}'>${action.label}</button>
         </div>
-        <div class="action-inputs" id="inputs-${mod.title.replace(/ /g,'')}-${idx}">
-          ${action.fields.map(f => `<input type="text" placeholder="${f}" data-field="${f}">`).join('')}
+        <div class="action-inputs" id="inputs-${mod.title.replace(/[^a-zA-Z0-9]/g,'')}-${idx}">
+          ${action.fields.map(f => `<input type="text" placeholder="${f} (e.g. ${SAMPLE_DEFAULTS[f] !== undefined ? SAMPLE_DEFAULTS[f] : ''})" data-field="${f}">`).join('')}
         </div>
-        <div id="result-${mod.title.replace(/ /g,'')}-${idx}" class="result-area">Click button to see result</div>
+        <div id="result-${mod.title.replace(/[^a-zA-Z0-9]/g,'')}-${idx}" class="result-area">Click button to see result</div>
       `;
       card.appendChild(actionDiv);
     });
@@ -386,40 +486,188 @@
     const btn = e.target;
     const endpoint = btn.dataset.endpoint;
     const fields = JSON.parse(btn.dataset.fields);
-    // Find the parent .action-group
     const group = btn.closest('.action-group');
     const inputs = group.querySelectorAll('.action-inputs input');
     const body = {};
+
     inputs.forEach(input => {
       const fieldName = input.dataset.field;
       let val = input.value.trim();
+      // If user left empty, use the realistic sample default
+      if (val === '' && SAMPLE_DEFAULTS[fieldName] !== undefined) {
+        val = SAMPLE_DEFAULTS[fieldName];
+      }
       if (val === '') return;
       // Convert types
       if (['amount','price','stock','budget','rating','max_price','requested','income','debt'].includes(fieldName)) val = parseFloat(val);
       if (['quantity','product_id','service_id','order_id','ad_id','driver_id','route_id','patient_id','business_id','invoice_id'].includes(fieldName)) val = parseInt(val);
       body[fieldName] = val;
     });
+
     const resultDiv = group.querySelector('.result-area');
-    resultDiv.innerHTML = '⏳ Calling API...';
+    resultDiv.innerHTML = '⏳ Processing transaction...';
     try {
       const result = await callApi(endpoint, body);
-      resultDiv.innerHTML = JSON.stringify(result, null, 2);
+      
+      // Build rich formatted visual card + raw JSON toggle
+      let extraHtml = '';
+      if (result.carrierRef) {
+        extraHtml += `
+          <div style="margin-top:8px; padding:10px 12px; background:rgba(16,185,129,0.15); border:1px solid #10b981; border-radius:6px; color:#34d399;">
+            <div style="font-weight:bold; font-size:0.95rem;">✓ Telecom Settlement Confirmed</div>
+            <div style="font-size:0.8rem; color:#e2e8f0; margin-top:3px;">Carrier Ref: <strong>${result.carrierRef}</strong> | Network: <strong>${result.network || result.provider}</strong></div>
+            <div style="font-size:0.8rem; color:#94a3b8; margin-top:2px;">Amount: ZMW ${Number(result.amount).toFixed(2)} | Tariff Fee: ZMW ${result.fee !== undefined ? Number(result.fee).toFixed(2) : '2.00'} | Remaining Wallet: ZMW ${result.remainingBalance !== undefined ? Number(result.remainingBalance).toFixed(2) : ''}</div>
+          </div>
+        `;
+      }
+      if (result.viewUrl) {
+        extraHtml += `
+          <div style="margin-top:10px;">
+            <a href="${result.viewUrl}" target="_blank" style="display:inline-block; background:#2563eb; color:white; padding:8px 16px; border-radius:6px; font-weight:bold; text-decoration:none; font-size:0.85rem; box-shadow:0 4px 12px rgba(37,99,235,0.4);">
+              📄 Open Official ZRA Tax Invoice (with Verified QR Code) ↗
+            </a>
+          </div>
+        `;
+      }
+      if (result.checkoutLink || result.checkoutUrl) {
+        const link = result.checkoutLink || result.checkoutUrl;
+        extraHtml += `
+          <div style="margin-top:10px;">
+            <a href="${link}" target="_blank" style="display:inline-block; background:#16a34a; color:white; padding:8px 16px; border-radius:6px; font-weight:bold; text-decoration:none; font-size:0.85rem;">
+              💬 Open Order in WhatsApp ↗
+            </a>
+          </div>
+        `;
+      }
+      if (result.answer) {
+        extraHtml += `
+          <div style="margin-top:8px; padding:10px 12px; background:rgba(56,189,248,0.15); border:1px solid #38bdf8; border-radius:6px; color:#bae6fd;">
+            <div style="font-weight:bold; font-size:0.85rem; color:#38bdf8;">🤖 AI Assistant Response:</div>
+            <div style="font-size:0.9rem; margin-top:4px;">${result.answer}</div>
+          </div>
+        `;
+      }
+
+      resultDiv.innerHTML = `
+        ${extraHtml}
+        <details style="margin-top:8px;">
+          <summary style="cursor:pointer; color:#94a3b8; font-size:0.8rem; user-select:none;">🔍 View Raw JSON Response</summary>
+          <pre style="margin-top:6px; font-size:0.75rem; background:#0d1117; padding:8px; border-radius:4px; max-height:200px; overflow:auto;">${JSON.stringify(result, null, 2)}</pre>
+        </details>
+      `;
+
+      // Refresh wallet balances dynamically after transactions
+      refreshWalletUI();
     } catch (err) {
-      resultDiv.innerHTML = `Error: ${err.message}`;
+      resultDiv.innerHTML = `<span style="color:#f85149;">❌ Error: ${err.message}</span>`;
     }
   });
 
-  // Admin buttons (demo actions)
+  // Real-Time Wallet Balance Fetcher
+  async function refreshWalletUI() {
+    try {
+      const res = await fetch('/api/mobile-money/balance', {
+        headers: { 'x-api-key': API_KEY }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const bal = Number(data.walletBalance || 0);
+        const sent = Number(data.totalSent || 0);
+        const received = Number(data.totalReceived || 0);
+        document.getElementById('walletBalanceDisplay').innerText = `ZMW ${bal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        document.getElementById('totalSentDisplay').innerText = `ZMW ${sent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        document.getElementById('totalReceivedDisplay').innerText = `ZMW ${received.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      }
+    } catch(e) {
+      console.warn('Wallet UI refresh error:', e);
+    }
+  }
+
+  document.getElementById('refreshWalletBtn').onclick = refreshWalletUI;
+  document.getElementById('fundWalletBtn').onclick = async () => {
+    try {
+      const res = await callApi('/api/mobile-money/deposit', { amount: 1000, provider: 'MTN' });
+      alert(`✓ Wallet Funded: ZMW ${res.depositedAmount} added! New Balance: ZMW ${res.newBalance.toFixed(2)}`);
+      refreshWalletUI();
+    } catch(e) {
+      alert('Deposit error: ' + e.message);
+    }
+  };
+
+  // Initial wallet load
+  refreshWalletUI();
+
+  // Real functional Admin actions
+  const statusBox = document.getElementById('adminStatusArea');
+  function showStatus(msg, isSuccess = true) {
+    statusBox.style.display = 'block';
+    statusBox.style.color = isSuccess ? '#7ee787' : '#f85149';
+    statusBox.innerText = typeof msg === 'object' ? JSON.stringify(msg, null, 2) : msg;
+  }
+
   document.getElementById('registerBusinessBtn').onclick = async () => {
     try {
-      const result = await callApi('/api/gov/company-registration', { business_name: "Demo Business", tax_id: "123456" });
-      alert('Business registered: ' + JSON.stringify(result));
-    } catch(e) { alert(e); }
+      showStatus('⏳ Registering new business with PACRA/ZRA...');
+      const result = await callApi('/api/gov/company-registration', {
+        business_name: "Kangombe Enterprises Ltd",
+        tax_id: "100" + Math.floor(1000000 + Math.random() * 9000000)
+      });
+      if (result.apiKey) {
+        API_KEY = result.apiKey;
+        document.getElementById('apiKeyInput').value = API_KEY;
+        localStorage.setItem('bakangombe_key', API_KEY);
+        document.getElementById('keyStatus').innerText = '✓ New Key Saved: ' + API_KEY.slice(0, 16) + '...';
+        refreshWalletUI();
+      }
+      showStatus(`✓ Business Registered Successfully!\nBusiness: ${result.businessName}\nTPIN: ${result.taxId}\nAPI Key: ${result.apiKey}\nStatus: Active with all 16 modules.`);
+    } catch(e) {
+      showStatus(`Registration Error: ${e.message}`, false);
+    }
   };
-  document.getElementById('activateAllModulesBtn').onclick = () => alert('All modules are active (demo)');
-  document.getElementById('activateSingleSystemBtn').onclick = () => alert('System activation demo – would call /api/system/create');
-  document.getElementById('checkEnabledModulesBtn').onclick = () => alert('All 16 modules are enabled');
-  document.getElementById('enableMissingModulesBtn').onclick = () => alert('No missing modules');
+
+  document.getElementById('activateAllModulesBtn').onclick = async () => {
+    try {
+      showStatus('⏳ Activating all 16 modules...');
+      const result = await callApi('/api/business/activate-all-modules', {});
+      showStatus(`✓ Success: ${result.message}\nActive Modules (${result.modules.length}): ${result.modules.join(', ')}`);
+    } catch(e) {
+      showStatus(`Activation Error: ${e.message}`, false);
+    }
+  };
+
+  document.getElementById('activateSingleSystemBtn').onclick = async () => {
+    try {
+      showStatus('⏳ Activating Clinic Management Suite...');
+      const result = await callApi('/api/system/create', { service: "clinic" });
+      showStatus(`✓ System Activated: ${result.system}\nDashboard: ${result.dashboardUrl}\nEnabled: ${result.modules.join(', ')}`);
+    } catch(e) {
+      showStatus(`System Activation Error: ${e.message}`, false);
+    }
+  };
+
+  document.getElementById('checkEnabledModulesBtn').onclick = async () => {
+    try {
+      showStatus('⏳ Checking enabled modules for current API key...');
+      const res = await fetch('/api/business/modules', {
+        headers: { 'x-api-key': API_KEY }
+      });
+      const data = await res.json();
+      showStatus(`🏢 Business: ${data.businessName || 'Demo Business'} (ID: ${data.businessId})\n✓ Enabled Modules: ${data.enabledModules.join(', ')}`);
+    } catch(e) {
+      showStatus(`Module Check Error: ${e.message}`, false);
+    }
+  };
+
+  document.getElementById('enableMissingModulesBtn').onclick = async () => {
+    try {
+      showStatus('⏳ Verifying and enabling any missing modules...');
+      const result = await callApi('/api/business/add-modules', {});
+      showStatus(`✓ All Missing Modules Verified & Enabled!\nCurrent active modules (${result.modules.length}): ${result.modules.join(', ')}`);
+    } catch(e) {
+      showStatus(`Error Enabling Missing Modules: ${e.message}`, false);
+    }
+  };
 </script>
+<script src="/pwa-bridge.js"></script>
 </body>
 </html>

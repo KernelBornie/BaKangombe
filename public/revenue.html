@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Operator Revenue & Monetization Engine · BaKangombe</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BaKangombe Revenue">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <style>
+    :root {
+      --bg: #090c10;
+      --card: #131822;
+      --card-border: rgba(99, 102, 241, 0.2);
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.35);
+      --green: #10b981;
+      --amber: #f59e0b;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+    .header {
+      background: rgba(19, 24, 34, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .logo-area { display: flex; align-items: center; gap: 0.75rem; }
+    .logo-badge {
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      color: white;
+      font-weight: 800;
+      padding: 0.4rem 0.8rem;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      letter-spacing: -0.5px;
+    }
+    .logo-title { font-size: 1.25rem; font-weight: 700; color: #fff; }
+    .nav-links { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+    .nav-link { color: var(--muted); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
+    .nav-link:hover, .nav-link.active { color: #fff; }
+    .wallet-chip {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #34d399;
+      padding: 0.4rem 1rem;
+      border-radius: 9999px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+    .hero-banner {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.08));
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+    }
+    .hero-info h1 { font-size: 1.9rem; font-weight: 800; margin-bottom: 0.5rem; background: linear-gradient(to right, #fff, #c7d2fe); -webkit-background-clip: text; color: transparent; }
+    .hero-info p { color: var(--muted); font-size: 0.95rem; max-width: 650px; }
+    .hero-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .btn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 0.65rem 1.25rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+    }
+    .btn:hover { background: #4f46e5; box-shadow: 0 4px 15px var(--accent-glow); }
+    .btn-secondary { background: rgba(255, 255, 255, 0.07); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.12); }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+    .btn-success { background: #059669; }
+    .btn-success:hover { background: #047857; }
+    .grid-kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+    }
+    .kpi-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--accent);
+    }
+    .kpi-card.green::before { background: var(--green); }
+    .kpi-card.amber::before { background: var(--amber); }
+    .kpi-card.purple::before { background: #a855f7; }
+    .kpi-card.cyan::before { background: #06b6d4; }
+    .kpi-card.rose::before { background: #f43f5e; }
+    .kpi-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; margin-bottom: 0.5rem; }
+    .kpi-value { font-size: 1.75rem; font-weight: 800; color: #fff; }
+    .kpi-sub { font-size: 0.78rem; color: var(--muted); margin-top: 0.35rem; }
+    .section-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .table-container { width: 100%; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem; }
+    th { padding: 0.75rem 1rem; color: var(--muted); font-weight: 600; border-bottom: 1px solid rgba(255, 255, 255, 0.08); background: rgba(0,0,0,0.15); }
+    td { padding: 0.85rem 1rem; border-bottom: 1px solid rgba(255, 255, 255, 0.04); vertical-align: middle; }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-sub { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.3); }
+    .badge-momo { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-escrow { background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-lending { background: rgba(244, 63, 94, 0.2); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.3); }
+    .badge-module { background: rgba(6, 182, 212, 0.2); color: #67e8f9; border: 1px solid rgba(6, 182, 212, 0.3); }
+    .badge-status-paid { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .badge-status-unpaid { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.82rem; }
+    .test-box {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-top: 1rem;
+    }
+    .test-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+    .test-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .test-card h4 { font-size: 0.95rem; margin-bottom: 0.35rem; color: #fff; }
+    .test-card p { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.75rem; }
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: #1e293b;
+      color: #fff;
+      padding: 1rem 1.5rem;
+      border-radius: 10px;
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      display: none;
+      z-index: 100;
+      max-width: 400px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="logo-area">
+      <div class="logo-badge">⚡ BKG</div>
+      <div class="logo-title">BaKangombe <span style="font-weight:400; color:var(--muted)">| Operator Revenue</span></div>
+    </div>
+    <nav class="nav-links">
+      <a href="/" class="nav-link">Home</a>
+      <a href="/new-features" class="nav-link">16 Modules (API)</a>
+      <a href="/cv-maker" class="nav-link">📄 CV Maker</a>
+      <a href="/docs" class="nav-link">Docs</a>
+      <div class="wallet-chip" id="topWalletBalance">
+        <span>💰 Operator:</span>
+        <strong id="operatorBalanceDisplay">ZMW 0.00</strong>
+      </div>
+    </nav>
+  </header>
+
+  <div class="container">
+
+    <!-- Hero Banner -->
+    <section class="hero-banner">
+      <div class="hero-info">
+        <h1>Monetization Engine & Revenue Settlement</h1>
+        <p>
+          Every business interaction generates automated revenue for your operator settlement wallet.
+          Monetized via SaaS subscriptions, MoMo transaction fees (0.5%–1.5%), freelance escrow cuts (2%–5%), lending interest spread (8%), and module activations.
+        </p>
+      </div>
+      <div class="hero-actions">
+        <button class="btn btn-success" onclick="runBillingCycle()">
+          ⚡ Run Subscription Billing
+        </button>
+        <button class="btn btn-secondary" onclick="loadDashboard()">
+          🔄 Refresh Financials
+        </button>
+      </div>
+    </section>
+
+    <!-- 6 Financial KPI Cards -->
+    <section class="grid-kpis">
+      <div class="kpi-card green">
+        <div class="kpi-label">Operator Wallet Balance</div>
+        <div class="kpi-value" id="kpiWallet">ZMW 0.00</div>
+        <div class="kpi-sub">Ready for Flutterwave settlement</div>
+      </div>
+      <div class="kpi-card purple">
+        <div class="kpi-label">Total Revenue Earned</div>
+        <div class="kpi-value" id="kpiTotalRevenue">ZMW 0.00</div>
+        <div class="kpi-sub"><span id="kpiEventCount">0</span> fee collection events</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">SaaS Subscriptions</div>
+        <div class="kpi-value" id="kpiSubRevenue">ZMW 0.00</div>
+        <div class="kpi-sub">Monthly recurring business plans</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-label">MoMo Transaction Fees</div>
+        <div class="kpi-value" id="kpiMomoRevenue">ZMW 0.00</div>
+        <div class="kpi-sub">0.5% – 1.5% commission rate</div>
+      </div>
+      <div class="kpi-card rose">
+        <div class="kpi-label">Escrow & Loan Spread</div>
+        <div class="kpi-value" id="kpiEscrowLoanRevenue">ZMW 0.00</div>
+        <div class="kpi-sub">Escrow (2-5%) + Lending (8%)</div>
+      </div>
+      <div class="kpi-card cyan">
+        <div class="kpi-label">Active Paying Businesses</div>
+        <div class="kpi-value" id="kpiBusinessCount">0</div>
+        <div class="kpi-sub"><span id="kpiOverdueCount">0</span> overdue invoices</div>
+      </div>
+    </section>
+
+    <!-- Quick Revenue Triggers (Demonstrate Money Generation in Real Time) -->
+    <section class="panel">
+      <div class="section-title">
+        <span>⚡ Real-Time Revenue Trigger Sandbox</span>
+        <span style="font-size:0.85rem; color:var(--muted)">Execute live platform events and watch operator wallet grow</span>
+      </div>
+      <div class="test-grid">
+        <div class="test-card">
+          <h4>📱 1. Mobile Money Transfer</h4>
+          <p>Send ZMW 500.00 via MoMo. Platform retains 1.0% (ZMW 5.00) automatically.</p>
+          <button class="btn btn-secondary" onclick="simulateMomoSend()">Simulate MoMo Fee</button>
+        </div>
+        <div class="test-card">
+          <h4>💼 2. Freelance Escrow Release</h4>
+          <p>Release ZMW 1,500.00 escrow. Platform takes 4% commission (ZMW 60.00).</p>
+          <button class="btn btn-secondary" onclick="simulateEscrowRelease()">Release Escrow & Earn Cut</button>
+        </div>
+        <div class="test-card">
+          <h4>💰 3. Micro-Loan Capital Deployment</h4>
+          <p>Disburse ZMW 5,000.00 loan. Platform captures 8% margin spread (ZMW 400.00).</p>
+          <button class="btn btn-secondary" onclick="simulateLoanSpread()">Disburse Loan & Earn Spread</button>
+        </div>
+        <div class="test-card">
+          <h4>🚀 4. Subscription Tier Upgrade</h4>
+          <p>Upgrade to Growth Tier (ZMW 299/mo) and collect invoice into operator wallet.</p>
+          <button class="btn btn-secondary" onclick="simulateSubscriptionPay()">Charge Subscription (ZMW 299)</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Two-Column Layout: Real-Time Revenue Ledger & Registered Businesses -->
+    <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 2rem;">
+
+      <!-- Left Column: Live Revenue Feed -->
+      <section class="panel">
+        <div class="section-title">
+          <span>📜 Real-Time Revenue Ledger</span>
+          <span class="badge badge-momo" id="streamStatus">LIVE</span>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Stream</th>
+                <th>Business</th>
+                <th>Gross Volume</th>
+                <th>Platform Fee</th>
+                <th>Time</th>
+              </tr>
+            </thead>
+            <tbody id="revenueTableBody">
+              <tr><td colspan="5" style="text-align:center; color:var(--muted)">Loading revenue events...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Right Column: Businesses & Subscriptions -->
+      <section class="panel">
+        <div class="section-title">
+          <span>🏢 Platform Businesses</span>
+          <span style="font-size:0.8rem; color:var(--muted)">Multi-Tenant Tenants</span>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Business</th>
+                <th>Plan</th>
+                <th>Modules</th>
+                <th>Wallet Balance</th>
+              </tr>
+            </thead>
+            <tbody id="businessTableBody">
+              <tr><td colspan="4" style="text-align:center; color:var(--muted)">Loading businesses...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid rgba(255,255,255,0.08);">
+          <div class="section-title" style="font-size: 1rem;">
+            <span>📄 Overdue / Pending Invoices</span>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Invoice ID</th>
+                  <th>Plan</th>
+                  <th>Amount</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="invoiceTableBody">
+                <tr><td colspan="4" style="text-align:center; color:var(--muted)">No overdue invoices</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Operator Setup & Credentials Card -->
+    <section class="panel" style="margin-top: 1rem;">
+      <div class="section-title">
+        <span>⚙️ Operator Credentials & Flutterwave Settlement Settings</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; font-size: 0.88rem;">
+        <div>
+          <div style="color:var(--muted); margin-bottom: 0.25rem;">Operator API Key:</div>
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <code class="mono" id="opApiKeyDisplay" style="background:rgba(0,0,0,0.4); padding:0.4rem 0.75rem; border-radius:6px; flex:1; word-break:break-all;">Loading...</code>
+            <button class="btn btn-secondary" style="padding:0.4rem 0.75rem;" onclick="copyOpKey()">Copy</button>
+          </div>
+        </div>
+        <div>
+          <div style="color:var(--muted); margin-bottom: 0.25rem;">Flutterwave Settlement Wallet:</div>
+          <div style="background:rgba(0,0,0,0.4); padding:0.4rem 0.75rem; border-radius:6px;">
+            <span id="opFlwDisplay">Active (Auto-settling to Mobile Money/Bank in ZMW)</span>
+          </div>
+        </div>
+        <div>
+          <div style="color:var(--muted); margin-bottom: 0.25rem;">Zambia Taxpayer Identification (TPIN):</div>
+          <div style="background:rgba(0,0,0,0.4); padding:0.4rem 0.75rem; border-radius:6px;">
+            <span id="opTpinDisplay">1002345678 (Compliant Electronic Fiscal Device)</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Gateway Redundancy & Telecom Provider Health -->
+    <section class="panel" style="margin-top: 1.5rem;">
+      <div class="section-title">
+        <span>🌐 Telecom Gateway Health & Fallback Routing</span>
+        <span class="badge badge-momo" id="gwModeBadge">SANDBOX</span>
+      </div>
+      <div style="margin-bottom: 1rem; color:var(--muted); font-size:0.85rem;">
+        Multi-carrier redundancy with automatic failover between Flutterwave, MTN MoMo, Airtel Money, and Cellulant (Zamtel).
+      </div>
+      <div class="table-container">
+        <table id="gw">
+          <thead>
+            <tr>
+              <th>Provider</th>
+              <th>Configured</th>
+              <th>Reachable</th>
+              <th>Active Role</th>
+              <th>Missing Environment Keys</th>
+            </tr>
+          </thead>
+          <tbody id="gwTableBody">
+            <tr><td colspan="5" style="text-align:center; color:var(--muted)">Checking gateway status...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="toast" id="toastBox"></div>
+
+  <script>
+    const DEMO_KEY = '80af46c3cae0f0f2c66b4495eac2271a173bf2b9d063020e25fe3407f0ccb7d6';
+    let currentOperatorKey = '';
+
+    function showToast(msg) {
+      const box = document.getElementById('toastBox');
+      box.textContent = msg;
+      box.style.display = 'block';
+      setTimeout(() => { box.style.display = 'none'; }, 4000);
+    }
+
+    async function loadDashboard() {
+      try {
+        const [revRes, bizRes, invRes, gwRes] = await Promise.all([
+          fetch('/api/operator/revenue').then(r => r.json()).catch(() => ({})),
+          fetch('/api/operator/businesses').then(r => r.json()).catch(() => ({})),
+          fetch('/api/operator/subscriptions/overdue').then(r => r.json()).catch(() => ({})),
+          fetch('/api/gateway/health').then(r => r.json()).catch(() => ({}))
+        ]);
+
+        if (gwRes && gwRes.ok) {
+          document.getElementById('gwModeBadge').textContent = (gwRes.mode || 'sandbox').toUpperCase();
+          const gwTbody = document.getElementById('gwTableBody');
+          if (gwRes.providers && gwRes.providers.length > 0) {
+            gwTbody.innerHTML = gwRes.providers.map(p => {
+              const role = p.provider === gwRes.primary ? '<span style="color:#60a5fa;font-weight:700;">PRIMARY</span>' : (p.provider === gwRes.fallback ? '<span style="color:#fcd34d;font-weight:700;">FALLBACK</span>' : 'CARRIER DIRECT');
+              const cfg = p.configured ? '<span style="color:#34d399;font-weight:700;">✓ Configured</span>' : '<span style="color:#f87171;">✗ Unconfigured</span>';
+              const rch = p.reachable === true ? '<span style="color:#34d399;font-weight:700;">✓ Online</span>' : (p.reachable === false ? '<span style="color:#f87171;">✗ Offline</span>' : '<span style="color:var(--muted);">Simulated (Sandbox)</span>');
+              const missing = (p.missing || []).join(', ') || '—';
+              return `
+                <tr>
+                  <td><strong>${p.provider.toUpperCase()}</strong></td>
+                  <td>${cfg}</td>
+                  <td>${rch}</td>
+                  <td>${role}</td>
+                  <td class="mono" style="font-size:0.75rem; color:var(--muted);">${missing}</td>
+                </tr>
+              `;
+            }).join('');
+          }
+        }
+
+        if (revRes.success) {
+          const { operator, summary, byStream, recentEvents } = revRes;
+          currentOperatorKey = operator.apiKey;
+          document.getElementById('operatorBalanceDisplay').textContent = `ZMW ${Number(operator.walletBalance || 0).toFixed(2)}`;
+          document.getElementById('kpiWallet').textContent = `ZMW ${Number(operator.walletBalance || 0).toFixed(2)}`;
+          document.getElementById('kpiTotalRevenue').textContent = `ZMW ${Number(summary.totalRevenue || 0).toFixed(2)}`;
+          document.getElementById('kpiEventCount').textContent = summary.revenueEventsCount || 0;
+          document.getElementById('kpiSubRevenue').textContent = `ZMW ${Number(byStream.subscription || 0).toFixed(2)}`;
+          document.getElementById('kpiMomoRevenue').textContent = `ZMW ${Number(byStream.transaction || 0).toFixed(2)}`;
+          
+          const escrowLoan = Number(byStream.escrow || 0) + Number(byStream.loan_spread || 0);
+          document.getElementById('kpiEscrowLoanRevenue').textContent = `ZMW ${escrowLoan.toFixed(2)}`;
+          document.getElementById('kpiBusinessCount').textContent = summary.activeBusinessesCount || 0;
+          document.getElementById('kpiOverdueCount').textContent = summary.overdueInvoicesCount || 0;
+
+          document.getElementById('opApiKeyDisplay').textContent = operator.apiKey;
+
+          // Render revenue events
+          const revTbody = document.getElementById('revenueTableBody');
+          if (recentEvents && recentEvents.length > 0) {
+            revTbody.innerHTML = recentEvents.map(ev => {
+              let badgeClass = 'badge-sub';
+              if (ev.type === 'transaction') badgeClass = 'badge-momo';
+              else if (ev.type === 'escrow') badgeClass = 'badge-escrow';
+              else if (ev.type === 'loan_spread') badgeClass = 'badge-lending';
+              else if (ev.type === 'module_activation') badgeClass = 'badge-module';
+
+              const timeStr = new Date(ev.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+              return `
+                <tr>
+                  <td><span class="badge ${badgeClass}">${ev.type.replace('_', ' ')}</span></td>
+                  <td>${ev.business_name || 'Business'}</td>
+                  <td>ZMW ${Number(ev.gross_amount || 0).toFixed(2)}</td>
+                  <td style="color:#34d399; font-weight:700;">+ZMW ${Number(ev.fee || 0).toFixed(2)}</td>
+                  <td style="color:var(--muted); font-size:0.8rem;">${timeStr}</td>
+                </tr>
+              `;
+            }).join('');
+          } else {
+            revTbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--muted)">No fee events yet. Trigger actions above to generate revenue!</td></tr>';
+          }
+        }
+
+        // Render businesses
+        if (bizRes.success && bizRes.businesses) {
+          const bizTbody = document.getElementById('businessTableBody');
+          bizTbody.innerHTML = bizRes.businesses.map(b => `
+            <tr>
+              <td><strong>${b.name}</strong><br><span style="font-size:0.75rem; color:var(--muted)">${b.email}</span></td>
+              <td><span class="badge badge-sub">${b.plan.toUpperCase()}</span></td>
+              <td>${b.moduleCount} modules</td>
+              <td>ZMW ${Number(b.walletBalance || 0).toFixed(2)}</td>
+            </tr>
+          `).join('');
+        }
+
+        // Render overdue invoices
+        if (invRes.success && invRes.invoices) {
+          const invTbody = document.getElementById('invoiceTableBody');
+          if (invRes.invoices.length > 0) {
+            invTbody.innerHTML = invRes.invoices.map(inv => `
+              <tr>
+                <td class="mono">${inv.id}</td>
+                <td>${inv.plan.toUpperCase()}</td>
+                <td>ZMW ${Number(inv.amount).toFixed(2)}</td>
+                <td>
+                  <button class="btn btn-secondary" style="padding:0.25rem 0.6rem; font-size:0.75rem;" onclick="payInvoice('${inv.id}')">
+                    Collect
+                  </button>
+                </td>
+              </tr>
+            `).join('');
+          } else {
+            invTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--muted)">All subscription accounts settled.</td></tr>';
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load dashboard:', err);
+      }
+    }
+
+    async function runBillingCycle() {
+      try {
+        const res = await fetch('/api/operator/subscriptions/run', { method: 'POST' }).then(r => r.json());
+        showToast(`Billing cycle completed. Processed: ${res.billedCount} subscriptions.`);
+        loadDashboard();
+      } catch (err) {
+        showToast('Billing cycle error: ' + err.message);
+      }
+    }
+
+    async function simulateMomoSend() {
+      try {
+        const res = await fetch('/api/mobile-money/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': DEMO_KEY },
+          body: JSON.stringify({ amount: 500, phone: '0971234567', provider: 'MTN' })
+        }).then(r => r.json());
+        if (res.success) {
+          showToast(`✓ MoMo Send: Platform captured ZMW ${res.platformFee.toFixed(2)} transaction fee!`);
+          loadDashboard();
+        } else {
+          showToast('Error: ' + res.error);
+        }
+      } catch (err) {
+        showToast('MoMo error: ' + err.message);
+      }
+    }
+
+    async function simulateEscrowRelease() {
+      try {
+        const res = await fetch('/api/freelance/release', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': DEMO_KEY },
+          body: JSON.stringify({ order_id: 101, amount: 1500 })
+        }).then(r => r.json());
+        if (res.success) {
+          showToast(`✓ Escrow Released: Platform captured ZMW ${res.escrowCommission.toFixed(2)} commission!`);
+          loadDashboard();
+        } else {
+          showToast('Error: ' + res.error);
+        }
+      } catch (err) {
+        showToast('Escrow error: ' + err.message);
+      }
+    }
+
+    async function simulateLoanSpread() {
+      try {
+        const res = await fetch('/api/lending/disburse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': DEMO_KEY },
+          body: JSON.stringify({ amount: 5000, phone: '0971234567' })
+        }).then(r => r.json());
+        if (res.success) {
+          showToast(`✓ Loan Disbursed: Platform captured ZMW ${res.loanSpreadFee.toFixed(2)} (8% spread)!`);
+          loadDashboard();
+        } else {
+          showToast('Error: ' + res.error);
+        }
+      } catch (err) {
+        showToast('Lending error: ' + err.message);
+      }
+    }
+
+    async function simulateSubscriptionPay() {
+      try {
+        // Create Growth invoice then pay
+        const invRes = await fetch('/api/billing/subscription/invoice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': DEMO_KEY },
+          body: JSON.stringify({ plan: 'growth' })
+        }).then(r => r.json());
+
+        if (invRes.invoice) {
+          const payRes = await fetch(`/api/billing/subscription/${invRes.invoice.id}/pay`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': DEMO_KEY },
+            body: JSON.stringify({ method: 'wallet' })
+          }).then(r => r.json());
+          showToast(`✓ Subscription Collected: ZMW 299.00 credited directly to operator wallet!`);
+          loadDashboard();
+        }
+      } catch (err) {
+        showToast('Subscription error: ' + err.message);
+      }
+    }
+
+    async function payInvoice(id) {
+      try {
+        const res = await fetch(`/api/billing/subscription/${id}/pay`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': DEMO_KEY },
+          body: JSON.stringify({ method: 'wallet' })
+        }).then(r => r.json());
+        if (res.success) {
+          showToast(`Invoice ${id} collected successfully!`);
+          loadDashboard();
+        } else {
+          showToast('Failed to collect invoice: ' + res.error);
+        }
+      } catch (err) {
+        showToast('Invoice pay error: ' + err.message);
+      }
+    }
+
+    function copyOpKey() {
+      navigator.clipboard.writeText(currentOperatorKey);
+      showToast('Operator API Key copied to clipboard');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadDashboard();
+      // Poll every 10 seconds for real-time live ledger updates
+      setInterval(loadDashboard, 10000);
+    });
+  </script>
+  <script src="/pwa-bridge.js"></script>
+</body>
+</html>

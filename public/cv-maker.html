@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="BaKangombe Professional CV Maker – Build recruiter-approved resumes with over 20 tailored templates, real-time live preview, and instant PDF download.">
+  <title>Professional CV & Resume Maker · BaKangombe</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BaKangombe CV">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0c10;
+      --card-bg: #121620;
+      --border: rgba(255, 255, 255, 0.08);
+      --primary: #4f46e5;
+      --primary-hover: #6366f1;
+      --accent: #10b981;
+      --text: #eef2ff;
+      --text-muted: #94a3b8;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Navbar */
+    .top-nav {
+      background: rgba(10, 12, 16, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+    }
+    .brand-logo {
+      font-size: 1.35rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #d9a7c7, #fff0d4, #a0c4ff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .brand-pill {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.6rem;
+      background: rgba(79, 70, 229, 0.2);
+      border: 1px solid rgba(79, 70, 229, 0.4);
+      color: #c7d2fe;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.5rem 1.1rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: #4f46e5;
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+    }
+    .btn-primary:hover { background: #6366f1; transform: translateY(-1px); }
+    .btn-success {
+      background: #10b981;
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+    }
+    .btn-success:hover { background: #059669; }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--border);
+      color: #cbd5e1;
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.09);
+      border-color: rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+    }
+    .btn-danger-outline {
+      background: transparent;
+      border-color: rgba(239, 68, 68, 0.3);
+      color: #f87171;
+    }
+    .btn-danger-outline:hover {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: #ef4444;
+    }
+
+    /* Sub-banner: Completeness & Results banner */
+    .metric-banner {
+      background: linear-gradient(90deg, rgba(79, 70, 229, 0.12), rgba(16, 185, 129, 0.12));
+      border-bottom: 1px solid var(--border);
+      padding: 0.6rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      font-size: 0.825rem;
+    }
+    .completeness-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 280px;
+    }
+    .completeness-text {
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      color: #cbd5e1;
+      white-space: nowrap;
+    }
+    .progress-bar-bg {
+      flex: 1;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #6366f1, #10b981);
+      border-radius: 9999px;
+      transition: width 0.4s ease;
+    }
+    .score-badge {
+      font-weight: 800;
+      color: #34d399;
+      min-width: 40px;
+    }
+    .stats-pills {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      color: #94a3b8;
+    }
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .stat-item strong {
+      color: #38bdf8;
+    }
+
+    /* Main Workspace Split */
+    .workspace {
+      display: grid;
+      grid-template-columns: 500px 1fr;
+      flex: 1;
+      height: calc(100vh - 110px);
+      overflow: hidden;
+    }
+    @media (max-width: 1100px) {
+      .workspace {
+        grid-template-columns: 1fr;
+        height: auto;
+        overflow: visible;
+      }
+    }
+
+    /* Left Form Pane */
+    .form-pane {
+      background: #0d1117;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      height: 100%;
+    }
+    .wizard-tabs {
+      display: flex;
+      overflow-x: auto;
+      background: #111622;
+      border-bottom: 1px solid var(--border);
+      padding: 0.5rem 0.75rem 0;
+      gap: 0.25rem;
+      scrollbar-width: none;
+    }
+    .wizard-tabs::-webkit-scrollbar { display: none; }
+    .w-tab {
+      padding: 0.6rem 0.9rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      transition: all 0.2s;
+      border-radius: 4px 4px 0 0;
+    }
+    .w-tab:hover { color: #ffffff; background: rgba(255, 255, 255, 0.02); }
+    .w-tab.active {
+      color: #60a5fa;
+      border-bottom-color: #60a5fa;
+      background: rgba(96, 165, 250, 0.08);
+    }
+    .form-content {
+      padding: 1.5rem;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    /* Step containers */
+    .form-step { display: none; }
+    .form-step.active { display: block; animation: fadeIn 0.25s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    .step-header {
+      margin-bottom: 1.25rem;
+    }
+    .step-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 0.25rem;
+    }
+    .step-desc {
+      font-size: 0.825rem;
+      color: var(--text-muted);
+    }
+
+    /* Form Fields */
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    .form-row-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.75rem;
+    }
+    label {
+      display: block;
+      font-size: 0.775rem;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 0.35rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="month"],
+    input[type="url"],
+    textarea,
+    select {
+      width: 100%;
+      background: #161b26;
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      color: #ffffff;
+      padding: 0.6rem 0.85rem;
+      font-size: 0.875rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+    textarea { resize: vertical; min-height: 80px; }
+
+    /* Photo Upload Area */
+    .photo-upload-box {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      padding: 1rem;
+      background: #141923;
+      border: 1px dashed rgba(255, 255, 255, 0.15);
+      border-radius: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .photo-preview-circle {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: #1e2638;
+      border: 2px solid #3b82f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .photo-preview-circle img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .photo-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    /* Dynamic Item Cards (Jobs, Education) */
+    .item-card {
+      background: #141923;
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.1rem;
+      margin-bottom: 1rem;
+      position: relative;
+      transition: border-color 0.2s;
+    }
+    .item-card:hover { border-color: rgba(99, 102, 241, 0.4); }
+    .item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 0.4rem;
+    }
+    .item-header-title {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: #93c5fd;
+    }
+    .btn-remove {
+      background: transparent;
+      border: none;
+      color: #f87171;
+      cursor: pointer;
+      font-size: 0.8rem;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+    }
+    .btn-remove:hover { background: rgba(239, 68, 68, 0.15); }
+
+    /* Bullet point quick add suggestions */
+    .quick-suggestions {
+      background: rgba(79, 70, 229, 0.08);
+      border: 1px solid rgba(79, 70, 229, 0.2);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      margin-top: 0.5rem;
+    }
+    .quick-suggestions-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #a5b4fc;
+      margin-bottom: 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .suggestion-chips {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .suggestion-chip {
+      background: #181f2f;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 0.4rem 0.65rem;
+      border-radius: 0.4rem;
+      font-size: 0.775rem;
+      color: #cbd5e1;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s;
+    }
+    .suggestion-chip:hover {
+      background: #232c42;
+      border-color: #818cf8;
+      color: #ffffff;
+      transform: translateX(2px);
+    }
+
+    /* Skills interactive tags */
+    .skills-pool {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .skill-tag {
+      background: #1e2638;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 0.3rem 0.65rem;
+      border-radius: 0.4rem;
+      font-size: 0.8rem;
+      color: #e2e8f0;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .skill-tag-del {
+      cursor: pointer;
+      color: #94a3b8;
+      font-weight: bold;
+    }
+    .skill-tag-del:hover { color: #f87171; }
+
+    /* Step bottom footer */
+    .wizard-footer {
+      background: #111622;
+      border-top: 1px solid var(--border);
+      padding: 0.85rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Right Preview Pane */
+    .preview-pane {
+      background: #090b0e;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      height: 100%;
+    }
+    .preview-toolbar {
+      background: #11151f;
+      border-bottom: 1px solid var(--border);
+      padding: 0.6rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .toolbar-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+    }
+    .color-swatch-picker {
+      display: flex;
+      gap: 0.35rem;
+    }
+    .swatch {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform 0.15s;
+    }
+    .swatch:hover { transform: scale(1.15); }
+    .swatch.active { border-color: #ffffff; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3); }
+
+    .preview-canvas-wrap {
+      flex: 1;
+      overflow: auto;
+      padding: 2rem;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      background: #07090c;
+    }
+
+    /* A4 Resume Sheet Dimensions & Styling */
+    .a4-sheet {
+      width: 210mm;
+      min-height: 297mm;
+      background: #ffffff;
+      color: #1e293b;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.55);
+      border-radius: 2px;
+      box-sizing: border-box;
+      position: relative;
+      transform-origin: top center;
+      transition: transform 0.2s;
+    }
+
+    /* Modal for Templates Gallery */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-content {
+      background: #0f141f;
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      width: 100%;
+      max-width: 1200px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7);
+    }
+    .modal-header {
+      padding: 1.25rem 1.75rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-title { font-size: 1.35rem; font-weight: 800; color: #ffffff; }
+    .btn-close {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+    .btn-close:hover { color: #ffffff; }
+
+    /* Gallery Filters */
+    .gallery-filters {
+      background: #141925;
+      padding: 1rem 1.75rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .filter-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .filter-label { font-size: 0.75rem; font-weight: 700; color: #cbd5e1; text-transform: uppercase; }
+    .filter-btn-group {
+      display: flex;
+      background: #0b0e14;
+      border: 1px solid var(--border);
+      border-radius: 0.4rem;
+      overflow: hidden;
+    }
+    .filter-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      padding: 0.35rem 0.75rem;
+      font-size: 0.775rem;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .filter-btn.active {
+      background: #3b82f6;
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    .modal-body {
+      padding: 1.5rem 1.75rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .templates-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1.5rem;
+    }
+    .template-card {
+      background: #141a26;
+      border: 2px solid var(--border);
+      border-radius: 0.75rem;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .template-card:hover {
+      border-color: #4f46e5;
+      transform: translateY(-4px);
+      box-shadow: 0 10px 25px rgba(79, 70, 229, 0.25);
+    }
+    .template-card.active-tpl {
+      border-color: #10b981;
+      box-shadow: 0 0 0 2px #10b981;
+    }
+    .tpl-preview-box {
+      height: 220px;
+      background: #f8fafc;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+    .tpl-mock-wireframe {
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 2px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+      display: flex;
+      overflow: hidden;
+    }
+    .tpl-rec-badge {
+      position: absolute;
+      top: 0.6rem;
+      right: 0.6rem;
+      background: #059669;
+      color: #ffffff;
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      letter-spacing: 0.04em;
+    }
+    .tpl-info {
+      padding: 1rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .tpl-name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 0.2rem;
+    }
+    .tpl-desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+      margin-bottom: 0.75rem;
+    }
+    .tpl-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.725rem;
+      color: #94a3b8;
+    }
+
+    /* Print Styles: Exact A4 output */
+    @media print {
+      body * { visibility: hidden; }
+      .a4-sheet, .a4-sheet * { visibility: visible; }
+      .a4-sheet {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100% !important;
+        min-height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        transform: none !important;
+      }
+      @page {
+        size: A4;
+        margin: 10mm;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="top-nav">
+    <a href="/" class="brand-wrap">
+      <span class="brand-logo">BaKangombe</span>
+      <span class="brand-pill">⚡ Pro CV Maker</span>
+    </a>
+
+    <div class="nav-actions">
+      <button class="btn btn-secondary" id="btnOpenTemplates">
+        <span>🎨</span> Select Template (22 Available)
+      </button>
+      <button class="btn btn-secondary" id="btnLoadSampleBornface">
+        <span>📋</span> Sample: Bornface Kangombe
+      </button>
+      <button class="btn btn-secondary" id="btnLoadSampleTech">
+        <span>💻</span> Sample: Senior Dev
+      </button>
+      <button class="btn btn-secondary" id="btnResetForm">
+        <span>🔄</span> Reset
+      </button>
+      <button class="btn btn-success" id="btnPrintPdf">
+        <span>🖨️</span> Download PDF / Print
+      </button>
+    </div>
+  </header>
+
+  <!-- Metric & Completeness Banner -->
+  <section class="metric-banner">
+    <div class="completeness-wrap">
+      <span class="completeness-text">RESUME COMPLETENESS:</span>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="completenessFill" style="width: 85%;"></div>
+      </div>
+      <span class="score-badge" id="completenessScore">85%</span>
+    </div>
+
+    <div class="stats-pills">
+      <div class="stat-item">
+        <span>🚀</span>
+        <span><strong>30%</strong> Higher chance of getting hired</span>
+      </div>
+      <div class="stat-item">
+        <span>📈</span>
+        <span><strong>42%</strong> Higher recruiter response rate</span>
+      </div>
+      <div class="stat-item">
+        <span>🎯</span>
+        <span><strong>50%</strong> Increase in dream job prospects</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Workspace: Form on Left, Live Preview on Right -->
+  <main class="workspace">
+    <!-- Left Pane: Wizard Form -->
+    <aside class="form-pane">
+      <nav class="wizard-tabs">
+        <button class="w-tab active" data-step="heading">1. Heading</button>
+        <button class="w-tab" data-step="work">2. Work History</button>
+        <button class="w-tab" data-step="education">3. Education</button>
+        <button class="w-tab" data-step="skills">4. Skills</button>
+        <button class="w-tab" data-step="summary">5. Summary</button>
+        <button class="w-tab" data-step="extras">6. Extras</button>
+      </nav>
+
+      <div class="form-content">
+
+        <!-- STEP 1: HEADING & CONTACT -->
+        <div class="form-step active" id="step-heading">
+          <div class="step-header">
+            <h2 class="step-title">What’s the best way for employers to contact you?</h2>
+            <p class="step-desc">We suggest including a professional email and phone number.</p>
+          </div>
+
+          <!-- Photo Upload -->
+          <div class="photo-upload-box">
+            <div class="photo-preview-circle" id="photoPreview">
+              <span id="photoInitials">BK</span>
+            </div>
+            <div class="photo-actions">
+              <label style="margin:0;">Headshot Photo (Optional)</label>
+              <input type="file" id="photoFileInput" accept="image/*" style="display:none;">
+              <div style="display:flex;gap:0.4rem;">
+                <button type="button" class="btn btn-secondary" style="padding:0.3rem 0.7rem;font-size:0.75rem;" onclick="document.getElementById('photoFileInput').click()">Upload Photo</button>
+                <button type="button" class="btn btn-danger-outline" style="padding:0.3rem 0.7rem;font-size:0.75rem;" id="btnRemovePhoto">Remove</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>First Name *</label>
+              <input type="text" id="inpFirstName" value="Bornface" placeholder="e.g. Bornface">
+            </div>
+            <div class="form-group">
+              <label>Surname *</label>
+              <input type="text" id="inpLastName" value="Kangombe" placeholder="e.g. Kangombe">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Professional Job Title</label>
+            <input type="text" id="inpTitle" value="Founder & Principal Systems Architect" placeholder="e.g. Senior Software Architect">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Email Address *</label>
+              <input type="email" id="inpEmail" value="bornfacek135@gmail.com" placeholder="name@domain.com">
+            </div>
+            <div class="form-group">
+              <label>Phone Number *</label>
+              <input type="tel" id="inpPhone" value="+260 97 123 4567" placeholder="+260 97 123 4567">
+            </div>
+          </div>
+
+          <div class="form-row-3">
+            <div class="form-group">
+              <label>City</label>
+              <input type="text" id="inpCity" value="Kitwe" placeholder="Kitwe">
+            </div>
+            <div class="form-group">
+              <label>Postcode</label>
+              <input type="text" id="inpPostcode" value="50100" placeholder="50100">
+            </div>
+            <div class="form-group">
+              <label>Country</label>
+              <input type="text" id="inpCountry" value="Zambia" placeholder="Zambia">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>LinkedIn (optional)</label>
+              <input type="text" id="inpLinkedin" value="linkedin.com/in/bornface-kangombe" placeholder="linkedin.com/in/bornface-kangombe">
+            </div>
+            <div class="form-group">
+              <label>Portfolio / Website (optional)</label>
+              <input type="text" id="inpWebsite" value="bakangombe.com" placeholder="bakangombe.com">
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 2: WORK HISTORY -->
+        <div class="form-step" id="step-work">
+          <div class="step-header">
+            <h2 class="step-title">Work Experience</h2>
+            <p class="step-desc">Highlight your leadership, measurable achievements, and key responsibilities.</p>
+          </div>
+
+          <div id="workListContainer"></div>
+
+          <button type="button" class="btn btn-secondary" id="btnAddWork" style="width:100%;margin-top:0.5rem;">
+            + Add Another Position
+          </button>
+        </div>
+
+        <!-- STEP 3: EDUCATION -->
+        <div class="form-step" id="step-education">
+          <div class="step-header">
+            <h2 class="step-title">Education & Qualifications</h2>
+            <p class="step-desc">List your academic degrees, diplomas, and relevant academic honors.</p>
+          </div>
+
+          <div id="eduListContainer"></div>
+
+          <button type="button" class="btn btn-secondary" id="btnAddEdu" style="width:100%;margin-top:0.5rem;">
+            + Add Another Degree / Qualification
+          </button>
+        </div>
+
+        <!-- STEP 4: SKILLS -->
+        <div class="form-step" id="step-skills">
+          <div class="step-header">
+            <h2 class="step-title">Skills & Competencies</h2>
+            <p class="step-desc">Recruiters scan for relevant technical and interpersonal abilities.</p>
+          </div>
+
+          <div class="form-group">
+            <label>Add a Skill</label>
+            <div style="display:flex;gap:0.5rem;">
+              <input type="text" id="inpNewSkill" placeholder="e.g. Budget Management, Python, Agile">
+              <select id="selSkillLevel" style="width:140px;">
+                <option value="Expert">Expert</option>
+                <option value="Advanced" selected>Advanced</option>
+                <option value="Intermediate">Intermediate</option>
+              </select>
+              <button type="button" class="btn btn-primary" id="btnAddSkill">Add</button>
+            </div>
+          </div>
+
+          <!-- Active Skills List -->
+          <label>Your Selected Skills:</label>
+          <div class="skills-pool" id="skillsContainer"></div>
+
+          <!-- Quick Suggestions -->
+          <div class="quick-suggestions">
+            <div class="quick-suggestions-title">⚡ Quick Add Recommended Skills:</div>
+            <div style="display:flex;flex-wrap:wrap;gap:0.35rem;" id="quickSkillChips">
+              <!-- populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 5: SUMMARY -->
+        <div class="form-step" id="step-summary">
+          <div class="step-header">
+            <h2 class="step-title">Professional Summary</h2>
+            <p class="step-desc">A powerful 2-4 sentence overview of your career trajectory and unique strengths.</p>
+          </div>
+
+          <div class="form-group">
+            <textarea id="inpSummary" rows="6" placeholder="Passionate professional with over X years of experience in..."></textarea>
+          </div>
+
+          <div class="quick-suggestions">
+            <div class="quick-suggestions-title">💡 1-Click Summary Starters:</div>
+            <div class="suggestion-chips" id="summarySuggestions">
+              <button type="button" class="suggestion-chip" onclick="applySummary(1)">
+                <strong>Operations & Projects:</strong> Results-driven Senior Operations & Project Manager with over 10 years of cross-industry leadership...
+              </button>
+              <button type="button" class="suggestion-chip" onclick="applySummary(2)">
+                <strong>Executive / Management:</strong> Dynamic business leader with a proven track record of scaling teams, optimizing operational budgets...
+              </button>
+              <button type="button" class="suggestion-chip" onclick="applySummary(3)">
+                <strong>Technical / Software:</strong> Senior Full-Stack Engineer and Systems Architect specializing in high-throughput cloud backends...
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 6: EXTRAS -->
+        <div class="form-step" id="step-extras">
+          <div class="step-header">
+            <h2 class="step-title">Certifications & Languages</h2>
+            <p class="step-desc">Additional credentials that set you apart from other applicants.</p>
+          </div>
+
+          <div class="form-group">
+            <label>Certifications (one per line, e.g. "PMP – Project Management Institute")</label>
+            <textarea id="inpCertifications" rows="3" placeholder="PMP (Project Management Institute)&#10;Certified Scrum Master"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Languages (e.g. English – Fluent, Bemba – Native)</label>
+            <input type="text" id="inpLanguages" value="English (Fluent), Bemba (Native), Swahili (Professional)" placeholder="English, French, etc.">
+          </div>
+
+          <div class="form-group">
+            <label>References</label>
+            <input type="text" id="inpReferences" value="Available upon request" placeholder="Available upon request">
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Form Footer Wizard Controls -->
+      <footer class="wizard-footer">
+        <button type="button" class="btn btn-secondary" id="btnPrevStep">← Back</button>
+        <button type="button" class="btn btn-primary" id="btnNextStep">Next: Work History →</button>
+      </footer>
+    </aside>
+
+    <!-- Right Pane: Live Document Preview -->
+    <section class="preview-pane">
+      <div class="preview-toolbar">
+        <div class="toolbar-group">
+          <span class="toolbar-label">Template:</span>
+          <select id="selCurrentTemplate" style="width:200px;padding:0.35rem 0.6rem;font-size:0.8rem;background:#182030;">
+            <!-- Populated with 22 templates -->
+          </select>
+        </div>
+
+        <div class="toolbar-group">
+          <span class="toolbar-label">Color:</span>
+          <div class="color-swatch-picker" id="swatchPicker">
+            <div class="swatch active" style="background:#1e3a8a;" data-color="#1e3a8a" title="Royal Navy Blue"></div>
+            <div class="swatch" style="background:#047857;" data-color="#047857" title="Deep Emerald Forest"></div>
+            <div class="swatch" style="background:#991b1b;" data-color="#991b1b" title="Burgundy Ruby"></div>
+            <div class="swatch" style="background:#dc2626;" data-color="#dc2626" title="Vibrant Crimson"></div>
+            <div class="swatch" style="background:#2563eb;" data-color="#2563eb" title="Cobalt Electric Blue"></div>
+            <div class="swatch" style="background:#7c3aed;" data-color="#7c3aed" title="Imperial Amethyst"></div>
+            <div class="swatch" style="background:#0f766e;" data-color="#0f766e" title="Nordic Teal"></div>
+            <div class="swatch" style="background:#d97706;" data-color="#d97706" title="Sunset Amber"></div>
+            <div class="swatch" style="background:#db2777;" data-color="#db2777" title="Rose Gold"></div>
+            <div class="swatch" style="background:#18181b;" data-color="#18181b" title="Obsidian Charcoal"></div>
+          </div>
+          <input type="color" id="customColorPicker" value="#1e3a8a" title="Pick any custom color" style="width:28px;height:24px;border:none;background:transparent;cursor:pointer;padding:0;">
+        </div>
+
+        <div class="toolbar-group">
+          <span class="toolbar-label">Font:</span>
+          <select id="selFontFamily" style="width:130px;padding:0.35rem 0.6rem;font-size:0.8rem;background:#182030;">
+            <option value="Merriweather, serif">Serif Classic</option>
+            <option value="Inter, sans-serif" selected>Inter Modern</option>
+            <option value="Outfit, sans-serif">Outfit Sleek</option>
+            <option value="'JetBrains Mono', monospace">Tech Mono</option>
+          </select>
+        </div>
+
+        <div class="toolbar-group">
+          <span class="toolbar-label">Zoom:</span>
+          <button class="btn btn-secondary" style="padding:0.25rem 0.6rem;font-size:0.75rem;" id="btnZoomOut">-</button>
+          <span id="zoomLevelText" style="font-size:0.75rem;font-weight:700;color:#94a3b8;min-width:35px;text-align:center;">85%</span>
+          <button class="btn btn-secondary" style="padding:0.25rem 0.6rem;font-size:0.75rem;" id="btnZoomIn">+</button>
+        </div>
+      </div>
+
+      <div class="preview-canvas-wrap">
+        <!-- Rendered A4 Sheet -->
+        <article class="a4-sheet" id="resumeCanvas" style="transform: scale(0.85);">
+          <!-- Dynamic Resume HTML goes here -->
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal: Over 20 Professional CV Templates Gallery -->
+  <div class="modal-overlay" id="templatesModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Choose from 20+ Recruiter-Approved CV Templates</h3>
+          <p style="font-size:0.8rem;color:#94a3b8;">You can always change your template anytime with 1 click.</p>
+        </div>
+        <button class="btn-close" id="btnCloseTemplatesModal">&times;</button>
+      </div>
+
+      <!-- Filters matching prompt instructions -->
+      <div class="gallery-filters">
+        <div class="filter-item">
+          <span class="filter-label">Experience:</span>
+          <div class="filter-btn-group" id="filterExpGroup">
+            <button class="filter-btn active" data-exp="all">All</button>
+            <button class="filter-btn" data-exp="10+ years of experience">10+ Years Experience</button>
+            <button class="filter-btn" data-exp="Mid to Senior">Mid to Senior</button>
+            <button class="filter-btn" data-exp="All levels">All Levels</button>
+          </div>
+        </div>
+
+        <div class="filter-item">
+          <span class="filter-label">Headshot:</span>
+          <div class="filter-btn-group" id="filterPhotoGroup">
+            <button class="filter-btn active" data-photo="all">All</button>
+            <button class="filter-btn" data-photo="with">With Photo</button>
+            <button class="filter-btn" data-photo="without">Without Photo</button>
+          </div>
+        </div>
+
+        <div class="filter-item">
+          <span class="filter-label">Columns:</span>
+          <div class="filter-btn-group" id="filterColGroup">
+            <button class="filter-btn active" data-col="all">All</button>
+            <button class="filter-btn" data-col="1">1 Column</button>
+            <button class="filter-btn" data-col="2">2 Columns</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <div class="templates-grid" id="templatesGrid">
+          <!-- Dynamically populated 22 template cards -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/pwa-bridge.js"></script>
+  <script src="/cv-maker.js"></script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "name": "BaKangombe",
+  "description": "Real-time Email Validation, Multi-Tenant SME & Telecom Infrastructure, Professional CV Maker with 20+ templates, and Automated Operator Revenue Monetization Engine.",
+  "permissions": [],
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

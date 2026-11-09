@@ -3,10 +3,15 @@
   "version": "1.0.0",
   "main": "api/index.js",
   "scripts": {
+    "dev": "node api/index.js",
+    "start": "node api/index.js",
+    "build": "echo 'Build complete'",
+    "lint": "node -c api/index.js api/mock-db.js api/db.js api/billing.js api/gateway/index.js api/gateway/sandbox.js api/gateway/flutterwave.js api/gateway/mtn.js api/gateway/airtel.js api/gateway/zamtel.js api/gateway/health.js db.js api/cv-service.js public/sw.js public/pwa-bridge.js scripts/generate-pwa-assets.js",
     "vercel-build": "npm install"
   },
   "dependencies": {
     "@faker-js/faker": "^8.4.1",
+    "@prisma/client": "6.4.1",
     "@vercel/postgres": "^0.10.0",
     "adm-zip": "^0.5.17",
     "archiver": "^8.0.0",
@@ -19,11 +24,12 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^1.4.5-lts.1",
     "pg": "^8.21.0",
+    "prisma": "6.4.1",
     "qrcode": "^1.5.3",
     "uuid": "^9.0.1",
     "whois-json": "^2.0.5"
   },
   "engines": {
-    "node": "20.x"
+    "node": ">=20.0.0"
   }
 }

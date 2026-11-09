@@ -1,0 +1,490 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// TENANTS
+// ============================================================
+
+model Business {
+  id            String   @id
+  name          String
+  tpin          String?
+  pacra         String?
+  apiKey        String   @unique
+  plan          String   @default("free")
+  isOperator    Boolean  @default(false)
+  walletBalance Decimal  @default(0) @db.Decimal(18, 2)
+  currency      String   @default("ZMW")
+  modules       String[] @default([])
+  subscriptionPaidAt DateTime?
+  createdAt     DateTime @default(now())
+
+  ledgerEntries        LedgerEntry[]
+  mmTransactions       MmTransaction[]
+  invoices             Invoice[]
+  subscriptionInvoices SubscriptionInvoice[]
+  waProducts           WaProduct[]
+  waOrders             WaOrder[]
+  routes               Route[]
+  drivers              Driver[]
+  farmers              Farmer[]
+  faqs                 Faq[]
+  loans                Loan[]
+  sales                Sale[]
+  expenses             Expense[]
+  inventoryProducts    InventoryProduct[]
+  posSales             PosSale[]
+  ads                  Ad[]
+  services             Service[]
+  escrowOrders         EscrowOrder[]
+  patients             Patient[]
+  appointments         Appointment[]
+  kycRecords           KycRecord[]
+  storefrontProducts   StorefrontProduct[]
+  ecOrders             EcOrder[]
+
+  @@index([isOperator])
+  @@map("businesses")
+}
+
+// ============================================================
+// DOUBLE-ENTRY LEDGER
+// ============================================================
+
+model LedgerEntry {
+  id         String   @id
+  batchId    String
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  account    String
+  debit      Decimal  @default(0) @db.Decimal(18, 2)
+  credit     Decimal  @default(0) @db.Decimal(18, 2)
+  meta       Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, createdAt])
+  @@index([account])
+  @@index([batchId])
+  @@map("ledger_entries")
+}
+
+// ============================================================
+// 1. MOBILE MONEY
+// ============================================================
+
+model MmTransaction {
+  id          String    @id
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  type        String
+  carrier     String
+  phone       String
+  amount      Decimal   @db.Decimal(18, 2)
+  fee         Decimal   @default(0) @db.Decimal(18, 2)
+  total       Decimal   @db.Decimal(18, 2)
+  reference   String    @unique
+  status      String    @default("pending")
+  gatewayRef  String?
+  simulated   Boolean   @default(false)
+  note        String?
+  providerRaw Json?
+  settledAt   DateTime?
+  failedAt    DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([businessId, createdAt])
+  @@index([status])
+  @@map("mm_transactions")
+}
+
+// ============================================================
+// 2. INVOICES & SUBSCRIPTIONS
+// ============================================================
+
+model Invoice {
+  id           String    @id
+  businessId   String
+  business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  number       String    @unique
+  tpin         String?
+  fiscalMarkId String?
+  customer     Json
+  lines        Json
+  subtotal     Decimal   @db.Decimal(18, 2)
+  vat          Decimal   @db.Decimal(18, 2)
+  total        Decimal   @db.Decimal(18, 2)
+  currency     String    @default("ZMW")
+  status       String    @default("unpaid")
+  verifyUrl    String?
+  zraSignature String?
+  receipt      String?
+  paidAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([businessId, createdAt])
+  @@index([status])
+  @@map("invoices")
+}
+
+model SubscriptionInvoice {
+  id          String    @id
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  plan        String
+  amount      Decimal   @db.Decimal(18, 2)
+  currency    String    @default("ZMW")
+  number      String    @unique
+  status      String    @default("pending")
+  providerRef String?
+  dueAt       DateTime
+  paidAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([businessId, status])
+  @@index([dueAt])
+  @@map("subscription_invoices")
+}
+
+// ============================================================
+// 3. WHATSAPP
+// ============================================================
+
+model WaProduct {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  price      Decimal  @db.Decimal(18, 2)
+  description String  @default("")
+  waLink     String
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, active])
+  @@map("wa_products")
+}
+
+model WaOrder {
+  id            String   @id
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  productId     String
+  productName   String
+  qty           Int
+  total         Decimal  @db.Decimal(18, 2)
+  customerPhone String
+  checkoutLink  String
+  status        String   @default("created")
+  createdAt     DateTime @default(now())
+
+  @@index([businessId, createdAt])
+  @@map("wa_orders")
+}
+
+// ============================================================
+// 4. LOGISTICS
+// ============================================================
+
+model Route {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  origin     String
+  waypoints  String[]
+  distanceKm Float
+  etaMinutes Int
+  status     String   @default("created")
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, createdAt])
+  @@map("routes")
+}
+
+model Driver {
+  id            String   @id
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  routeId       String
+  driverName    String
+  licenseNumber String
+  vehicle       String
+  status        String   @default("assigned")
+  lat           Float
+  lng           Float
+  speedKph      Float    @default(0)
+  heading       Float    @default(0)
+  assignedAt    DateTime @default(now())
+
+  @@index([businessId, routeId])
+  @@map("drivers")
+}
+
+// ============================================================
+// 5. AGRITECH
+// ============================================================
+
+model Farmer {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  crop       String
+  price      Decimal  @db.Decimal(18, 2)
+  available  Decimal  @db.Decimal(18, 2)
+  block      String   @default("")
+  verified   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, crop, verified])
+  @@map("farmers")
+}
+
+// ============================================================
+// 6. AI SUPPORT
+// ============================================================
+
+model Faq {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  question   String
+  answer     String
+  createdAt  DateTime @default(now())
+
+  @@index([businessId])
+  @@map("faqs")
+}
+
+// ============================================================
+// 7. LENDING
+// ============================================================
+
+model Loan {
+  id               String   @id
+  businessId       String
+  business         Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  phone            String
+  amount           Decimal  @db.Decimal(18, 2)
+  termMonths       Int
+  originationFee   Decimal  @db.Decimal(18, 2)
+  interestRatePct  Decimal  @db.Decimal(6, 2)
+  interestAmount   Decimal  @db.Decimal(18, 2)
+  totalRepayable   Decimal  @db.Decimal(18, 2)
+  monthlyPayment   Decimal  @db.Decimal(18, 2)
+  score            Int
+  disclosure       Json
+  status           String   @default("disbursed")
+  reference        String   @unique
+  gatewayRef       String?
+  simulated        Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  @@index([businessId, status])
+  @@map("loans")
+}
+
+// ============================================================
+// 8. SME
+// ============================================================
+
+model Sale {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer   String   @default("Walk-in")
+  amount     Decimal  @db.Decimal(18, 2)
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, createdAt])
+  @@map("sales")
+}
+
+model Expense {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category   String   @default("General")
+  amount     Decimal  @db.Decimal(18, 2)
+  note       String   @default("")
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, createdAt])
+  @@map("expenses")
+}
+
+// ============================================================
+// 9. INVENTORY & POS
+// ============================================================
+
+model InventoryProduct {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  sku        String
+  price      Decimal  @db.Decimal(18, 2)
+  stock      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([businessId, sku])
+  @@index([businessId])
+  @@map("inventory_products")
+}
+
+model PosSale {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  lines      Json
+  total      Decimal  @db.Decimal(18, 2)
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, createdAt])
+  @@map("pos_sales")
+}
+
+// ============================================================
+// 10. SOCIAL ADS
+// ============================================================
+
+model Ad {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  channel    String   @default("whatsapp")
+  budget     Decimal  @db.Decimal(18, 2)
+  spend      Decimal  @default(0) @db.Decimal(18, 2)
+  leads      Int      @default(0)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, active])
+  @@map("ads")
+}
+
+// ============================================================
+// 11. FREELANCE / ESCROW
+// ============================================================
+
+model Service {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  title      String
+  price      Decimal  @db.Decimal(18, 2)
+  freelancer String   @default("Unassigned")
+  createdAt  DateTime @default(now())
+
+  @@index([businessId])
+  @@map("services")
+}
+
+model EscrowOrder {
+  id          String    @id
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  serviceId   String
+  serviceTitle String
+  freelancer  String
+  client      String   @default("Anonymous")
+  amount      Decimal  @db.Decimal(18, 2)
+  status      String   @default("held")
+  releasedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([businessId, status])
+  @@map("escrow_orders")
+}
+
+// ============================================================
+// 12. CLINIC
+// ============================================================
+
+model Patient {
+  id            String   @id
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name          String
+  medicalCardId String
+  phone         String   @default("")
+  createdAt     DateTime @default(now())
+
+  appointments Appointment[]
+
+  @@unique([businessId, medicalCardId])
+  @@index([businessId])
+  @@map("patients")
+}
+
+model Appointment {
+  id          String   @id
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor      String
+  scheduledAt DateTime
+  status      String   @default("scheduled")
+  createdAt   DateTime @default(now())
+
+  @@index([businessId, scheduledAt])
+  @@map("appointments")
+}
+
+// ============================================================
+// 13. KYC
+// ============================================================
+
+model KycRecord {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  type       String   // 'nrc' | 'phone'
+  payload    Json
+  valid      Boolean
+  reason     String?
+  verifiedAt DateTime @default(now())
+
+  @@index([businessId, type])
+  @@map("kyc_records")
+}
+
+// ============================================================
+// 14. E-COMMERCE
+// ============================================================
+
+model StorefrontProduct {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  price      Decimal  @db.Decimal(18, 2)
+  stock      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([businessId])
+  @@map("storefront_products")
+}
+
+model EcOrder {
+  id         String   @id
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  lines      Json
+  total      Decimal  @db.Decimal(18, 2)
+  status     String   @default("pending")
+  payment    Json?
+  paidAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, status])
+  @@map("ec_orders")
+}
